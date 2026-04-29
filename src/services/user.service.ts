@@ -20,11 +20,14 @@ export interface UsageLog {
 
 export class UserService {
   async getOrCreateUser(phone: string): Promise<User | null> {
+    // Limpar o número (manter apenas dígitos)
+    const cleanPhone = phone.replace(/\D/g, '');
+
     // Try to find the user
     const { data: user, error: findError } = await supabase
       .from('users')
       .select('*')
-      .eq('phone', phone)
+      .eq('phone', cleanPhone)
       .single();
 
     if (user) return user as User;
@@ -34,13 +37,14 @@ export class UserService {
       .from('users')
       .insert([
         {
-          phone,
+          phone: cleanPhone,
           status: 'triage_name',
           credits: 100 // Créditos iniciais
         }
       ])
       .select()
       .single();
+
 
     if (createError) {
       console.error('Error creating user:', createError);
