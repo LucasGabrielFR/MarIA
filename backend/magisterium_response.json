@@ -1,0 +1,129 @@
+{
+  "id": "chatcmpl-4KyGcqxdoUrClLxe",
+  "object": "chat.completion",
+  "created": 1778272835,
+  "model": "magisterium-1",
+  "system_fingerprint": "fp_0",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "Os **dogmas marianos** (verdades sobre Maria ensinadas pela Igreja como absolutamente certas e a que se deve assentimento de fé) são, na forma mais comum na catequese católica, os seguintes:\n\n- **A Imaculada Conceição**: Maria foi preservada **imune de toda mancha do pecado original** “no primeiro instante da sua conceição”, por uma graça/singular privilégio de Deus, **em vista dos méritos de Cristo**. [^10] [^1] [^5]\n\n- **A Maternidade Divina (Deus é o Filho que Maria gerou)**: Maria é verdadeiramente **Mãe de Deus** (“Mother of God”). [^7]\n\n- **A Virgem Perpétua**: Maria é **sempre virgem** (virgindade perpétua). [^7] [^2]\n\n- **A Assunção de Maria Santíssima**: ao fim da vida terrena, Maria foi **assumida em corpo e alma à glória celestial**. [^3] [^5]\n\nEsses quatro pontos aparecem reunidos na tradição católica como “privilégios”/dogmas marianos: **Imaculada Conceição**, **virgindade perpétua** e **Assunção**, além da doutrina ligada à **sua especial dignidade** (como a Maternidade Divina). [^2] [^7]"
+      },
+      "logprobs": null,
+      "finish_reason": "stop"
+    }
+  ],
+  "citations": [
+    {
+      "cited_text": "2803 Dz 1641 . . . To the honor of the Holy and Undivided Trinity,\n            to the glory and adornment of the Virgin Mother of God, to the\n            exaltation of the Catholic Faith and the increase of the Christian\n            religion, by the authority of our Lord Jesus Christ, of the blessed\n            Apostles, Peter and Paul, and by Our own, We declare, pronounce, and\n            define that the doctrine, which holds that the most Blessed Virgin\n            Mary at the first instant of her conception, by a singular grace and\n            privilege of Almighty God, in virtue of the merits of Christ Jesus,\n            the Savior of the human race, was preserved immaculate from all\n            stain of original sin, has been revealed by God, and on this account\n            must be firmly and constantly believed by all the faithful.\n            Wherefore, if any should presume to think in their hearts otherwise\n            than as it has been defined by Us, which God avert, let them know... 2803 Dz 1641 . . . To the honor of the Holy and Undivided Trinity, to the glory and adornment of the Virgin Mother of God, to the exaltation of the Catholic Faith and the increase of the Christian religion, by the authority of our Lord Jesus Christ, of the blessed Apostles, Peter and Paul, and by Our own, We declare, pronounce, and define that the doctrine, which holds that the most Blessed Virgin Mary at the first instant of her conception, by a singular grace and privilege of Almighty God, in virtue of the merits of Christ Jesus, the Savior of the human race, was preserved immaculate from all stain of original sin, has been revealed by God, and on this account must be firmly and constantly believed by all the faithful. Wherefore, if any should presume to think in their hearts otherwise than as it has been defined by Us, which God avert, let them know and understand that they are condemned by their own judgment; that they have suffered shipwreck in regard to faith, and have revolted from the unity of the Church; and what is more, that by their own act they subject themselves to the penalties established by law, if, what they think in their heart, they should to signify by word or writing or any other external means.",
+      "cited_text_heading": "Definition of the Immaculate Conception of the B.V.M. - From the\n            Bull, \"Ineffabilis Deus,\" Dec. 8, 1854",
+      "document_title": "The Sources of Catholic Dogma (Enchiridion Symbolorum)",
+      "document_index": 0,
+      "document_author": "Heinrich Joseph Dominicus Denzinger",
+      "document_reference": "2803",
+      "document_year": "1854",
+      "source_url": "https://www.magisterium.com/docs/17f50f07-de81-4bf5-997c-f41ee830c033/ref/2803"
+    },
+    {
+      "cited_text": "These singular privileges are four: her Immaculate Conception, personal freedom from sin, perpetual virginity, and her bodily Assumption into heaven. For the three former we have doctrinal decisions of the Church, which are final. However, though Mary's bodily Assumption has not yet been solemnly declared an article of faith, nevertheless the Church has practically demonstrated such to be her belief by celebrating from the earliest times the feast of the Assumption of the Mother of God. Two more privileges are connected with Mary's dignity: her special mediatorship between the Redeemer and the redeemed and her exclusive right to hyperdulia. Of course, it is clear that the mediatorship of Mary is entirely subordinate to that of Her Divine Son and derives its whole efficacy and power therefrom. In order the better to understand the value and importance of Mary's peculiar right to such veneration, it will be well to consider, by way of contrast, the dulia paid to the saints and, again, the doctrine concerning the veneration paid to relics and images. For the most part, dogmatic theologians prefer to treat these latter subjects under eschatology, together with the Communion of Saints.\n3. Grace (De gratia)\nThe Christian idea of grace is based entirely upon the supernatural order. A distinction is made between actual and sanctifying grace, according as there is question of a supernatural activity or merely the state of sanctification. But the crucial point in the whole doctrine of grace lies in the justification of the sinner, because, after all, the aim and object of actual grace is either to lay the foundation for the grace of justification when the latter is absent, or to preserve the grace of justification in the soul that already possesses it. The three qualities of actual grace are of the utmost importance: its necessity, its gratuitousness, and its universality.",
+      "cited_text_heading": "Dogmatic Theology",
+      "document_title": "Catholic Encyclopedia",
+      "document_index": 1,
+      "document_author": "The Encyclopedia Press",
+      "document_reference": "Dogmatic Theology",
+      "document_year": "1913",
+      "source_url": "https://www.magisterium.com/docs/f2c979a8-871d-4f46-a059-320d3b837a76/ref/Dogmatic%20Theology"
+    },
+    {
+      "cited_text": "What if we were to assume this framework of divine faith? Equipped with the reverence Rahner recommends, we would encounter the following as a teaching of the faith that makes divine faith explicit in one specific regard: &quot;We pronounce, declare, and define it to be a divinely revealed dogma: that the Immaculate Mother of God, the ever Virgin Mary, having completed the course of her earthly life, was assumed body and soul into heavenly glory.&quot; Thus states the dogma of the Assumption of the Blessed Virgin Mary as it was defined and promulgated by Pope Pius XII on November 1, 1950, in the Apostolic Constitution Munificentissimus Deus.6 The dogma of the Assumption of the Blessed Virgin into heaven, body and soul, expresses a truth integral to the divine faith we have come presently to assume. The truth made explicit and specified (we could also say &quot;defined&quot;) in the dogma belongs to the essence of divine faith; it is an article of this faith as much as the articles to assume. The truth made explicit and specified (we could also say &quot;defined&quot;) in the dogma belongs to the essence of divine faith; it is an article of this faith as much as the articles specified in the Apostolic and the Nicene Creed, that is, among others, that God is triune, that Jesus Christ is the Son of God incarnate, that he was raised from the dead on the third day and ascended into heaven. All of these truths and numerous others are divinely revealed and therefore integral to divine faith.76 &quot;Pronunciamus, declaramus et definimus divinitus revelatum dogma esse: Immaculatam Deiparam semper Virginem Mariam, expleto terrestris vitae cursu, fuisse corpore et anima ad caelestem gloriam assumptam&quot; (DH 3903; Heinrich Denzinger, Compendium of Creeds, Definitions, and Declarations on Matters of Faith and Morals, 43rd ed., ed. Peter Hünermann [San Francisco: Ignatius Press, 2010], 809).7 Unsurprisingly, therefore, Munificentissimus Deus clearly states: &quot;Hence, Declarations on Matters of Faith and Morals, 43rd ed., ed. Peter Hünermann [San Francisco: Ignatius Press, 2010], 809).7 Unsurprisingly, therefore, Munificentissimus Deus clearly states: &quot;Hence, if anyone, which God forbid, should dare willfully to deny or call into doubt that which We have defined, let him know that he has fallen away completely from the divine and Catholic faith&quot; (&quot;Quamobrem, si quis, quod Deus advertat, id vel negare, vel in dubium vocare voluntarie ausus fuerit, quod a Nobis definitum est, noverit se a divina ac catholica fide prorsus defecisse [DH 3904]). For further clarification, see &quot;Doctrinal Commentary on the Concluding Formula of the Professio Fidei&quot; issued by the Congregation for the Doctrine of the Faith on June 29, 1998. In paragraph 11, the commentary states: &quot;To the truths of the first paragraph belong the articles of the faith of the Creed, the various Christological dogmas and Marian dogmas; the doctrine of the paragraph 11, the commentary states: &quot;To the truths of the first paragraph belong the articles of the faith of the Creed, the various Christological dogmas and Marian dogmas; the doctrine of the institution of the sacraments by Christ and their efficacy with regard to grace; the doctrine of the real and substantial presence of Christ in the Eucharist and the sacrificial nature of the eucharistic celebration; the foundation of the Church by the will of Christ; the doctrine on the primacy and infallibility of the Roman Pontiff; the doctrine on the existence of original sin; the doctrine on the immortality of the spiritual soul and on the immediate recompense after death; the absence of error in the inspired sacred texts; the doctrine on the grave immorality of direct and voluntary killing of an innocent human being.&quot; ",
+      "cited_text_heading": "",
+      "document_title": "The Assumption of the Blessed Virgin Mary into Heaven: Faith, Dogma, and Eschatology",
+      "document_index": 2,
+      "document_author": "Reinhard Hütter",
+      "document_reference": "page4",
+      "document_year": "2015",
+      "source_url": "https://www.magisterium.com/docs/3d53b589-7ed0-45ca-8c91-4efeb164bbd9/ref/page4"
+    },
+    {
+      "cited_text": "constantly by all the faithful.&quot;9 Of course, there is much of interest in Ineffabilis Deus aside from this formal definition, and a great deal of the debate that followed in its wake takes up various aspects of the Apostolic Constitution, especially as it adopts and shapes earlier papal and conciliar teaching on the special privileges of the Blessed Virgin Mary. Following Scheeben, however, we will focus primarily on the dogmatic definition. Borrowing (but modifying) a list from Juniper Carol, I would highlight six points of the dogma.10 It is de fide: 1. that Our Lady was immune from all stain of original sin; 2. that God granted the Virgin this immunity at the very first instant of her conception; 3. that the Virgin&apos;s immunity was due to God&apos;s singular grace and privilege; 4. that her immunity was granted in view of the merits of Jesus Christ; 5. that her immunity was granted by way of preservation; and 6. that Our Lady was therefore saved by Christ.11 The Church, 4. that her immunity was granted in view of the merits of Jesus Christ; 5. that her immunity was granted by way of preservation; and 6. that Our Lady was therefore saved by Christ.11 The Church, however, has not defined the following points:9 Pius IX, Bulla &quot;Ineffabilis Deus,&quot; 8 Dec. 1854: &quot;Declaramus, pronuntiamus et definimus doctrinam quae tenet beatissimam Virginem Mariam in primo instanti suae conceptionis fuisse singulari Omnipotentis Dei gratia et privilegio, intuitu meritorum Christi Jesu Salvatoris humani generis, ab omni originalis culpae labe praeservatam immunem, esse a Deo revelatam, atque idcirco ab omnibus fidelibus firmiter constanterque credendam&quot; (DS 2803).10 Juniper Carol, O.F.M., &quot;Reflections on the Problem of Mary&apos;s Preservative Redemption,&quot; Marian Studies 30 (1979): 19-88, at 21-22.11 Carol feels that it is de fide that Mary was redeemed by Christ, although strictly speaking the text mentions Christ not as Redeemer but as Marian Studies 30 (1979): 19-88, at 21-22.11 Carol feels that it is de fide that Mary was redeemed by Christ, although strictly speaking the text mentions Christ not as Redeemer but as Savior. Many, if not most, theologians consider the two concepts to be identical, and a case can be made that the best way to interpret the text is as if it said Christi Jesu Redemptoris, since these are the words of the text of Alexander VII, Breve &quot;Sollicitudo omnium ecclesiarum,&quot; 8 Dec. 1661 (DS 2015). The Mariologist Juan Alfaro feels that Mary&apos;s redemption is at least proxima fidei. Cf. J. Alfaro, &quot;La fórmula definitoria de la Inmaculada Concepción,&quot; in Virgo Immaculata, vol. 2 (1956), 201-75, at 270-71. Still, a case can be made that the Apostolic Constitution changed the title Redemptoris to Salvatoris precisely to include the position of several theologians who argued that Christ preserved Mary from contracting the stain of original sin by His glorification rather than Redemptoris to Salvatoris precisely to include the position of several theologians who argued that Christ preserved Mary from contracting the stain of original sin by His glorification rather than by His Passion as such. Indeed, the Church has never felt a need to reduce Christ&apos;s mediation to redemption alone, however much individual theologians have been tempted to do so. ",
+      "cited_text_heading": "",
+      "document_title": "Matthias Joseph Scheeben and the Controversy over the Debitum Peccati",
+      "document_index": 3,
+      "document_author": "Trent Pomplun",
+      "document_reference": "page5",
+      "document_year": "2013",
+      "source_url": "https://www.magisterium.com/docs/c74a7520-629d-4588-b05d-2df9eca1b72f/ref/page5"
+    },
+    {
+      "cited_text": "“The most blessed Virgin Mary was from the first moment of her conception, by a singular grace and privilege of Almighty God and by virtue of the merits of Jesus Christ, Savior of the human race, preserved immune from all stain of original sin.” (Denziger 2803; also Catechism of the Catholic Church, 491).\r\n275 Menaion, Dormition of our Most Holy Lady, the Mother of God and Ever-Virgin Mary (August 15/28), Vespers, Stichera at Psalm 140.\r\n276 Catechism of the Catholic Church, 966; see also 974. With the Apostolic constitution Munificentissimus Deus [Most-Bountiful God] (November 1, 1950) Pope Pius XII promulgated the dogma stating that “the Immaculate Mother of God and Ever-Virgin Mary, having completed the course of her earthly life, was assumed body and soul into heavenly glory.”",
+      "cited_text_heading": "Part One - THE FAITH OF THE CHURCH - III. WE BELIEVE IN GOD THE FATHER, CREATOR OF HEAVEN AND EARTH, AND IN OUR SAVIOUR JESUS CHRIST, AND IN THE HOLY SPIRIT, THE LORD, THE GIVER OF LIFE - C. The Church—An Icon of the Most Holy Trinity - 4. The Church—A New Creation - a. Devotion to the Most Holy Mother of God",
+      "document_title": "Catechism of the Ukrainian Catholic Church: Christ – Our Pascha",
+      "document_index": 4,
+      "document_author": "Synod of the Ukrainian Greek Catholic Church",
+      "document_reference": "313",
+      "document_year": "2016",
+      "source_url": "https://www.magisterium.com/docs/5c0fb401-3c71-494e-bfce-ac8641dafd3b/ref/313"
+    },
+    {
+      "cited_text": "# The Immaculate Conception of the B.V.M. - From the Bull\n            \"Sollicitudo omnium eccl.,\" Dec. 8, 1661\n\n2017 (4) We renew the Constitutions and decrees published by Roman\n            Pontiffs in favor of the opinion that asserts that the soul of the\n            blessed Virgin Mary at its creation, and at its infusion into her\n            body, was blessed by the grace of the Holy Spirit and was preserved\n            from original sin.\n\n---",
+      "cited_text_heading": "The Immaculate Conception of the B.V.M. - From the Bull\n            \"Sollicitudo omnium eccl.,\" Dec. 8, 1661",
+      "document_title": "The Sources of Catholic Dogma (Enchiridion Symbolorum)",
+      "document_index": 5,
+      "document_author": "Heinrich Joseph Dominicus Denzinger",
+      "document_reference": "2017",
+      "document_year": "1854",
+      "source_url": "https://www.magisterium.com/docs/17f50f07-de81-4bf5-997c-f41ee830c033/ref/2017"
+    },
+    {
+      "cited_text": "3. Among the brethren who \"give due honour to the Mother of our Lord and Saviour\", the Council mentions Eastern Christians, \"who with devout mind and fervent impulse give honour to the Mother of God, Ever-Virgin\" (Lumen gentium, n. 69).\nAs we can see from their many expressions of devotion, veneration for Mary represents a significant element of communion between Catholics and Orthodox.\nHowever, there remain some disagreements regarding the dogmas of the Immaculate Conception and the Assumption, even if these truths were first expounded by certain Eastern theologians — one need only recall great writers like Gregory Palamas (†1359), Nicholas Cabasilas († after 1369) and George Scholarios († after 1472).\nThese disagreements, however, are perhaps more a question of formulation than of content and must never make us forget our common belief in Mary’s divine motherhood, her perpetual virginity, her perfect holiness and her maternal intercession with her Son. As the Second Vatican Council recalled, this \"fervent impulse\" and \"devout mind\" unite Catholics and Orthodox in devotion to the Mother of God.",
+      "cited_text_heading": "Separated brethren also honour Mary",
+      "document_title": "General Audience of 12 November 1997",
+      "document_index": 6,
+      "document_author": "Pope John Paul II",
+      "document_reference": "3",
+      "document_year": "1997",
+      "source_url": "https://www.magisterium.com/docs/e1786f8e-56ef-4fa2-b26c-f09af1c684b5/ref/3"
+    },
+    {
+      "cited_text": "Thus, when it was solemnly proclaimed that Mary, the Virgin Mother of God, was from the very beginning free from the taint of original sin, the minds of the faithful were filled with a stronger hope that the day might soon come when the dogma of the Virgin Mary's bodily Assumption into heaven would also be defined by the Church's supreme teaching authority.",
+      "cited_text_heading": "Munificentissimus Deus",
+      "document_title": "Munificentissimus Deus",
+      "document_index": 7,
+      "document_author": "Pope Pius XII",
+      "document_reference": "6",
+      "document_year": "1950",
+      "source_url": "https://www.magisterium.com/docs/d27e1a37-6153-4302-a17d-5d22f89932f8/ref/6"
+    },
+    {
+      "cited_text": "Emphasis on the doctrines I have picked out does not destroy the evangelical and scriptural proportions of faith. These doctrines are best seen within their context within the Church's life, a context shaped by the prominence of the \"Our Father\" and the dominant place of the Eucharist. The latter fixes Catholic orientation towards the risen Jesus as present now, in the Eucharist giving us immediate address to the Father, and centering Catholic life on Christ's Passion for the sake of us all, sealing the Covenant with us, and making himself our food as wayfarers and pilgrims, vehicles of our being strengthened by the Holy Spirit and opened to his guidance. The teachings about Mary do not obscure these central realities. Rather each doctrine about the Virgin Mary points to truths about Christ and about God's way of working with man, beginning with the case Ignatius of Antioch makes plain: if it was the Son of God who died on the cross for us, it must have been the Son of God who was and about God's way of working with man, beginning with the case Ignatius of Antioch makes plain: if it was the Son of God who died on the cross for us, it must have been the Son of God who was conceived and born of Mary; this was to be the basis of the rejection of Nestorianism in 431. Moreover, it is always God's way to work beforehand to raise up human consent before any intended action on his part, and so Mary's consent to be his mother was vital to our salvation, and this same element of participation in his work is seen in her willing presence at the foot of the cross where \"her heart would be pierced also,\" and in her presence with the apostles waiting in prayer for the Holy Spirit to come at Pentecost. Her joining Christ in prayer for the salvation of man and her bodily assumption into heaven are post-Pentecostal examples of her going before us. Accordingly, Catholic teachings in regard to the Virgin Mary lend strength to our hold on the universal truths about Christ and about God's way of working with man, and their denial turns out in the end to weaken our hold on the doctrines Christians share. In the meantime in her role in the Church she stands as representative of the Jews as the elder Israel. My main aim in this essay has been to show why these doctrines should have a dogmatic place, rather than resting solely as theologoumena. This dogmatic place arises from the uniqueness of her human relation and role in respect of her son. ## Appendix: The Buildings, Liturgy, and Apocryphal Literature Relating to Mary, and her Death, Falling Asleep, or Assumption, 400-800 C.E.\n\nChurches Built In and Around Jerusalem Over the First Seven Centuries The periods of preparation and feasts structuring the Church's year established in the first two centuries appear to have been limited to Easter, the Ascension, and Pentecost, together with a long period of perhaps up to nine\n\n--- ",
+      "cited_text_heading": "Appendix: The Buildings, Liturgy, and Apocryphal Literature Relating to Mary, and her Death, Falling Asleep, or Assumption, 400-800 C.E.",
+      "document_title": "The Virgin Mary in the Christian Faith: The Development of the Church's Teaching on the Virgin Mary in Modern Perspective",
+      "document_index": 8,
+      "document_author": "David Braine",
+      "document_reference": "page55",
+      "document_year": "2009",
+      "source_url": "https://www.magisterium.com/docs/560e19ca-f6c1-43c3-a9e6-74737e7ddb1a/ref/page55"
+    },
+    {
+      "cited_text": "The Definition Wherefore, in humility and fasting, we unceasingly offered our private prayers as well as the public prayers of the Church to God the Father through his Son, that he would deign to direct and strengthen our mind by the power of the Holy Spirit. In like manner did we implore the help of the entire heavenly host as we ardently invoked the Paraclete. Accordingly, by the inspiration of the Holy Spirit, for the honor of the Holy and undivided Trinity, for the glory and adornment of the Virgin Mother of God, for the exaltation of the Catholic Faith, and for the furtherance of the Catholic religion, by the authority of Jesus Christ our Lord, of the Blessed Apostles Peter and Paul, and by our own: “We declare, pronounce, and define that the doctrine which holds that the most Blessed Virgin Mary, in the first instance of her conception, by a singular grace and privilege granted by Almighty God, in view of the merits of Jesus Christ, the Savior of the human race, was preserved free from all stain of original sin, is a doctrine revealed by God and therefore to be believed firmly and constantly by all the faithful.”[29] Hence, if anyone shall dare — which God forbid! — to think otherwise than as has been defined by us, let him know and understand that he is condemned by his own judgment; that he has suffered shipwreck in the faith; that he has separated from the unity of the Church; and that, furthermore, by his own action he incurs the penalties established by law if he should dare to express in words or writing or by any other outward means the errors he thinks in his heart. Hoped-For Results Our soul overflows with joy and our tongue with exultation. We give, and we shall continue to give, the humblest and deepest thanks to Jesus Christ, our Lord, because through his singular grace he has granted to us, unworthy though we be, to decree and offer this honor and glory and praise to his most holy Mother.",
+      "cited_text_heading": "",
+      "document_title": "Ineffabilis Deus",
+      "document_index": 9,
+      "document_author": "Pope Pius IX",
+      "document_reference": "",
+      "document_year": "1854",
+      "source_url": "https://www.magisterium.com/docs/ffb3a9f0-41e7-42b6-8c9b-5c63834389d3/ref/"
+    }
+  ],
+  "error": null,
+  "usage": {
+    "completion_tokens": 15719,
+    "total_tokens": 15726,
+    "prompt_tokens": 7,
+    "completion_tokens_details": {
+      "system_tokens": 14224
+    }
+  }
+}

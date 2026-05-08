@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import LoginPage from './pages/login'
 import DashboardPage from './pages/dashboard'
 import UsersPage from './pages/users'
+import AiSettingsPage from './pages/ai-settings'
 import { Toaster } from "@/components/ui/sonner"
 
 function App() {
@@ -11,6 +12,7 @@ function App() {
         <Route path="/" element={<LoginPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/users" element={<UsersPage />} />
+        <Route path="/ai-settings" element={<AiSettingsPage />} />
         
         {/* Fallback routes - to be implemented as needed */}
         <Route path="/conversations" element={<DashboardPage />} />

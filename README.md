@@ -6,16 +6,17 @@ MarIA é uma IA Generativa integrada ao WhatsApp que personifica a figura de Nos
 ## 🚀 Funcionalidades
 - **Linguagem Maternal:** Interação empática e acolhedora.
 - **Lógica Híbrida:** Fluxo conversacional gerido no backend (GPT-4o-mini) auxiliado por planejamento visual, e automações (CRONs) via n8n.
-- **Triagem Automatizada:** Onboarding de novos fiéis diretamente no WhatsApp.
-- **Dashboard Admin:** Painel Vite + React para gerenciamento de usuários e monitoramento de analytics/créditos.
-- **Monitoramento de Custos:** Acompanhamento em tempo real de consumo de tokens e custos de API.
+- **Integração WhatsApp:** Comunicação bidirecional via provedor oficial UAZAPI (Webhooks e Outbound REST).
+- **Memória de Longo Prazo:** Resumo periódico do contexto conversacional do usuário e histórico completo para uma experiência de atendimento super personalizada.
+- **Dashboard Admin:** Painel Vite + React para parametrização dinâmica de prompts, gerenciamento de usuários e monitoramento.
+- **Parametrização Dinâmica:** Controle total sobre a persona e regras da IA via interface administrativa.
 
 ## 🛠 Arquitetura
-- **Motor Cognitivo & Backend:** NestJS (TypeScript) utilizando o SDK oficial do Supabase e GPT-4o-mini.
-- **Gateway:** UAZAPI para integração com WhatsApp.
-- **Frontend (Admin):** Vite + React + Tailwind CSS v4 + shadcn/ui + Styled-components.
-- **Banco de Dados:** Supabase (Postgres) com Row Level Security (RLS).
-- **Documentação Adicional:** [CHANGELOG.md](CHANGELOG.md) para histórico de versões.
+- **Motor Cognitivo & Backend:** NestJS (TypeScript) com arquitetura de **Two-Step Prompting**.
+  - **Roteador de Intenções:** Classificação inteligente de mensagens.
+  - **Injeção de Contexto Teológico:** Integração nativa com **Magisterium AI**.
+- **Supabase:** Postgres com RLS avançado. Utilizado para a gestão de Prompts Dinâmicos e Tabela de Históricos de Conversas (`messages`) e Sumarização Geral (`user_contexts`).
+- **Frontend (Admin):** Vite + React + Tailwind CSS v4 + shadcn/ui.
 
 ## 🏃 Como Rodar o Projeto
 
@@ -35,6 +36,7 @@ Na raiz do projeto, você pode usar um dos seguintes comandos:
 Isso iniciará o Vite (Frontend) na porta padrão e o NestJS (Backend) com hot-reload.
 
 ## 📄 Documentação
+- [Guia Magisterium AI](docs/MAGISTERIUM_AI.md)
 - [Proposta de Negócio](PROPOSTA_MARIA.md)
 - [Plano de Ação e Arquitetura](action-plan.md)
 

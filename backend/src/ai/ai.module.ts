@@ -1,0 +1,16 @@
+import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { AiService } from './ai.service';
+import { PromptService } from './prompt.service';
+import { MagisteriumService } from './magisterium.service';
+import { LiturgyService } from './liturgy.service';
+import { AiController } from './ai.controller';
+import { SupabaseModule } from '../supabase/supabase.module';
+
+@Module({
+  imports: [ConfigModule, SupabaseModule],
+  controllers: [AiController],
+  providers: [AiService, PromptService, MagisteriumService, LiturgyService],
+  exports: [AiService, PromptService, MagisteriumService, LiturgyService],
+})
+export class AiModule {}

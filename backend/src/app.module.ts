@@ -5,6 +5,8 @@ import { AppService } from './app.service';
 import { SupabaseModule } from './supabase/supabase.module';
 import { AuthModule } from './auth/auth.module';
 import { AdminModule } from './admin/admin.module';
+import { AiModule } from './ai/ai.module';
+import { UazapiModule } from './uazapi/uazapi.module';
 
 @Module({
   imports: [
@@ -14,6 +16,8 @@ import { AdminModule } from './admin/admin.module';
     SupabaseModule,
     AuthModule,
     AdminModule,
+    AiModule,
+    UazapiModule,
   ],
   controllers: [AppController],
   providers: [AppService],
