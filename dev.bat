@@ -1,0 +1,3 @@
+@echo off
+echo Iniciando MarIA (Frontend + Backend)...
+npm run dev

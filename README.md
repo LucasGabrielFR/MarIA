@@ -17,6 +17,23 @@ MarIA é uma IA Generativa integrada ao WhatsApp que personifica a figura de Nos
 - **Banco de Dados:** Supabase (Postgres) com Row Level Security (RLS).
 - **Documentação Adicional:** [CHANGELOG.md](CHANGELOG.md) para histórico de versões.
 
+## 🏃 Como Rodar o Projeto
+
+Para agilizar o desenvolvimento, configuramos um orquestrador na raiz que inicia o Frontend e o Backend simultaneamente.
+
+### Pré-requisitos
+- Node.js instalado
+- Dependências instaladas em ambas as pastas (`frontend` e `backend`)
+
+### Execução em Desenvolvimento
+Na raiz do projeto, você pode usar um dos seguintes comandos:
+
+- **Via Terminal (npm):** `npm run dev`
+- **Via Windows (Powershell):** `./dev.ps1`
+- **Via Windows (CMD/Batch):** `dev.bat`
+
+Isso iniciará o Vite (Frontend) na porta padrão e o NestJS (Backend) com hot-reload.
+
 ## 📄 Documentação
 - [Proposta de Negócio](PROPOSTA_MARIA.md)
 - [Plano de Ação e Arquitetura](action-plan.md)
