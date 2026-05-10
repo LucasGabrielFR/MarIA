@@ -16,6 +16,10 @@ export class SupabaseService {
       throw new Error('SUPABASE_URL and SUPABASE_KEY (or SUPABASE_SERVICE_ROLE_KEY) are required in .env');
     }
 
+    if (!global.WebSocket) {
+      global.WebSocket = require('ws');
+    }
+
     this.supabase = createClient(supabaseUrl, supabaseKey, {
       auth: {
         autoRefreshToken: false,

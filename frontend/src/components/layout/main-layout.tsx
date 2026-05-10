@@ -1,7 +1,7 @@
 import React from 'react'
 import { Sidebar } from './sidebar'
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { cn } from "@/lib/utils"
+
 
 interface MainLayoutProps {
   children: React.ReactNode;

@@ -83,7 +83,7 @@ export default function UsersPage() {
 
         {isSuperAdmin && (
           <Dialog>
-            <DialogTrigger asChild>
+            <DialogTrigger>
               <Button className="h-11 px-6 bg-primary hover:bg-primary/90 text-white rounded-xl font-bold shadow-lg shadow-blue-100 flex gap-2">
                 <LucideUserPlus size={18} />
                 Convidar Admin
@@ -175,7 +175,7 @@ export default function UsersPage() {
                   </TableCell>
                   <TableCell className="text-right px-6">
                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
+                      <DropdownMenuTrigger>
                         <Button variant="ghost" className="h-9 w-9 p-0 rounded-full hover:bg-slate-100">
                           <LucideMoreVertical size={18} className="text-slate-400" />
                         </Button>

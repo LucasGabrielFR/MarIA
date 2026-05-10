@@ -18,4 +18,7 @@ export default defineConfig({
       "src": path.resolve(__dirname, "./src"),
     },
   },
+  preview: {
+    allowedHosts: ["maria.acutistech.com.br"],
+  },
 })
