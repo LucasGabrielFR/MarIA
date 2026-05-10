@@ -6,7 +6,7 @@ MarIA é uma IA Generativa integrada ao WhatsApp que personifica a figura de Nos
 ## 🚀 Funcionalidades
 - **Linguagem Maternal:** Interação empática e acolhedora.
 - **Lógica Híbrida:** Fluxo conversacional gerido no backend (GPT-4o-mini) auxiliado por planejamento visual, e automações (CRONs) via n8n.
-- **Integração WhatsApp:** Comunicação bidirecional via provedor oficial UAZAPI (Webhooks e Outbound REST).
+- **Integração WhatsApp Premium:** Comunicação bidirecional via UAZAPI com suporte a **confirmação de leitura automática** e **indicador de "digitando"** em tempo real.
 - **Memória de Longo Prazo:** Resumo periódico do contexto conversacional do usuário e histórico completo para uma experiência de atendimento super personalizada.
 - **Dashboard Admin:** Painel Vite + React para parametrização dinâmica de prompts, gerenciamento de usuários e monitoramento.
 - **Parametrização Dinâmica:** Controle total sobre a persona e regras da IA via interface administrativa.

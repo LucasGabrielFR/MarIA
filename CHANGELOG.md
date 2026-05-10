@@ -5,6 +5,15 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 e este projeto adere ao [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-05-10
+
+### Added
+- **Confirmação de Leitura Automática:** O bot agora marca as mensagens recebidas como lidas imediatamente após o processamento inicial.
+- **Indicador de Digitando:** Implementado o estado de "composing" (digitando) enquanto a IA processa a resposta, oferecendo um feedback visual em tempo real para o usuário no WhatsApp.
+
+### Changed
+- **Serviço UAZAPI:** Expansão do `UazapiService` para incluir métodos de manipulação de presença e status de leitura de chats.
+
 ## [1.1.0] - 2026-05-08
 
 ### Added

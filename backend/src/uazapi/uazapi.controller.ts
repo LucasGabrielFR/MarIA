@@ -62,6 +62,10 @@ export class UazapiController {
 
       this.logger.log(`Processing message from ${chatId}: "${messageContent}"`);
 
+      // Marcar como lido e enviar estado de "digitando"
+      await this.uazapiService.markRead(chatId);
+      await this.uazapiService.sendPresence(chatId, 'composing');
+
       // Extrair nome e telefone para persistência se for novo usuário
       const pushName = messageData.senderName || payload.chat?.wa_name || payload.chat?.wa_contactName || 'Usuário';
       const phoneNumber = payload.chat?.phone || chatId.split('@')[0];
