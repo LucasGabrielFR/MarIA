@@ -35,6 +35,20 @@ Na raiz do projeto, você pode usar um dos seguintes comandos:
 
 Isso iniciará o Vite (Frontend) na porta padrão e o NestJS (Backend) com hot-reload.
 
+### Execução em Servidor (VPS)
+Para realizar o deploy em um servidor VPS (Linux), fornecemos scripts automatizados baseados no `pm2` para gerenciar os processos em produção.
+
+1. Conecte-se via SSH ao seu servidor e clone/puxe o projeto.
+2. Na raiz do projeto, certifique-se de ter dado permissão de execução ao script:
+   ```bash
+   chmod +x deploy.sh
+   ```
+3. Execute o script de deploy:
+   ```bash
+   ./deploy.sh
+   ```
+Este comando irá baixar as últimas atualizações, instalar todas as dependências (`frontend` e `backend`), gerar a build e reiniciar o projeto usando o **PM2** (via `ecosystem.config.js`). O backend rodará na porta padrão do Nest e o frontend via preview do Vite.
+
 ## 📄 Documentação
 - [Guia Magisterium AI](docs/MAGISTERIUM_AI.md)
 - [Proposta de Negócio](PROPOSTA_MARIA.md)

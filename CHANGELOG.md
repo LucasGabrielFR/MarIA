@@ -8,6 +8,7 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [1.1.0] - 2026-05-08
 
 ### Added
+- **Deploy Automático:** Script bash (`deploy.sh`) e configuração do PM2 (`ecosystem.config.js`) para simplificar e gerenciar a execução do app em servidores VPS Linux.
 - **Integração UAZAPI (WhatsApp):** Recebimento e envio de mensagens via provedor UAZAPI (Webhook e Outbound).
 - **Memória de Longo e Curto Prazo (Supabase):** Implementação de armazenamento de histórico de chat e sumarização assíncrona de contexto geral do usuário a cada 10 mensagens para prover contexto enriquecido ao LLM.
 - **Integração Magisterium AI (Chat API):** Consulta à base oficial de dados teológicos via API robusta.
