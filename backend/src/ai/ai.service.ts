@@ -11,6 +11,7 @@ export class AiService {
   private readonly logger = new Logger(AiService.name);
   private readonly openRouterApiKey: string;
   private readonly model: string;
+  private readonly bridgeModel: string;
 
   constructor(
     private readonly promptService: PromptService,
@@ -22,6 +23,7 @@ export class AiService {
   ) {
     this.openRouterApiKey = this.configService.get<string>('OPENROUTER_API_KEY') || '';
     this.model = this.configService.get<string>('OPENROUTER_GPT_MODEL') || 'openai/gpt-4o-mini';
+    this.bridgeModel = this.configService.get<string>('OPENROUTER_BRIDGE_MODEL') || 'google/gemini-2.5-flash-lite';
   }
 
   /**
@@ -405,7 +407,7 @@ NÃO altere os textos das leituras ou da reflexão, apenas organize-os visualmen
 CONTEÚDO PARA FORMATAR:
 ${cachedContent}`;
 
-    return await this.callOpenRouter(bridgePrompt, userMessage, false, history, 'google/gemini-flash-1.5');
+    return await this.callOpenRouter(bridgePrompt, userMessage, false, history, this.bridgeModel);
   }
 
   /**

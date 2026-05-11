@@ -5,6 +5,12 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 e este projeto adere ao [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-05-11
+
+### Changed
+- **Modelo Bridge Atualizado:** Substituição do modelo `google/gemini-flash-1.5` (descontinuado no OpenRouter) pelo **`google/gemini-2.5-flash-lite`**, garantindo continuidade do serviço com baixo custo.
+- **Parametrização de Modelos:** O modelo Bridge agora é configurável via variável de ambiente `OPENROUTER_BRIDGE_MODEL`, facilitando futuras manutenções sem alteração de código.
+
 ## [1.3.0] - 2026-05-11
 
 ### Added
