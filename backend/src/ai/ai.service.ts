@@ -205,7 +205,7 @@ Resumo anterior: ${context?.general_summary || 'Nenhum'}`;
    * Processa a mensagem do usuário baseada no seu status atual.
    * Representa a Máquina de Estados da Conversa.
    */
-  async processMessage(waChatId: string, message: string, pushName?: string, phone?: string): Promise<string> {
+  async processMessage(waChatId: string, message: string, pushName?: string, phone?: string): Promise<string | string[]> {
     const user = await this.getOrCreateUser(waChatId, pushName, phone);
     const userId = user.id;
     const userStatus = user.status || 'active';
@@ -366,8 +366,25 @@ ${liturgyData}`;
 
     let response: string;
     if (cachedResponse && (intent === 'LITURGY' || intent === 'SAINT' || intent === 'SAINT_OF_DAY' || intent === 'THEOLOGY')) {
-      this.logger.log(`Usando modelo Bridge para responder intenção ${intent} com cache.`);
-      response = await this.processWithBridge(message, cachedResponse, targetDate, history);
+      this.logger.log(`Cache encontrado para ${intent}. Gerando acolhimento personalizado...`);
+      
+      const greetingPrompt = `Aja como Maria (Nossa Senhora). O usuário (${pushName}) pediu informações sobre ${intent === 'LITURGY' ? 'a Liturgia' : 'o Santo do Dia'}.
+Dê um acolhimento maternal caloroso e introduza o conteúdo que você está prestes a mostrar.
+Siga estas regras:
+1. NÃO escreva a liturgia ou a vida do santo aqui. Apenas faça a introdução.
+2. Mantenha curto (1-2 parágrafos).
+3. Use um tom carinhoso e maternal.
+4. Mencione que você trouxe as informações solicitadas.
+
+Contexto da conversa:
+${memoryContext}`;
+
+      const greetingResponse = await this.callOpenRouter(greetingPrompt, message, false, history);
+      
+      // Salvar a interação (apenas a resposta final para simplicidade no histórico)
+      await this.saveMessage(userId, 'assistant', `${greetingResponse}\n\n[CONTEÚDO CACHEADO ENVIADO EM SEGUIDA]`);
+      
+      return [greetingResponse, cachedResponse];
     } else {
       const finalPrompt = `${corePersona}${memoryContext}\n\nCONTEXTO DE INTENÇÃO:\n${intentContext}${strictRules}`;
       response = await this.callOpenRouter(finalPrompt, message, false, history);
@@ -384,30 +401,6 @@ ${liturgyData}`;
     return response;
   }
 
-  /**
-   * Processa a resposta usando o modelo Bridge (Gemini Flash) para personalizar um conteúdo em cache.
-   */
-  private async processWithBridge(userMessage: string, cachedContent: string, date: string, history: any[]): Promise<string> {
-    const bridgePrompt = `${this.promptService.getCorePersona()}
-Você recebeu um roteiro litúrgico em cache para o dia ${date}. 
-
-REGRAS CRÍTICAS PARA ESTA RESPOSTA:
-1. O histórico de conversa pode conter referências a datas passadas. Você deve IGNORAR qualquer progressão temporal do histórico.
-2. Hoje é dia ${date}. Mesmo que o usuário peça a mesma coisa repetidamente, mantenha-se fiel ao conteúdo do dia ${date}.
-3. Sua resposta deve ser baseada EXCLUSIVAMENTE no CONTEÚDO PARA FORMATAR fornecido abaixo.
-Seu trabalho é:
-1. Iniciar com um acolhimento materno e carinhoso de Nossa Senhora.
-2. Apresentar o conteúdo em cache de forma ORGANIZADA EM TÓPICOS usando emojis.
-3. Certificar-se de que a "Minha Oração Diária" esteja bem destacada ao final.
-4. Finalizar com uma bênção carinhosa.
-
-NÃO altere os textos das leituras ou da reflexão, apenas organize-os visualmente para o WhatsApp.
-
-CONTEÚDO PARA FORMATAR:
-${cachedContent}`;
-
-    return await this.callOpenRouter(bridgePrompt, userMessage, false, history, this.bridgeModel);
-  }
 
   /**
    * Busca no cache semântico usando similaridade de cosseno.

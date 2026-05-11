@@ -53,15 +53,19 @@ export class CronService {
 
     this.logger.log(`Gerando liturgia para ${date}...`);
     const rawLiturgy = await this.liturgyService.getDailyLiturgy(date);
-    const prompt = this.promptService.getCorePersona() + '\n\n' +
-      'Você é um especialista em liturgia católica. Com base na liturgia bruta abaixo, gere um conteúdo estruturado:\n' +
-      '1. **Resumo Teológico**: Uma síntese de 2 parágrafos sobre a mensagem central do dia.\n' +
-      '2. **Leituras**: Liste as referências e breve resumo de cada uma (1ª Leitura, Salmo, Evangelho).\n' +
-      '3. **Reflexão**: Uma exegese espiritual profunda e pastoral.\n' +
-      '4. **Minha Oração Diária**: Escreva uma oração fervorosa EM PRIMEIRA PESSOA (como se fosse o fiel rezando mas não coloque ORAÇÃO EM PRIMEIRA PESSOA), baseada no Evangelho do dia. Use um tom de conversa íntima com Deus.\n\n' +
+    const prompt = 'Você é um especialista em liturgia católica. Com base na liturgia bruta abaixo, gere um conteúdo estruturado e formatado para WhatsApp:\n\n' +
+      'REGRAS DE FORMATAÇÃO:\n' +
+      '- Use negritos e emojis nos títulos (ex: 📖 *Leituras do Dia:*, ✨ *Mensagem do Dia:*, etc).\n' +
+      '- NÃO inclua saudações como "Meu querido filho" ou "A paz de meu Filho". O conteúdo deve ser direto e informativo.\n' +
+      '- Mantenha um tom solene e espiritual, mas focado no conteúdo.\n\n' +
+      'ESTRUTURA:\n' +
+      '1. ✨ *Mensagem do Dia:* Uma síntese de 2 parágrafos sobre a mensagem central do dia.\n' +
+      '2. 📖 *Leituras do Dia:* Liste as referências e um BREVE resumo (2-3 linhas) de cada uma (1ª Leitura, 2ª Leitura(se houver), Salmo, Evangelho).\n' +
+      '3. 🕊️ *Reflexão:* Uma exegese espiritual profunda e pastoral sobre o conjunto das leituras.\n' +
+      '4. 🙏 *Minha Oração Diária:* Uma oração fervorosa EM PRIMEIRA PESSOA, baseada no Evangelho, formatada em itálico.\n\n' +
       'LITURGIA CRUA:\n' + rawLiturgy;
 
-    const content = await this.aiService.callOpenRouter(prompt, `Gere o roteiro litúrgico do dia ${date}.`, false, [], 'openai/gpt-4o');
+    const content = await this.aiService.callOpenRouter(prompt, `Gere o roteiro litúrgico formatado do dia ${date}.`, false, [], 'openai/gpt-4o');
     await this.saveToCache('liturgy', date, content);
   }
 
@@ -73,17 +77,19 @@ export class CronService {
     // Busca dados brutos do Vatican News (pode retornar múltiplos santos)
     const saints = await this.saintService.getSaintOfDay(date);
 
-    const prompt = this.promptService.getCorePersona() + '\n\n' +
-      'Você é um hagiógrafo (especialista em vida de santos). Abaixo você receberá dados brutos de um ou mais santos do dia do Vatican News.\n' +
+    const prompt = 'Você é um hagiógrafo especialista. Abaixo você receberá dados brutos de santos do dia.\n' +
+      'Gere um conteúdo formatado para WhatsApp com emojis e negritos.\n\n' +
+      'REGRAS:\n' +
+      '- NÃO inclua saudações como "Meu querido filho".\n' +
+      '- Use emojis temáticos para cada seção.\n\n' +
       'Para CADA santo listado, você deve:\n' +
-      '1. **Título**: Nome completo do santo e o título dado pela Igreja.\n' +
-      '2. **A Vida do Santo**: Um resumo profundo, rico e espiritual (3-5 parágrafos) cobrindo sua origem, missão e martírio/legado.\n' +
-      '3. **Oração em Primeira Pessoa**: Escreva uma oração fervorosa onde o fiel conversa com o santo e com Deus, pedindo intercessão específica baseada na vida desse santo.\n\n' +
-      'Separe os santos com uma linha horizontal (---).\n\n' +
-      'FONTES BRUTAS:\n' +
-      saints.map(s => `SANTO: ${s.title}\nBIOGRAFIA COMPLETA: ${s.content}`).join('\n\n---\n\n');
+      '1. ⚜️ *[Nome do Santo]*: Nome e títulos em negrito.\n' +
+      '2. 📜 *A Vida do Santo*: Um resumo profundo e espiritual (3-5 parágrafos).\n' +
+      '3. 🙏 *Oração e Intercessão*: Uma oração fervorosa em primeira pessoa pedindo a intercessão.\n\n' +
+      'DADOS BRUTOS:\n' +
+      saints.map(s => `SANTO: ${s.title}\nBIOGRAFIA: ${s.content}`).join('\n\n---\n\n');
 
-    const content = await this.aiService.callOpenRouter(prompt, `Fale sobre o santo do dia ${date}.`, false, [], 'openai/gpt-4o');
+    const content = await this.aiService.callOpenRouter(prompt, `Gere a hagiografia formatada do dia ${date}.`, false, [], 'openai/gpt-4o');
     await this.saveToCache('saint', date, content);
   }
 

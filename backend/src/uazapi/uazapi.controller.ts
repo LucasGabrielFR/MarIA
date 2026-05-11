@@ -74,7 +74,15 @@ export class UazapiController {
         const responseText = await this.aiService.processMessage(chatId, messageContent, pushName, phoneNumber);
         
         if (responseText) {
-          await this.uazapiService.sendMessage(chatId, responseText);
+          if (Array.isArray(responseText)) {
+            for (const text of responseText) {
+              await this.uazapiService.sendMessage(chatId, text);
+              // Pequeno delay para mensagens sequenciais
+              await new Promise(resolve => setTimeout(resolve, 800));
+            }
+          } else {
+            await this.uazapiService.sendMessage(chatId, responseText);
+          }
           this.logger.log(`Response sent to ${chatId}`);
         }
       } catch (error) {

@@ -5,6 +5,18 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 e este projeto adere ao [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-05-11
+
+### Changed
+- **Estratégia de Resposta (Split Message):** Abandono do modelo "Bridge" para personalização de cache. Agora, o sistema envia **duas mensagens separadas**:
+    1. Um acolhimento maternal caloroso gerado em tempo real (Persona).
+    2. O conteúdo litúrgico/hagiográfico bruto extraído diretamente do cache.
+- **Formatação de Cache:** Prompts de geração (Cron/Manual) atualizados para gerar conteúdos prontos para WhatsApp (com emojis e negritos) e sem saudações internas, permitindo que a Persona introduza o conteúdo naturalmente.
+- **Refinamento Litúrgico:** Inclusão obrigatória de resumos breves para cada leitura e uma reflexão geral profunda no cache de liturgia.
+
+### Removed
+- **Modelo Bridge:** Remoção completa da lógica de processamento via Gemini Flash para economia e fidelidade total ao conteúdo original do cache.
+
 ## [1.3.3] - 2026-05-11
 
 ### Fixed
