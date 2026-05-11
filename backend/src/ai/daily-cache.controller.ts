@@ -1,9 +1,13 @@
-import { Controller, Get, Put, Body, Param, Query } from '@nestjs/common';
+import { Controller, Get, Put, Post, Body, Param, Query } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
+import { CronService } from './cron.service';
 
 @Controller('ai/daily-cache')
 export class DailyCacheController {
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(
+    private readonly supabaseService: SupabaseService,
+    private readonly cronService: CronService
+  ) {}
 
   @Get()
   async getDailyCache(@Query('date') date?: string) {
@@ -37,5 +41,11 @@ export class DailyCacheController {
 
     if (error) throw error;
     return data;
+  }
+
+  @Post('generate')
+  async generateForDay(@Body() body: { date: string, force?: boolean }) {
+    await this.cronService.generateAllForDay(body.date, body.force || false);
+    return { message: `Geração para ${body.date} iniciada/concluída.` };
   }
 }

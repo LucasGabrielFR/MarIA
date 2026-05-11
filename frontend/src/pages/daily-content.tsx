@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { apiRequest } from '@/lib/api'
 import { toast } from "sonner"
-import { Loader2, Save, RefreshCw, Calendar as CalendarIcon } from 'lucide-react'
+import { Loader2, Save, RefreshCw, Sparkles, Calendar as CalendarIcon } from 'lucide-react'
 
 interface DailyCache {
   id: string;
@@ -21,6 +21,7 @@ export default function DailyContentPage() {
   const [contents, setContents] = useState<DailyCache[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
   const fetchDailyContent = async (date: string) => {
@@ -53,6 +54,28 @@ export default function DailyContentPage() {
       console.error(error);
     } finally {
       setSaving(null);
+    }
+  };
+
+  const handleManualGenerate = async () => {
+    const hasContent = contents.length > 0;
+    if (hasContent && !confirm("Já existe conteúdo para este dia. Deseja sobrescrever usando a IA? Isso gastará novos tokens.")) {
+      return;
+    }
+
+    setGenerating(true);
+    try {
+      await apiRequest('/ai/daily-cache/generate', {
+        method: 'POST',
+        body: JSON.stringify({ date: selectedDate, force: true }),
+      });
+      toast.success("Conteúdo gerado com sucesso!");
+      fetchDailyContent(selectedDate);
+    } catch (error) {
+      toast.error("Erro ao gerar conteúdo via IA");
+      console.error(error);
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -119,14 +142,24 @@ export default function DailyContentPage() {
             className="border-none focus:ring-0 text-slate-700 font-bold p-2 mr-2 cursor-pointer"
           />
         </div>
-        <Button 
-          variant="outline" 
-          onClick={() => fetchDailyContent(selectedDate)}
-          className="rounded-2xl border-slate-200 font-bold text-slate-600 hover:bg-slate-50 transition-all px-6 py-6"
-        >
-          <RefreshCw className="mr-2 h-5 w-5" />
-          Atualizar Lista
-        </Button>
+        <div className="flex gap-3">
+          <Button 
+            variant="outline" 
+            onClick={() => fetchDailyContent(selectedDate)}
+            className="rounded-2xl border-slate-200 font-bold text-slate-600 hover:bg-slate-50 transition-all px-6 py-6 h-auto"
+          >
+            <RefreshCw className="mr-2 h-5 w-5" />
+            Atualizar
+          </Button>
+          <Button 
+            onClick={handleManualGenerate}
+            disabled={generating}
+            className="rounded-2xl bg-secondary hover:bg-secondary/90 text-white font-bold px-6 py-6 h-auto shadow-lg shadow-amber-100 transition-all hover:scale-[1.02] active:scale-[0.98]"
+          >
+            {generating ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Sparkles className="mr-2 h-5 w-5" />}
+            Gerar com IA
+          </Button>
+        </div>
       </div>
 
       {loading ? (

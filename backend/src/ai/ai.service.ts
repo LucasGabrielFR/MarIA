@@ -258,26 +258,40 @@ Mensagem: "${message}"`;
 
     let intentContext = '';
     
-    const today = new Date().toLocaleDateString('pt-BR');
+    const todayIso = new Date().toISOString().split('T')[0];
     
     const supabase = this.supabaseService.getClient();
 
-    const getDailyCache = async (type: string) => {
-      const todayIso = new Date().toISOString().split('T')[0];
-      const { data } = await supabase.from('daily_cache')
+    const getDailyCache = async (type: string, targetDateStr?: string) => {
+      const dateToFetch = targetDateStr || todayIso;
+      const { data } = await supabase
+        .from('daily_cache')
         .select('content')
         .eq('type', type)
-        .eq('cache_date', todayIso)
-        .single();
+        .eq('cache_date', dateToFetch)
+        .maybeSingle();
       return data?.content;
     };
+
+    // Detectar se o usuário está perguntando sobre ontem ou amanhã
+    let targetDate = todayIso;
+    const lowerMessage = message.toLowerCase();
+    if (lowerMessage.includes('ontem')) {
+      const d = new Date();
+      d.setDate(d.getDate() - 1);
+      targetDate = d.toISOString().split('T')[0];
+    } else if (lowerMessage.includes('amanhã') || lowerMessage.includes('amanha')) {
+      const d = new Date();
+      d.setDate(d.getDate() + 1);
+      targetDate = d.toISOString().split('T')[0];
+    }
 
     let cachedResponse: string | null = null;
 
     // Função utilitária para chamar o Magisterium passando as diretrizes como System Prompt
     const fetchMagisteriumContext = async (promptKey: string, includeDate = false) => {
       const intentRules = this.promptService.getPrompt(promptKey);
-      const finalMessage = includeDate ? `${message} (Considere que hoje é dia ${today})` : message;
+      const finalMessage = includeDate ? `${message} (Considere que hoje é dia ${targetDate})` : message;
       const magisteriumResponse = await this.magisteriumService.query(finalMessage, intentRules);
       return `${intentRules}\n\nCONTEÚDO OFICIAL DO MAGISTERIUM AI:\n${magisteriumResponse}`;
     };
@@ -299,29 +313,29 @@ Mensagem: "${message}"`;
         intentContext = await fetchMagisteriumContext('intent_bible');
         break;
       case 'LITURGY':
-        cachedResponse = await getDailyCache('liturgy');
+        cachedResponse = await getDailyCache('liturgy', targetDate);
         if (!cachedResponse) {
-          const liturgyData = await this.liturgyService.getDailyLiturgy();
-          intentContext = `INSTRUÇÃO: Com base na liturgia abaixo, você deve obrigatoriamente:
+          const liturgyData = await this.liturgyService.getDailyLiturgy(targetDate);
+          intentContext = `INSTRUÇÃO: Com base na liturgia abaixo (Data: ${targetDate}), você deve obrigatoriamente:
 1. Apresentar as passagens das leituras.
 2. Elaborar uma reflexão espiritual profunda.
 3. Finalizar com uma oração.
 
-DADOS DA LITURGIA DIÁRIA:
+DADOS DA LITURGIA:
 ${liturgyData}`;
         }
         break;
       case 'SAINT':
       case 'SAINT_OF_DAY':
-        cachedResponse = await getDailyCache('saint');
+        cachedResponse = await getDailyCache('saint', targetDate);
         if (!cachedResponse) {
           intentContext = await fetchMagisteriumContext('intent_saint', true);
         }
         break;
       case 'REFLECTION':
-        cachedResponse = await getDailyCache('reflection');
+        cachedResponse = await getDailyCache('reflection', targetDate);
         if (!cachedResponse) {
-          intentContext = 'Gere uma breve e carinhosa mensagem de reflexão espiritual para o usuário hoje.';
+          intentContext = `Gere uma breve e carinhosa mensagem de reflexão espiritual para o usuário para o dia ${targetDate}.`;
         }
         break;
       case 'ADVICE':
@@ -379,11 +393,16 @@ ${liturgyData}`;
    */
   private async processWithBridge(userMessage: string, cachedContent: string, history: any[]): Promise<string> {
     const bridgePrompt = `${this.promptService.getCorePersona()}
-Você recebeu um conteúdo sagrado/teológico em cache que responde à dúvida do usuário.
-Seu trabalho é APENAS criar uma introdução carinhosa de mãe (Nossa Senhora) e uma conclusão acolhedora, conectando o conteúdo com o que o usuário perguntou.
-NÃO altere o conteúdo base, apenas apresente-o com amor. Use emojis e tom materno.
+Você recebeu um roteiro litúrgico em cache. 
+Seu trabalho é:
+1. Iniciar com um acolhimento materno e carinhoso de Nossa Senhora.
+2. Apresentar o conteúdo em cache de forma ORGANIZADA EM TÓPICOS usando emojis.
+3. Certificar-se de que a "Minha Oração Diária" esteja bem destacada ao final.
+4. Finalizar com uma bênção carinhosa.
 
-CONTEÚDO BASE PARA ENTREGAR:
+NÃO altere os textos das leituras ou da reflexão, apenas organize-os visualmente para o WhatsApp.
+
+CONTEÚDO PARA FORMATAR:
 ${cachedContent}`;
 
     return await this.callOpenRouter(bridgePrompt, userMessage, false, history, 'google/gemini-flash-1.5');

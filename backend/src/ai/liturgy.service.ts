@@ -26,10 +26,11 @@ export class LiturgyService {
   private readonly logger = new Logger(LiturgyService.name);
   private readonly apiUrl = 'https://liturgia.up.railway.app/v3/';
 
-  async getDailyLiturgy(): Promise<string> {
+  async getDailyLiturgy(date?: string): Promise<string> {
     try {
-      this.logger.log('Fetching daily liturgy from external API...');
-      const response = await fetch(this.apiUrl);
+      const url = date ? `${this.apiUrl}?date=${date}` : this.apiUrl;
+      this.logger.log(`Fetching liturgy from ${url}...`);
+      const response = await fetch(url);
       
       if (!response.ok) {
         throw new Error(`Failed to fetch liturgy: ${response.statusText}`);
@@ -38,8 +39,8 @@ export class LiturgyService {
       const data: LiturgyData = await response.json();
       return this.formatLiturgy(data);
     } catch (error) {
-      this.logger.error('Error fetching daily liturgy', error);
-      return 'Não foi possível obter a liturgia diária no momento.';
+      this.logger.error('Error fetching liturgy', error);
+      return 'Não foi possível obter a liturgia no momento.';
     }
   }
 
