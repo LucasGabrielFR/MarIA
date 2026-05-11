@@ -91,15 +91,15 @@ export class AiService {
   private async getOrCreateUser(waChatId: string, pushName?: string, phone?: string): Promise<any> {
     const supabase = this.supabaseService.getClient();
     let { data: user } = await supabase.from('users').select('*').eq('wa_chatid', waChatId).single();
-    
+
     if (!user) {
-      const insertData: any = { 
+      const insertData: any = {
         wa_chatid: waChatId,
         status: 'triage_name' // Novo usuário sempre começa em triagem
       };
       if (pushName) insertData.name = pushName;
       if (phone) insertData.phone = phone;
-      
+
       const { data: newUser, error } = await supabase.from('users').insert(insertData).select('*').single();
       if (error) throw new Error(`Falha ao criar usuário: ${error.message}`);
       user = newUser;
@@ -120,7 +120,7 @@ export class AiService {
       .limit(limit);
 
     if (!messages) return [];
-    
+
     // Inverter para a ordem cronológica
     return messages.reverse().map(m => ({ role: m.role, content: m.content }));
   }
@@ -135,7 +135,7 @@ export class AiService {
       .insert({ user_id: userId, role, content })
       .select('id')
       .single();
-      
+
     return msg?.id;
   }
 
@@ -144,7 +144,7 @@ export class AiService {
    */
   private async updateContextIfNeeded(userId: string, lastMessageId: string) {
     const supabase = this.supabaseService.getClient();
-    
+
     // Busca contexto atual
     const { data: context } = await supabase
       .from('user_contexts')
@@ -166,7 +166,7 @@ export class AiService {
     // Se tivermos 10 ou mais novas mensagens, atualizar resumo
     if (count && count >= 10) {
       this.logger.log(`Atualizando resumo de contexto para o usuário ${userId}...`);
-      
+
       const { data: recentMessages } = await supabase
         .from('messages')
         .select('role, content')
@@ -175,7 +175,7 @@ export class AiService {
         .limit(30);
 
       const conversationText = recentMessages?.reverse().map(m => `${m.role}: ${m.content}`).join('\n') || '';
-      
+
       const summarizationPrompt = `Você é um assistente de IA focado em entender os interesses, necessidades e tom do usuário.
 Resuma os principais interesses, dúvidas recentes e personalidade do usuário com base nas mensagens abaixo.
 Mantenha o resumo em um parágrafo conciso. Se houver um resumo anterior, mescle com as novas informações sem perder o histórico fundamental.
@@ -209,7 +209,7 @@ Resumo anterior: ${context?.general_summary || 'Nenhum'}`;
     const user = await this.getOrCreateUser(waChatId, pushName, phone);
     const userId = user.id;
     const userStatus = user.status || 'active';
-    
+
     // Salvar a mensagem do usuário
     await this.saveMessage(userId, 'user', message);
 
@@ -224,7 +224,7 @@ Se o usuário NÃO disse o nome na mensagem, retorne a palavra "null".
 Mensagem: "${message}"`;
 
       const extractedName = await this.callOpenRouter(extractionPrompt, "", false);
-      
+
       if (extractedName && extractedName.toLowerCase() !== 'null') {
         const cleanName = extractedName.replace(/[".]/g, '').trim();
         // Atualizar nome e mudar para próximo status
@@ -232,7 +232,7 @@ Mensagem: "${message}"`;
           .from('users')
           .update({ name: cleanName, status: 'active' }) // Você pode mudar para 'triage_expectations' se quiser mais passos
           .eq('id', userId);
-        
+
         const welcomeMsg = `Prazer em te conhecer, ${cleanName}! Eu sou a MarIA. Como posso te ajudar hoje?`;
         await this.saveMessage(userId, 'assistant', welcomeMsg);
         return welcomeMsg;
@@ -259,9 +259,9 @@ Mensagem: "${message}"`;
     this.logger.log(`Usuário ${waChatId}: Intent=${intent}, Rules=[${rules.join(', ')}]`);
 
     let intentContext = '';
-    
+
     const todayIso = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
-    
+
     const supabase = this.supabaseService.getClient();
 
     const getDailyCache = async (type: string, targetDateStr?: string) => {
@@ -306,7 +306,7 @@ Mensagem: "${message}"`;
           cachedResponse = magisteriumResponse;
           await this.saveToSemanticCache(message, magisteriumResponse, 'THEOLOGY');
         }
-        intentContext = `${this.promptService.getPrompt('intent_theology')}\n\nCONTEÚDO OFICIAL:\n${cachedResponse}`;
+        intentContext = `${this.promptService.getPrompt('intent_theology')}\n\nCONTEÚDO OFICIAL DO MAGISTERIUM (USE ISSO COMO BASE ÚNICA E NÃO RESUMA DEMAIS):\n${cachedResponse}\n\nINSTRUÇÃO ADICIONAL: Reformule o conteúdo acima para o WhatsApp usando emojis e seu tom maternal, mas MANTENHA todos os fatos teológicos e retire todas as citações numéricas como [^1]. Liste as referências completas ao final.`;
         break;
       case 'PRAYER':
         intentContext = await fetchMagisteriumContext('intent_prayer');
@@ -358,16 +358,16 @@ ${liturgyData}`;
     const history = await this.getChatHistory(userId, 15);
 
     const { data: userContext } = await supabase.from('user_contexts').select('general_summary').eq('user_id', userId).single();
-    
+
     let memoryContext = '';
     if (userContext?.general_summary) {
       memoryContext = `\n\nMEMÓRIA/CONTEXTO DO USUÁRIO:\n${userContext.general_summary}`;
     }
 
     let response: string;
-    if (cachedResponse && (intent === 'LITURGY' || intent === 'SAINT' || intent === 'SAINT_OF_DAY' || intent === 'THEOLOGY')) {
+    if (cachedResponse && (intent === 'LITURGY' || intent === 'SAINT' || intent === 'SAINT_OF_DAY')) {
       this.logger.log(`Cache encontrado para ${intent}. Gerando acolhimento personalizado...`);
-      
+
       const greetingPrompt = `Aja como Maria (Nossa Senhora). O usuário (${pushName}) pediu informações sobre ${intent === 'LITURGY' ? 'a Liturgia' : 'o Santo do Dia'}.
 Dê um acolhimento maternal caloroso e introduza o conteúdo que você está prestes a mostrar.
 Siga estas regras:
@@ -380,16 +380,16 @@ Contexto da conversa:
 ${memoryContext}`;
 
       const greetingResponse = await this.callOpenRouter(greetingPrompt, message, false, history);
-      
+
       // Salvar a interação (apenas a resposta final para simplicidade no histórico)
       await this.saveMessage(userId, 'assistant', `${greetingResponse}\n\n[CONTEÚDO CACHEADO ENVIADO EM SEGUIDA]`);
-      
+
       return [greetingResponse, cachedResponse];
     } else {
       const finalPrompt = `${corePersona}${memoryContext}\n\nCONTEXTO DE INTENÇÃO:\n${intentContext}${strictRules}`;
       response = await this.callOpenRouter(finalPrompt, message, false, history);
     }
-    
+
     // Salvar resposta
     const lastMessageId = await this.saveMessage(userId, 'assistant', response);
 
@@ -409,7 +409,7 @@ ${memoryContext}`;
     try {
       const embedding = await this.embeddingService.generate(message);
       const supabase = this.supabaseService.getClient();
-      
+
       const { data, error } = await supabase.rpc('match_magisterium_cache', {
         query_embedding: embedding,
         match_threshold: 0.92,
@@ -432,7 +432,7 @@ ${memoryContext}`;
     try {
       const embedding = await this.embeddingService.generate(question);
       const supabase = this.supabaseService.getClient();
-      
+
       await supabase.from('magisterium_cache').insert({
         question,
         answer,

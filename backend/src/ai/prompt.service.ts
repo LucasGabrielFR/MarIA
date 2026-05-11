@@ -14,7 +14,7 @@ export class PromptService implements OnModuleInit {
   private readonly logger = new Logger(PromptService.name);
   private promptCache: Map<string, string> = new Map();
 
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(private readonly supabaseService: SupabaseService) { }
 
   async onModuleInit() {
     await this.refreshCache();
@@ -23,7 +23,7 @@ export class PromptService implements OnModuleInit {
   async refreshCache() {
     this.logger.log('Atualizando cache de prompts da IA...');
     const supabase = this.supabaseService.getClient();
-    
+
     const { data, error } = await supabase
       .from('ai_prompts')
       .select('key, content')
@@ -38,16 +38,17 @@ export class PromptService implements OnModuleInit {
     for (const prompt of data) {
       this.promptCache.set(prompt.key, prompt.content);
     }
-    
+
     this.logger.log(`Carregados ${this.promptCache.size} prompts na memória.`);
   }
 
   getPrompt(key: string): string {
     const content = this.promptCache.get(key) || '';
-    
+
     const magisteriumIntents = ['intent_theology', 'intent_prayer', 'intent_bible', 'intent_liturgy', 'intent_saint'];
     if (magisteriumIntents.includes(key)) {
-      return content + '\n\nOBRIGATÓRIO: Ao final da sua resposta, você deve listar as referências exatas de onde a informação foi extraída, utilizando EXCLUSIVAMENTE os dados de Referências enviados junto com o conteúdo do Magisterium.';
+      return content + '\n\nOBRIGATÓRIO: Ao final da sua resposta, você deve listar as referências exatas de onde a informação foi extraída. ' +
+        'RETIRE as citações numéricas no texto (ex: [^1]) e crie uma seção "*Referências:*" ao final com a lista completa formatada para WhatsApp.';
     }
     return content;
   }

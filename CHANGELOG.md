@@ -5,6 +5,13 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 e este projeto adere ao [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-05-11
+
+### Fixed
+- **Restrição de Mensagens Duplas:** A estratégia de envio de duas mensagens (Acolhimento + Conteúdo) agora é EXCLUSIVA para `LITURGY` e `SAINT`.
+- **Refinamento Teológico (Magisterium):** Respostas de Teologia voltaram a ser uma mensagem única, porém processadas pela Persona para ajuste de tom e formatação para WhatsApp, garantindo a preservação total do conteúdo técnico e das referências bibliográficas (`[^1]`).
+- **Gestão de Referências:** Padronização da seção de "*Referências:*" ao final de todas as consultas que utilizam o Magisterium AI.
+
 ## [1.4.0] - 2026-05-11
 
 ### Changed
