@@ -56,7 +56,7 @@ export class CronService {
     const prompt = this.promptService.getCorePersona() + '\n\n' +
       'Você é um especialista em liturgia católica. Com base na liturgia bruta abaixo, gere um conteúdo estruturado:\n' +
       '1. **Resumo Teológico**: Uma síntese de 2 parágrafos sobre a mensagem central do dia.\n' +
-      '2. **Leituras**: Liste as referências (1ª Leitura, Salmo, Evangelho).\n' +
+      '2. **Leituras**: Liste as referências e breve resumo de cada uma (1ª Leitura, Salmo, Evangelho).\n' +
       '3. **Reflexão**: Uma exegese espiritual profunda e pastoral.\n' +
       '4. **Minha Oração Diária**: Escreva uma oração fervorosa EM PRIMEIRA PESSOA (como se fosse o fiel rezando mas não coloque ORAÇÃO EM PRIMEIRA PESSOA), baseada no Evangelho do dia. Use um tom de conversa íntima com Deus.\n\n' +
       'LITURGIA CRUA:\n' + rawLiturgy;
