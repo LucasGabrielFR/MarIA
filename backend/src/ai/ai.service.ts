@@ -4,6 +4,7 @@ import { PromptService } from './prompt.service';
 import { MagisteriumService } from './magisterium.service';
 import { LiturgyService } from './liturgy.service';
 import { SupabaseService } from '../supabase/supabase.service';
+import { EmbeddingService } from './embedding.service';
 
 @Injectable()
 export class AiService {
@@ -17,6 +18,7 @@ export class AiService {
     private readonly liturgyService: LiturgyService,
     private readonly configService: ConfigService,
     private readonly supabaseService: SupabaseService,
+    private readonly embeddingService: EmbeddingService,
   ) {
     this.openRouterApiKey = this.configService.get<string>('OPENROUTER_API_KEY') || '';
     this.model = this.configService.get<string>('OPENROUTER_GPT_MODEL') || 'openai/gpt-4o-mini';
@@ -25,7 +27,7 @@ export class AiService {
   /**
    * Helper function to call OpenRouter API
    */
-  private async callOpenRouter(systemPrompt: string, userMessage: string, isJsonMode = false, history: any[] = []): Promise<string> {
+  async callOpenRouter(systemPrompt: string, userMessage: string, isJsonMode = false, history: any[] = [], modelOverride?: string): Promise<string> {
     try {
       const messagesPayload = [
         { role: 'system', content: systemPrompt },
@@ -42,7 +44,7 @@ export class AiService {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: this.model,
+          model: modelOverride || this.model,
           messages: messagesPayload,
           response_format: isJsonMode ? { type: "json_object" } : undefined,
           temperature: isJsonMode ? 0.1 : 0.7,
@@ -258,6 +260,20 @@ Mensagem: "${message}"`;
     
     const today = new Date().toLocaleDateString('pt-BR');
     
+    const supabase = this.supabaseService.getClient();
+
+    const getDailyCache = async (type: string) => {
+      const todayIso = new Date().toISOString().split('T')[0];
+      const { data } = await supabase.from('daily_cache')
+        .select('content')
+        .eq('type', type)
+        .eq('cache_date', todayIso)
+        .single();
+      return data?.content;
+    };
+
+    let cachedResponse: string | null = null;
+
     // Função utilitária para chamar o Magisterium passando as diretrizes como System Prompt
     const fetchMagisteriumContext = async (promptKey: string, includeDate = false) => {
       const intentRules = this.promptService.getPrompt(promptKey);
@@ -268,7 +284,13 @@ Mensagem: "${message}"`;
 
     switch (intent) {
       case 'THEOLOGY':
-        intentContext = await fetchMagisteriumContext('intent_theology');
+        cachedResponse = await this.findInSemanticCache(message, 'THEOLOGY');
+        if (!cachedResponse) {
+          const magisteriumResponse = await this.magisteriumService.query(message, this.promptService.getPrompt('intent_theology'));
+          cachedResponse = magisteriumResponse;
+          await this.saveToSemanticCache(message, magisteriumResponse, 'THEOLOGY');
+        }
+        intentContext = `${this.promptService.getPrompt('intent_theology')}\n\nCONTEÚDO OFICIAL:\n${cachedResponse}`;
         break;
       case 'PRAYER':
         intentContext = await fetchMagisteriumContext('intent_prayer');
@@ -277,18 +299,30 @@ Mensagem: "${message}"`;
         intentContext = await fetchMagisteriumContext('intent_bible');
         break;
       case 'LITURGY':
-        const liturgyData = await this.liturgyService.getDailyLiturgy();
-        intentContext = `INSTRUÇÃO: Com base na liturgia abaixo, você deve obrigatoriamente:
-1. Apresentar as passagens das leituras (referências e um breve resumo ou o texto se for curto).
-2. Elaborar uma reflexão espiritual profunda sobre a mensagem central do dia.
-3. Finalizar com uma oração carinhosa para o usuário, conectada ao tema da liturgia.
+        cachedResponse = await getDailyCache('liturgy');
+        if (!cachedResponse) {
+          const liturgyData = await this.liturgyService.getDailyLiturgy();
+          intentContext = `INSTRUÇÃO: Com base na liturgia abaixo, você deve obrigatoriamente:
+1. Apresentar as passagens das leituras.
+2. Elaborar uma reflexão espiritual profunda.
+3. Finalizar com uma oração.
 
 DADOS DA LITURGIA DIÁRIA:
 ${liturgyData}`;
+        }
         break;
       case 'SAINT':
       case 'SAINT_OF_DAY':
-        intentContext = await fetchMagisteriumContext('intent_saint', true);
+        cachedResponse = await getDailyCache('saint');
+        if (!cachedResponse) {
+          intentContext = await fetchMagisteriumContext('intent_saint', true);
+        }
+        break;
+      case 'REFLECTION':
+        cachedResponse = await getDailyCache('reflection');
+        if (!cachedResponse) {
+          intentContext = 'Gere uma breve e carinhosa mensagem de reflexão espiritual para o usuário hoje.';
+        }
         break;
       case 'ADVICE':
         intentContext = this.promptService.getPrompt('intent_advice');
@@ -312,7 +346,7 @@ ${liturgyData}`;
 
     // Obter histórico recente e contexto geral
     const history = await this.getChatHistory(userId, 15);
-    const supabase = this.supabaseService.getClient();
+
     const { data: userContext } = await supabase.from('user_contexts').select('general_summary').eq('user_id', userId).single();
     
     let memoryContext = '';
@@ -320,9 +354,14 @@ ${liturgyData}`;
       memoryContext = `\n\nMEMÓRIA/CONTEXTO DO USUÁRIO:\n${userContext.general_summary}`;
     }
 
-    const finalPrompt = `${corePersona}${memoryContext}\n\nCONTEXTO DE INTENÇÃO:\n${intentContext}${strictRules}`;
-    
-    const response = await this.callOpenRouter(finalPrompt, message, false, history);
+    let response: string;
+    if (cachedResponse && (intent === 'LITURGY' || intent === 'SAINT' || intent === 'SAINT_OF_DAY' || intent === 'THEOLOGY' || intent === 'REFLECTION')) {
+      this.logger.log(`Usando modelo Bridge para responder intenção ${intent} com cache.`);
+      response = await this.processWithBridge(message, cachedResponse, history);
+    } else {
+      const finalPrompt = `${corePersona}${memoryContext}\n\nCONTEXTO DE INTENÇÃO:\n${intentContext}${strictRules}`;
+      response = await this.callOpenRouter(finalPrompt, message, false, history);
+    }
     
     // Salvar resposta
     const lastMessageId = await this.saveMessage(userId, 'assistant', response);
@@ -333,5 +372,62 @@ ${liturgyData}`;
     });
 
     return response;
+  }
+
+  /**
+   * Processa a resposta usando o modelo Bridge (Gemini Flash) para personalizar um conteúdo em cache.
+   */
+  private async processWithBridge(userMessage: string, cachedContent: string, history: any[]): Promise<string> {
+    const bridgePrompt = `${this.promptService.getCorePersona()}
+Você recebeu um conteúdo sagrado/teológico em cache que responde à dúvida do usuário.
+Seu trabalho é APENAS criar uma introdução carinhosa de mãe (Nossa Senhora) e uma conclusão acolhedora, conectando o conteúdo com o que o usuário perguntou.
+NÃO altere o conteúdo base, apenas apresente-o com amor. Use emojis e tom materno.
+
+CONTEÚDO BASE PARA ENTREGAR:
+${cachedContent}`;
+
+    return await this.callOpenRouter(bridgePrompt, userMessage, false, history, 'google/gemini-flash-1.5');
+  }
+
+  /**
+   * Busca no cache semântico usando similaridade de cosseno.
+   */
+  private async findInSemanticCache(message: string, intent: string): Promise<string | null> {
+    try {
+      const embedding = await this.embeddingService.generate(message);
+      const supabase = this.supabaseService.getClient();
+      
+      const { data, error } = await supabase.rpc('match_magisterium_cache', {
+        query_embedding: embedding,
+        match_threshold: 0.92,
+        match_count: 1,
+        p_intent: intent
+      });
+
+      if (error) throw error;
+      return data && data.length > 0 ? data[0].answer : null;
+    } catch (error) {
+      this.logger.warn('Erro ao buscar no cache semântico', error);
+      return null;
+    }
+  }
+
+  /**
+   * Salva uma resposta no cache semântico.
+   */
+  private async saveToSemanticCache(question: string, answer: string, intent: string) {
+    try {
+      const embedding = await this.embeddingService.generate(question);
+      const supabase = this.supabaseService.getClient();
+      
+      await supabase.from('magisterium_cache').insert({
+        question,
+        answer,
+        intent,
+        embedding
+      });
+    } catch (error) {
+      this.logger.warn('Erro ao salvar no cache semântico', error);
+    }
   }
 }

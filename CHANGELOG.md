@@ -5,6 +5,23 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 e este projeto adere ao [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-05-11
+
+### Added
+- **Arquitetura de Cache Híbrido:** Implementação de um sistema de cache de dois níveis para otimização de custos e latência.
+- **Geração Automatizada (CronService):** Sistema de tarefas agendadas que gera conteúdos de Liturgia Diária, Santo do Dia e Reflexões Espirituais diariamente às 00:01 usando GPT-4o.
+- **Cache Semântico (Vector Search):** Integração com Supabase Vector para reaproveitamento de respostas teológicas complexas (Magisterium AI) baseadas em similaridade de embeddings (threshold 0.92).
+- **Modelo Bridge (Gemini Flash):** Uso do modelo Gemini 1.5 Flash como ponte de baixo custo para envolver conteúdos cacheados na persona da MarIA, economizando tokens de modelos premium.
+- **Painel de Conteúdo Diário:** Nova interface administrativa para revisão, edição e gerenciamento manual dos textos gerados pela cron.
+
+### Changed
+- **AiModule:** Inclusão de `CronService`, `EmbeddingService` e `ScheduleModule`.
+- **Backend Flow:** O processamento de mensagens agora realiza triagem automática em caches locais antes de invocar APIs externas de alto custo.
+- **Sidebar Admin:** Adição de navegação direta para gerenciamento de conteúdos diários.
+
+### Fixed
+- **Intent Routing:** Adição da intenção `REFLECTION` para tratar solicitações de mensagens inspiracionais diárias.
+
 ## [1.1.1] - 2026-05-10
 
 ### Added

@@ -5,17 +5,18 @@ MarIA é uma IA Generativa integrada ao WhatsApp que personifica a figura de Nos
 
 ## 🚀 Funcionalidades
 - **Linguagem Maternal:** Interação empática e acolhedora.
-- **Lógica Híbrida:** Fluxo conversacional gerido no backend (GPT-4o-mini) auxiliado por planejamento visual, e automações (CRONs) via n8n.
+- **Arquitetura de Cache Híbrido:** Sistema inteligente de dois níveis (Diário e Semântico) para otimização radical de custos de API e redução drástica de latência.
+- **Geração Noturna Automatizada:** Processamento via CRON que prepara Liturgia, Santo do Dia e Reflexões diárias às 00:01.
+- **Cache Semântico Teológico:** Reaproveitamento de respostas complexas do Magisterium AI via busca vetorial (Postgres Vector) com threshold de similaridade de 0.92.
+- **Modelo Bridge (Gemini Flash):** Uso estratégico de modelos de baixo custo para personalização de conteúdo cacheado sem perda de qualidade na persona.
 - **Integração WhatsApp Premium:** Comunicação bidirecional via UAZAPI com suporte a **confirmação de leitura automática** e **indicador de "digitando"** em tempo real.
-- **Memória de Longo Prazo:** Resumo periódico do contexto conversacional do usuário e histórico completo para uma experiência de atendimento super personalizada.
-- **Dashboard Admin:** Painel Vite + React para parametrização dinâmica de prompts, gerenciamento de usuários e monitoramento.
-- **Parametrização Dinâmica:** Controle total sobre a persona e regras da IA via interface administrativa.
+- **Dashboard Admin:** Painel Vite + React para parametrização de prompts, gerenciamento de usuários e **curadoria manual de conteúdos diários**.
 
 ## 🛠 Arquitetura
-- **Motor Cognitivo & Backend:** NestJS (TypeScript) com arquitetura de **Two-Step Prompting**.
-  - **Roteador de Intenções:** Classificação inteligente de mensagens.
-  - **Injeção de Contexto Teológico:** Integração nativa com **Magisterium AI**.
-- **Supabase:** Postgres com RLS avançado. Utilizado para a gestão de Prompts Dinâmicos e Tabela de Históricos de Conversas (`messages`) e Sumarização Geral (`user_contexts`).
+- **Motor Cognitivo & Backend:** NestJS (TypeScript) com arquitetura de **Triagem Híbrida**.
+  - **Roteador de Intenções:** Classificação inteligente de mensagens e roteamento para caches ou LLMs.
+  - **Injeção de Contexto Teológico:** Integração nativa com **Magisterium AI** e Cache Semântico local.
+- **Supabase:** Postgres com extensões `vector` para busca por similaridade. Utilizado para a gestão de Prompts Dinâmicos, Cache Diário e Cache Semântico Global.
 - **Frontend (Admin):** Vite + React + Tailwind CSS v4 + shadcn/ui.
 
 ## 🏃 Como Rodar o Projeto

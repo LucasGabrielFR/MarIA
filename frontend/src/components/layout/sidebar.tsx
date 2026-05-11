@@ -1,5 +1,5 @@
 import styled from 'styled-components';
-import { LayoutDashboard, MessageSquare, Settings, Users, Database, LogOut, Brain } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Settings, Users, Database, LogOut, Brain, Calendar } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 const SidebarContainer = styled.aside`
@@ -98,6 +98,10 @@ export function Sidebar() {
         <NavItemLink to="/ai-settings" $active={isActive('/ai-settings')}>
           <Brain size={20} />
           <span className="font-medium">Parametrização IA</span>
+        </NavItemLink>
+        <NavItemLink to="/daily-content" $active={isActive('/daily-content')}>
+          <Calendar size={20} />
+          <span className="font-medium">Conteúdo Diário</span>
         </NavItemLink>
         <NavItemLink to="/settings" $active={isActive('/settings')}>
           <Settings size={20} />
