@@ -260,7 +260,7 @@ Mensagem: "${message}"`;
 
     let intentContext = '';
     
-    const todayIso = new Date().toISOString().split('T')[0];
+    const todayIso = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
     
     const supabase = this.supabaseService.getClient();
 
@@ -279,13 +279,13 @@ Mensagem: "${message}"`;
     let targetDate = todayIso;
     const lowerMessage = message.toLowerCase();
     if (lowerMessage.includes('ontem')) {
-      const d = new Date();
+      const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
       d.setDate(d.getDate() - 1);
-      targetDate = d.toISOString().split('T')[0];
+      targetDate = d.toLocaleDateString('sv-SE');
     } else if (lowerMessage.includes('amanhã') || lowerMessage.includes('amanha')) {
-      const d = new Date();
+      const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
       d.setDate(d.getDate() + 1);
-      targetDate = d.toISOString().split('T')[0];
+      targetDate = d.toLocaleDateString('sv-SE');
     }
 
     let cachedResponse: string | null = null;
@@ -334,12 +334,6 @@ ${liturgyData}`;
           intentContext = await fetchMagisteriumContext('intent_saint', true);
         }
         break;
-      case 'REFLECTION':
-        cachedResponse = await getDailyCache('reflection', targetDate);
-        if (!cachedResponse) {
-          intentContext = `Gere uma breve e carinhosa mensagem de reflexão espiritual para o usuário para o dia ${targetDate}.`;
-        }
-        break;
       case 'ADVICE':
         intentContext = this.promptService.getPrompt('intent_advice');
         break;
@@ -371,7 +365,7 @@ ${liturgyData}`;
     }
 
     let response: string;
-    if (cachedResponse && (intent === 'LITURGY' || intent === 'SAINT' || intent === 'SAINT_OF_DAY' || intent === 'THEOLOGY' || intent === 'REFLECTION')) {
+    if (cachedResponse && (intent === 'LITURGY' || intent === 'SAINT' || intent === 'SAINT_OF_DAY' || intent === 'THEOLOGY')) {
       this.logger.log(`Usando modelo Bridge para responder intenção ${intent} com cache.`);
       response = await this.processWithBridge(message, cachedResponse, history);
     } else {

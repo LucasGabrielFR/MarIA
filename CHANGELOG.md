@@ -5,6 +5,14 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 e este projeto adere ao [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.2] - 2026-05-11
+
+### Fixed
+- **Fuso Horário (Timezone):** Correção crítica na identificação da data atual. Agora o sistema força o fuso horário `America/Sao_Paulo` em todos os cálculos de data (Hoje, Ontem, Amanhã), evitando que o bot responda com a liturgia do dia seguinte prematuramente no período da noite.
+
+### Removed
+- **Reflexão do Dia:** Remoção completa da funcionalidade de reflexão diária automática para otimização de custos de tokens.
+
 ## [1.3.1] - 2026-05-11
 
 ### Changed

@@ -18,18 +18,18 @@ export class CronService {
     private readonly magisteriumService: MagisteriumService,
     private readonly promptService: PromptService,
     private readonly supabaseService: SupabaseService,
-  ) {}
+  ) { }
 
   @Cron('1 0 * * 0', { timeZone: 'America/Sao_Paulo' }) // Todo domingo 00:01
   async handleWeeklyGenerations() {
     this.logger.log('Iniciando gerações semanais...');
-    
+
     // Gera para os próximos 7 dias
     for (let i = 0; i < 7; i++) {
       const targetDate = new Date();
       targetDate.setDate(targetDate.getDate() + i);
       const dateStr = targetDate.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
-      
+
       this.logger.log(`Processando dia: ${dateStr}`);
       try {
         await this.generateAllForDay(dateStr, false);
@@ -37,7 +37,7 @@ export class CronService {
         this.logger.error(`Erro ao gerar para o dia ${dateStr}`, error);
       }
     }
-    
+
     this.logger.log('Gerações semanais concluídas.');
   }
 
@@ -45,7 +45,6 @@ export class CronService {
     await Promise.all([
       this.generateLiturgy(date, forceOverride),
       this.generateSaint(date, forceOverride),
-      this.generateReflection(date, forceOverride),
     ]);
   }
 
@@ -54,12 +53,12 @@ export class CronService {
 
     this.logger.log(`Gerando liturgia para ${date}...`);
     const rawLiturgy = await this.liturgyService.getDailyLiturgy(date);
-    const prompt = this.promptService.getCorePersona() + '\n\n' + 
+    const prompt = this.promptService.getCorePersona() + '\n\n' +
       'Você é um especialista em liturgia católica. Com base na liturgia bruta abaixo, gere um conteúdo estruturado:\n' +
       '1. **Resumo Teológico**: Uma síntese de 2 parágrafos sobre a mensagem central do dia.\n' +
       '2. **Leituras**: Liste as referências (1ª Leitura, Salmo, Evangelho).\n' +
       '3. **Reflexão**: Uma exegese espiritual profunda e pastoral.\n' +
-      '4. **Minha Oração Diária**: Escreva uma oração fervorosa EM PRIMEIRA PESSOA (como se fosse o fiel rezando), baseada no Evangelho do dia. Use um tom de conversa íntima com Deus.\n\n' +
+      '4. **Minha Oração Diária**: Escreva uma oração fervorosa EM PRIMEIRA PESSOA (como se fosse o fiel rezando mas não coloque ORAÇÃO EM PRIMEIRA PESSOA), baseada no Evangelho do dia. Use um tom de conversa íntima com Deus.\n\n' +
       'LITURGIA CRUA:\n' + rawLiturgy;
 
     const content = await this.aiService.callOpenRouter(prompt, `Gere o roteiro litúrgico do dia ${date}.`, false, [], 'openai/gpt-4o');
@@ -70,11 +69,11 @@ export class CronService {
     if (!forceOverride && await this.checkExists('saint', date)) return;
 
     this.logger.log(`Gerando santo do dia para ${date} via Vatican News...`);
-    
+
     // Busca dados brutos do Vatican News (pode retornar múltiplos santos)
     const saints = await this.saintService.getSaintOfDay(date);
-    
-    const prompt = this.promptService.getCorePersona() + '\n\n' + 
+
+    const prompt = this.promptService.getCorePersona() + '\n\n' +
       'Você é um hagiógrafo (especialista em vida de santos). Abaixo você receberá dados brutos de um ou mais santos do dia do Vatican News.\n' +
       'Para CADA santo listado, você deve:\n' +
       '1. **Título**: Nome completo do santo e o título dado pela Igreja.\n' +
@@ -88,16 +87,6 @@ export class CronService {
     await this.saveToCache('saint', date, content);
   }
 
-  private async generateReflection(date: string, forceOverride: boolean) {
-    if (!forceOverride && await this.checkExists('reflection', date)) return;
-
-    this.logger.log(`Gerando reflexão espiritual para ${date}...`);
-    const prompt = this.promptService.getCorePersona() + '\n\n' +
-      'Gere uma pequena mensagem de bom dia espiritual e acolhedora de Nossa Senhora para os seus filhos hoje. Use a data ' + date;
-
-    const content = await this.aiService.callOpenRouter(prompt, `Gere a mensagem do dia ${date}.`, false, [], 'openai/gpt-4o');
-    await this.saveToCache('reflection', date, content);
-  }
 
   private async checkExists(type: string, date: string): Promise<boolean> {
     const supabase = this.supabaseService.getClient();
@@ -107,14 +96,14 @@ export class CronService {
       .eq('type', type)
       .eq('cache_date', date)
       .maybeSingle();
-    
+
     return !!data;
   }
 
   private async saveToCache(type: string, date: string, content: string) {
     const supabase = this.supabaseService.getClient();
     this.logger.log(`Tentando salvar no banco: [${type}] para a data [${date}]...`);
-    
+
     const { data, error } = await supabase.from('daily_cache').upsert({
       type,
       cache_date: date,

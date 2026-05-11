@@ -6,7 +6,7 @@ MarIA é uma IA Generativa integrada ao WhatsApp que personifica a figura de Nos
 ## 🚀 Funcionalidades
 - **Linguagem Maternal:** Interação empática e acolhedora.
 - **Arquitetura de Cache Híbrido:** Sistema inteligente de dois níveis (Diário e Semântico) para otimização radical de custos de API e redução drástica de latência.
-- **Geração Noturna Automatizada:** Processamento via CRON que prepara Liturgia, Santo do Dia e Reflexões diárias às 00:01.
+- **Geração Noturna Automatizada:** Processamento via CRON que prepara Liturgia e Santo do Dia diariamente às 00:01.
 - **Cache Semântico Teológico:** Reaproveitamento de respostas complexas do Magisterium AI via busca vetorial (Postgres Vector) com threshold de similaridade de 0.92.
 - **Modelo Bridge (Gemini 2.5 Flash Lite):** Uso estratégico de modelos de baixo custo para personalização de conteúdo cacheado sem perda de qualidade na persona, configurável via ambiente.
 - **Integração WhatsApp Premium:** Comunicação bidirecional via UAZAPI com suporte a **confirmação de leitura automática** e **indicador de "digitando"** em tempo real.
