@@ -5,11 +5,24 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 e este projeto adere ao [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-05-11
+
+### Added
+- **Tabela `saints` no Supabase:** Novo schema para persistência definitiva dos santos do calendário romano, com índice por `(month, day)` e constraint UNIQUE por `(month, day, name)`.
+- **Script `scripts/scrape_saints.py`:** Utilitário Python autônomo que raspa os ~365 dias do Vatican News, extrai títulos, descrições curtas e biografias completas (via "Leia tudo"), salvando tudo no banco via `upsert`. Suporta `--month`, `--day` e `--resume`.
+- **`scripts/requirements.txt`:** Dependências Python para os scripts utilitários (`requests`, `beautifulsoup4`, `supabase`, `python-dotenv`).
+
+### Changed
+- **`SaintService` refatorado (DI correta):** Injeção do `SupabaseService` via NestJS em vez de criar cliente próprio — garante consistência com o restante da arquitetura e autenticação `SERVICE_ROLE_KEY`.
+- **Fluxo de geração do santo:** `CronService.generateSaint` agora obtém dados brutos direto da tabela `saints` (zero latência HTTP); o scraping do Vatican News é mantido apenas como fallback para dias não indexados.
+- **Encoding UTF-8 corrigido:** Forçado `response.encoding = 'utf-8'` no script de scraping, corrigindo caracteres corrompidos nos nomes dos santos.
+
 ## [1.2.0] - 2026-05-11
+
 
 ### Added
 - **Arquitetura de Cache Híbrido:** Implementação de um sistema de cache de dois níveis para otimização de custos e latência.
-- **Geração Automatizada (CronService):** Sistema de tarefas agendadas que gera conteúdos de Liturgia Diária, Santo do Dia e Reflexões Espirituais diariamente às 00:01 usando GPT-4o.
+- **Geração Automatizada (CronService):** Sistema de tarefas agendadas que gera conteúdos de Liturgia Diária, Santo do Dia e Reflexões Espirituais semanalmente domingo às 00:01 usando GPT-4o.
 - **Cache Semântico (Vector Search):** Integração com Supabase Vector para reaproveitamento de respostas teológicas complexas (Magisterium AI) baseadas em similaridade de embeddings (threshold 0.92).
 - **Modelo Bridge (Gemini Flash):** Uso do modelo Gemini 1.5 Flash como ponte de baixo custo para envolver conteúdos cacheados na persona da MarIA, economizando tokens de modelos premium.
 - **Painel de Conteúdo Diário:** Nova interface administrativa para revisão, edição e gerenciamento manual dos textos gerados pela cron.

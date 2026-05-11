@@ -43,3 +43,4 @@ Thumbs.db
 admin/dist/
 admin/build/
 uazapi/node_modules/
+scripts/

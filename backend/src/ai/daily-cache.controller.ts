@@ -12,7 +12,7 @@ export class DailyCacheController {
   @Get()
   async getDailyCache(@Query('date') date?: string) {
     const supabase = this.supabaseService.getClient();
-    const targetDate = date || new Date().toISOString().split('T')[0];
+    const targetDate = date || new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
 
     const { data, error } = await supabase
       .from('daily_cache')
@@ -45,7 +45,12 @@ export class DailyCacheController {
 
   @Post('generate')
   async generateForDay(@Body() body: { date: string, force?: boolean }) {
-    await this.cronService.generateAllForDay(body.date, body.force || false);
-    return { message: `Geração para ${body.date} iniciada/concluída.` };
+    try {
+      await this.cronService.generateAllForDay(body.date, body.force || false);
+      return { message: `Geração para ${body.date} concluída com sucesso.` };
+    } catch (error) {
+      console.error('ERRO CRÍTICO NA GERAÇÃO:', error);
+      throw error;
+    }
   }
 }

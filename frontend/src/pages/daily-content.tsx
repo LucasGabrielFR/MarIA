@@ -22,7 +22,7 @@ export default function DailyContentPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString('sv-SE'));
 
   const fetchDailyContent = async (date: string) => {
     setLoading(true);

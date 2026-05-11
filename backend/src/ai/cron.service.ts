@@ -26,9 +26,9 @@ export class CronService {
     
     // Gera para os próximos 7 dias
     for (let i = 0; i < 7; i++) {
-      const date = new Date();
-      date.setDate(date.getDate() + i);
-      const dateStr = date.toISOString().split('T')[0];
+      const targetDate = new Date();
+      targetDate.setDate(targetDate.getDate() + i);
+      const dateStr = targetDate.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
       
       this.logger.log(`Processando dia: ${dateStr}`);
       try {
@@ -113,15 +113,18 @@ export class CronService {
 
   private async saveToCache(type: string, date: string, content: string) {
     const supabase = this.supabaseService.getClient();
-    const { error } = await supabase.from('daily_cache').upsert({
+    this.logger.log(`Tentando salvar no banco: [${type}] para a data [${date}]...`);
+    
+    const { data, error } = await supabase.from('daily_cache').upsert({
       type,
       cache_date: date,
       content,
-      created_at: new Date().toISOString(),
-    }, { onConflict: 'type, cache_date' });
+    }, { onConflict: 'type, cache_date' }).select();
 
     if (error) {
-      this.logger.error(`Erro ao salvar cache ${type}: ${error.message}`);
+      this.logger.error(`ERRO NO SUPABASE AO SALVAR ${type}: ${JSON.stringify(error)}`);
+    } else {
+      this.logger.log(`SUCESSO AO SALVAR ${type}: ${data?.[0]?.id || 'Registro atualizado'}`);
     }
   }
 }
