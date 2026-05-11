@@ -367,7 +367,7 @@ ${liturgyData}`;
     let response: string;
     if (cachedResponse && (intent === 'LITURGY' || intent === 'SAINT' || intent === 'SAINT_OF_DAY' || intent === 'THEOLOGY')) {
       this.logger.log(`Usando modelo Bridge para responder intenção ${intent} com cache.`);
-      response = await this.processWithBridge(message, cachedResponse, history);
+      response = await this.processWithBridge(message, cachedResponse, targetDate, history);
     } else {
       const finalPrompt = `${corePersona}${memoryContext}\n\nCONTEXTO DE INTENÇÃO:\n${intentContext}${strictRules}`;
       response = await this.callOpenRouter(finalPrompt, message, false, history);
@@ -387,9 +387,14 @@ ${liturgyData}`;
   /**
    * Processa a resposta usando o modelo Bridge (Gemini Flash) para personalizar um conteúdo em cache.
    */
-  private async processWithBridge(userMessage: string, cachedContent: string, history: any[]): Promise<string> {
+  private async processWithBridge(userMessage: string, cachedContent: string, date: string, history: any[]): Promise<string> {
     const bridgePrompt = `${this.promptService.getCorePersona()}
-Você recebeu um roteiro litúrgico em cache. 
+Você recebeu um roteiro litúrgico em cache para o dia ${date}. 
+
+REGRAS CRÍTICAS PARA ESTA RESPOSTA:
+1. O histórico de conversa pode conter referências a datas passadas. Você deve IGNORAR qualquer progressão temporal do histórico.
+2. Hoje é dia ${date}. Mesmo que o usuário peça a mesma coisa repetidamente, mantenha-se fiel ao conteúdo do dia ${date}.
+3. Sua resposta deve ser baseada EXCLUSIVAMENTE no CONTEÚDO PARA FORMATAR fornecido abaixo.
 Seu trabalho é:
 1. Iniciar com um acolhimento materno e carinhoso de Nossa Senhora.
 2. Apresentar o conteúdo em cache de forma ORGANIZADA EM TÓPICOS usando emojis.

@@ -5,6 +5,11 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 e este projeto adere ao [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.3] - 2026-05-11
+
+### Fixed
+- **Estabilização do Modelo Bridge (Contexto + Data):** Restaurado o uso do histórico de conversação no modelo Bridge para manter a naturalidade do diálogo, mas com a implementação de **Regras Críticas de Ancoragem**. Agora o modelo é instruído explicitamente a ignorar progressões temporais do histórico e focar exclusivamente na data solicitada, evitando a alucinação incremental de datas.
+
 ## [1.3.2] - 2026-05-11
 
 ### Fixed
