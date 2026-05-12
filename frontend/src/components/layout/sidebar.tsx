@@ -80,13 +80,13 @@ export function Sidebar() {
           <LayoutDashboard size={20} />
           <span className="font-medium">Dashboard</span>
         </NavItemLink>
-        <NavItemLink to="/conversations" $active={isActive('/conversations')}>
+        <NavItemLink to="/wa-users" $active={isActive('/wa-users')}>
           <MessageSquare size={20} />
-          <span className="font-medium">Conversas</span>
+          <span className="font-medium">Gestão de Fiéis</span>
         </NavItemLink>
         <NavItemLink to="/users" $active={isActive('/users')}>
           <Users size={20} />
-          <span className="font-medium">Usuários</span>
+          <span className="font-medium">Administradores</span>
         </NavItemLink>
         <NavItemLink to="/logs" $active={isActive('/logs')}>
           <Database size={20} />

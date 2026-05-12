@@ -51,6 +51,7 @@ Para realizar o deploy em um servidor VPS (Linux), fornecemos scripts automatiza
 Este comando irá baixar as últimas atualizações, instalar todas as dependências (`frontend` e `backend`), gerar a build e reiniciar o projeto usando o **PM2** (via `ecosystem.config.js`). O backend rodará na porta padrão do Nest e o frontend via preview do Vite.
 
 ## 📄 Documentação
+- [Análise Financeira](ANALISE_FINANCEIRA.md)
 - [Guia Magisterium AI](docs/MAGISTERIUM_AI.md)
 - [Proposta de Negócio](PROPOSTA_MARIA.md)
 - [Plano de Ação e Arquitetura](action-plan.md)

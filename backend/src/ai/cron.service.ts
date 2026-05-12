@@ -65,8 +65,8 @@ export class CronService {
       '4. 🙏 *Minha Oração Diária:* Uma oração fervorosa EM PRIMEIRA PESSOA, baseada no Evangelho, formatada em itálico.\n\n' +
       'LITURGIA CRUA:\n' + rawLiturgy;
 
-    const content = await this.aiService.callOpenRouter(prompt, `Gere o roteiro litúrgico formatado do dia ${date}.`, false, [], 'openai/gpt-4o');
-    await this.saveToCache('liturgy', date, content);
+    const result = await this.aiService.callOpenRouter(prompt, `Gere o roteiro litúrgico formatado do dia ${date}.`, false, [], 'openai/gpt-4o');
+    await this.saveToCache('liturgy', date, result.content);
   }
 
   private async generateSaint(date: string, forceOverride: boolean) {
@@ -89,8 +89,8 @@ export class CronService {
       'DADOS BRUTOS:\n' +
       saints.map(s => `SANTO: ${s.title}\nBIOGRAFIA: ${s.content}`).join('\n\n---\n\n');
 
-    const content = await this.aiService.callOpenRouter(prompt, `Gere a hagiografia formatada do dia ${date}.`, false, [], 'openai/gpt-4o');
-    await this.saveToCache('saint', date, content);
+    const result = await this.aiService.callOpenRouter(prompt, `Gere a hagiografia formatada do dia ${date}.`, false, [], 'openai/gpt-4o');
+    await this.saveToCache('saint', date, result.content);
   }
 
 

@@ -4,6 +4,7 @@ import DashboardPage from './pages/dashboard'
 import UsersPage from './pages/users'
 import AiSettingsPage from './pages/ai-settings'
 import DailyContentPage from './pages/daily-content'
+import WaUsersPage from './pages/wa-users'
 import { Toaster } from "@/components/ui/sonner"
 
 function App() {
@@ -15,6 +16,7 @@ function App() {
         <Route path="/users" element={<UsersPage />} />
         <Route path="/ai-settings" element={<AiSettingsPage />} />
         <Route path="/daily-content" element={<DailyContentPage />} />
+        <Route path="/wa-users" element={<WaUsersPage />} />
         
         {/* Fallback routes - to be implemented as needed */}
         <Route path="/conversations" element={<DashboardPage />} />

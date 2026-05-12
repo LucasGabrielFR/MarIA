@@ -29,7 +29,7 @@ export class AiService {
   /**
    * Helper function to call OpenRouter API
    */
-  async callOpenRouter(systemPrompt: string, userMessage: string, isJsonMode = false, history: any[] = [], modelOverride?: string): Promise<string> {
+  async callOpenRouter(systemPrompt: string, userMessage: string, isJsonMode = false, history: any[] = [], modelOverride?: string): Promise<{ content: string, usage?: { prompt_tokens: number, completion_tokens: number, total_tokens: number } }> {
     try {
       const messagesPayload = [
         { role: 'system', content: systemPrompt },
@@ -58,7 +58,10 @@ export class AiService {
         throw new Error(`OpenRouter API error: ${JSON.stringify(data)}`);
       }
 
-      return data.choices[0].message.content;
+      return {
+        content: data.choices[0].message.content,
+        usage: data.usage
+      };
     } catch (error) {
       this.logger.error('Erro ao chamar OpenRouter', error);
       throw error;
@@ -73,8 +76,12 @@ export class AiService {
     if (!routerPrompt) return { intent: 'CASUAL', rules: [] };
 
     try {
-      const resultStr = await this.callOpenRouter(routerPrompt, message, true);
-      const result = JSON.parse(resultStr);
+      const { content, usage } = await this.callOpenRouter(routerPrompt, message, true);
+      
+      // Logs intent routing usage (internal)
+      this.logger.debug(`Intent Router usage: ${JSON.stringify(usage)}`);
+      
+      const result = JSON.parse(content);
       return {
         intent: result.intent || 'CASUAL',
         rules: result.rules || []
@@ -181,12 +188,26 @@ Resuma os principais interesses, dúvidas recentes e personalidade do usuário c
 Mantenha o resumo em um parágrafo conciso. Se houver um resumo anterior, mescle com as novas informações sem perder o histórico fundamental.
 Resumo anterior: ${context?.general_summary || 'Nenhum'}`;
 
-      const newSummary = await this.callOpenRouter(summarizationPrompt, conversationText);
+      const { content: newSummary } = await this.callOpenRouter(summarizationPrompt, conversationText);
+
+      // Extração de Interesses (Badges)
+      const interestExtractorPrompt = (this.promptService.getPrompt('interest_extractor') || '')
+        .replace('{{previous_interests}}', JSON.stringify(context?.interests || []));
+      
+      const { content: interestsJson } = await this.callOpenRouter(interestExtractorPrompt, conversationText, true);
+      let interests = context?.interests || [];
+      try {
+        const extracted = JSON.parse(interestsJson);
+        if (Array.isArray(extracted)) interests = extracted;
+      } catch (e) {
+        this.logger.warn(`Falha ao extrair interesses para o usuário ${userId}`);
+      }
 
       // Atualizar no banco
       if (context) {
         await supabase.from('user_contexts').update({
           general_summary: newSummary,
+          interests: interests,
           last_processed_message_id: lastMessageId,
           updated_at: new Date().toISOString()
         }).eq('user_id', userId);
@@ -194,10 +215,11 @@ Resumo anterior: ${context?.general_summary || 'Nenhum'}`;
         await supabase.from('user_contexts').insert({
           user_id: userId,
           general_summary: newSummary,
+          interests: interests,
           last_processed_message_id: lastMessageId
         });
       }
-      this.logger.log(`Resumo de contexto atualizado para o usuário ${userId}.`);
+      this.logger.log(`Resumo de contexto e interesses atualizados para o usuário ${userId}.`);
     }
   }
 
@@ -223,7 +245,8 @@ Se o usuário disse o nome, retorne apenas o nome. Exemplo: "João".
 Se o usuário NÃO disse o nome na mensagem, retorne a palavra "null".
 Mensagem: "${message}"`;
 
-      const extractedName = await this.callOpenRouter(extractionPrompt, "", false);
+      const { content: extractedName, usage } = await this.callOpenRouter(extractionPrompt, "", false);
+      if (usage) await this.logUsage(userId, usage, this.model);
 
       if (extractedName && extractedName.toLowerCase() !== 'null') {
         const cleanName = extractedName.replace(/[".]/g, '').trim();
@@ -241,7 +264,9 @@ Mensagem: "${message}"`;
       // Se não extraiu o nome, usa o prompt de triagem para perguntar/insistir
       const triagePrompt = this.promptService.getPrompt('triage_name');
       const fullSystemPrompt = `${corePersona}\n\nREGRAS ATUAIS:\n${triagePrompt}`;
-      const response = await this.callOpenRouter(fullSystemPrompt, message);
+      const { content: response, usage: triageUsage } = await this.callOpenRouter(fullSystemPrompt, message);
+      if (triageUsage) await this.logUsage(userId, triageUsage, this.model);
+      
       await this.saveMessage(userId, 'assistant', response);
       return response;
     }
@@ -249,7 +274,9 @@ Mensagem: "${message}"`;
     if (userStatus === 'triage_expectations') {
       const expectationsPrompt = this.promptService.getPrompt('triage_expectations');
       const fullSystemPrompt = `${corePersona}\n\nREGRAS ATUAIS:\n${expectationsPrompt}`;
-      const response = await this.callOpenRouter(fullSystemPrompt, message);
+      const { content: response, usage } = await this.callOpenRouter(fullSystemPrompt, message);
+      if (usage) await this.logUsage(userId, usage, this.model);
+
       await this.saveMessage(userId, 'assistant', response);
       return response;
     }
@@ -294,7 +321,10 @@ Mensagem: "${message}"`;
     const fetchMagisteriumContext = async (promptKey: string, includeDate = false) => {
       const intentRules = this.promptService.getPrompt(promptKey);
       const finalMessage = includeDate ? `${message} (Considere que hoje é dia ${targetDate})` : message;
-      const magisteriumResponse = await this.magisteriumService.query(finalMessage, intentRules);
+      const { content: magisteriumResponse, usage } = await this.magisteriumService.query(finalMessage, intentRules);
+      
+      if (usage) await this.logUsage(userId, usage, 'magisterium-expert');
+      
       return `${intentRules}\n\nCONTEÚDO OFICIAL DO MAGISTERIUM AI:\n${magisteriumResponse}`;
     };
 
@@ -302,7 +332,8 @@ Mensagem: "${message}"`;
       case 'THEOLOGY':
         cachedResponse = await this.findInSemanticCache(message, 'THEOLOGY');
         if (!cachedResponse) {
-          const magisteriumResponse = await this.magisteriumService.query(message, this.promptService.getPrompt('intent_theology'));
+          const { content: magisteriumResponse, usage } = await this.magisteriumService.query(message, this.promptService.getPrompt('intent_theology'));
+          if (usage) await this.logUsage(userId, usage, 'magisterium-expert');
           cachedResponse = magisteriumResponse;
           await this.saveToSemanticCache(message, magisteriumResponse, 'THEOLOGY');
         }
@@ -379,7 +410,8 @@ Siga estas regras:
 Contexto da conversa:
 ${memoryContext}`;
 
-      const greetingResponse = await this.callOpenRouter(greetingPrompt, message, false, history);
+      const { content: greetingResponse, usage } = await this.callOpenRouter(greetingPrompt, message, false, history);
+      if (usage) await this.logUsage(userId, usage, this.model);
 
       // Salvar a interação (apenas a resposta final para simplicidade no histórico)
       await this.saveMessage(userId, 'assistant', `${greetingResponse}\n\n[CONTEÚDO CACHEADO ENVIADO EM SEGUIDA]`);
@@ -387,7 +419,9 @@ ${memoryContext}`;
       return [greetingResponse, cachedResponse];
     } else {
       const finalPrompt = `${corePersona}${memoryContext}\n\nCONTEXTO DE INTENÇÃO:\n${intentContext}${strictRules}`;
-      response = await this.callOpenRouter(finalPrompt, message, false, history);
+      const { content, usage } = await this.callOpenRouter(finalPrompt, message, false, history);
+      if (usage) await this.logUsage(userId, usage, this.model);
+      response = content;
     }
 
     // Salvar resposta
@@ -441,6 +475,24 @@ ${memoryContext}`;
       });
     } catch (error) {
       this.logger.warn('Erro ao salvar no cache semântico', error);
+    }
+  }
+
+  /**
+   * Salva o log de uso de tokens no banco de dados.
+   */
+  private async logUsage(userId: string, usage: any, model: string) {
+    try {
+      const supabase = this.supabaseService.getClient();
+      await supabase.from('usage_logs').insert({
+        user_id: userId,
+        prompt_tokens: usage.prompt_tokens || 0,
+        completion_tokens: usage.completion_tokens || 0,
+        total_tokens: usage.total_tokens || 0,
+        model: model,
+      });
+    } catch (error) {
+      this.logger.warn(`Falha ao salvar usage log para o usuário ${userId}`, error);
     }
   }
 }

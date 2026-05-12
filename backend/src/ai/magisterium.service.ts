@@ -16,7 +16,7 @@ export class MagisteriumService {
    * Consulta a base de dados teológica do Magisterium AI
    * Pode receber um system prompt customizado para parametrizar o foco (ex: orações, santos, liturgia).
    */
-  async query(message: string, systemPrompt?: string): Promise<string> {
+  async query(message: string, systemPrompt?: string): Promise<{ content: string, usage?: { prompt_tokens: number, completion_tokens: number, total_tokens: number } }> {
     try {
       this.logger.log(`Consultando Magisterium AI para: "${message}"`);
       
@@ -42,7 +42,7 @@ export class MagisteriumService {
       if (!response.ok) {
         const errorText = await response.text();
         this.logger.error(`Erro na API Magisterium: ${response.status} - ${errorText}`);
-        return 'Erro ao consultar a base teológica.';
+        return { content: 'Erro ao consultar a base teológica.' };
       }
 
       const data = await response.json();
@@ -53,7 +53,6 @@ export class MagisteriumService {
       if (data.citations && data.citations.length > 0) {
         finalResponse += '\n\n**Referências:**\n';
         
-        // Remove documentos duplicados (usando Set) para não repetir a mesma fonte
         const uniqueDocs = new Set<string>();
         data.citations.forEach((cit: any) => {
            if (cit.document_title) {
@@ -69,10 +68,13 @@ export class MagisteriumService {
         });
       }
 
-      return finalResponse;
+      return { 
+        content: finalResponse,
+        usage: data.usage // Magisterium segue o padrão de retornar usage no root
+      };
     } catch (error) {
       this.logger.error('Falha crítica ao consultar Magisterium AI', error);
-      return 'A base teológica está temporariamente indisponível.';
+      return { content: 'A base teológica está temporariamente indisponível.' };
     }
   }
 }

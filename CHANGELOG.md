@@ -1,119 +1,35 @@
 # Changelog
 
-Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
+All notable changes to this project will be documented in this file.
 
-O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
-e este projeto adere ao [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.4.1] - 2026-05-11
+## [1.5.3] - 2026-05-12
+
+### Changed
+- **Typography Refinement:** Redução da escala tipográfica global do modal de usuários para um visual mais clean e profissional (Títulos 5xl -> 3xl, Métricas 3xl -> xl).
+- **Spaciousness:** Ajuste de paddings e margens para harmonizar com as fontes reduzidas, aumentando a densidade de informação sem perder a elegância.
+
+## [1.5.2] - 2026-05-12
+
+## [1.5.1] - 2026-05-12
+
+## [1.5.0] - 2026-05-12
+
+### Added
+- **Modal de Gestão de Fiéis:** Migração total para um `Dialog` centralizado, substituindo o painel lateral antigo.
+- **Contexto Espiritual IA:** Exibição do resumo pastoral e interesses dos fiéis extraídos do `user_contexts`.
+- **Dashboards de Métricas:** Cards de consumo de tokens, créditos, taxa de retorno e engajamento.
+- **Sigilo Pontifício:** Implementação de desfoque (blur) no histórico de mensagens para proteção de privacidade.
 
 ### Fixed
-- **Restrição de Mensagens Duplas:** A estratégia de envio de duas mensagens (Acolhimento + Conteúdo) agora é EXCLUSIVA para `LITURGY` e `SAINT`.
-- **Refinamento Teológico (Magisterium):** Respostas de Teologia voltaram a ser uma mensagem única, porém processadas pela Persona para ajuste de tom e formatação para WhatsApp, garantindo a preservação total do conteúdo técnico e das referências bibliográficas (`[^1]`).
-- **Gestão de Referências:** Padronização da seção de "*Referências:*" ao final de todas as consultas que utilizam o Magisterium AI.
+- **Mapeamento de Dados:** Correção na estrutura de retorno do `AdminService` para tratar objetos de contexto.
+- **Estética Visual:** Padronização completa para o tema Light Premium da plataforma.
 
 ## [1.4.0] - 2026-05-11
 
-### Changed
-- **Estratégia de Resposta (Split Message):** Abandono do modelo "Bridge" para personalização de cache. Agora, o sistema envia **duas mensagens separadas**:
-    1. Um acolhimento maternal caloroso gerado em tempo real (Persona).
-    2. O conteúdo litúrgico/hagiográfico bruto extraído diretamente do cache.
-- **Formatação de Cache:** Prompts de geração (Cron/Manual) atualizados para gerar conteúdos prontos para WhatsApp (com emojis e negritos) e sem saudações internas, permitindo que a Persona introduza o conteúdo naturalmente.
-- **Refinamento Litúrgico:** Inclusão obrigatória de resumos breves para cada leitura e uma reflexão geral profunda no cache de liturgia.
-
-### Removed
-- **Modelo Bridge:** Remoção completa da lógica de processamento via Gemini Flash para economia e fidelidade total ao conteúdo original do cache.
-
-## [1.3.3] - 2026-05-11
-
-### Fixed
-- **Estabilização do Modelo Bridge (Contexto + Data):** Restaurado o uso do histórico de conversação no modelo Bridge para manter a naturalidade do diálogo, mas com a implementação de **Regras Críticas de Ancoragem**. Agora o modelo é instruído explicitamente a ignorar progressões temporais do histórico e focar exclusivamente na data solicitada, evitando a alucinação incremental de datas.
-
-## [1.3.2] - 2026-05-11
-
-### Fixed
-- **Fuso Horário (Timezone):** Correção crítica na identificação da data atual. Agora o sistema força o fuso horário `America/Sao_Paulo` em todos os cálculos de data (Hoje, Ontem, Amanhã), evitando que o bot responda com a liturgia do dia seguinte prematuramente no período da noite.
-
-### Removed
-- **Reflexão do Dia:** Remoção completa da funcionalidade de reflexão diária automática para otimização de custos de tokens.
-
-## [1.3.1] - 2026-05-11
-
-### Changed
-- **Modelo Bridge Atualizado:** Substituição do modelo `google/gemini-flash-1.5` (descontinuado no OpenRouter) pelo **`google/gemini-2.5-flash-lite`**, garantindo continuidade do serviço com baixo custo.
-- **Parametrização de Modelos:** O modelo Bridge agora é configurável via variável de ambiente `OPENROUTER_BRIDGE_MODEL`, facilitando futuras manutenções sem alteração de código.
-
-## [1.3.0] - 2026-05-11
-
 ### Added
-- **Tabela `saints` no Supabase:** Novo schema para persistência definitiva dos santos do calendário romano, com índice por `(month, day)` e constraint UNIQUE por `(month, day, name)`.
-- **Script `scripts/scrape_saints.py`:** Utilitário Python autônomo que raspa os ~365 dias do Vatican News, extrai títulos, descrições curtas e biografias completas (via "Leia tudo"), salvando tudo no banco via `upsert`. Suporta `--month`, `--day` e `--resume`.
-- **`scripts/requirements.txt`:** Dependências Python para os scripts utilitários (`requests`, `beautifulsoup4`, `supabase`, `python-dotenv`).
-
-### Changed
-- **`SaintService` refatorado (DI correta):** Injeção do `SupabaseService` via NestJS em vez de criar cliente próprio — garante consistência com o restante da arquitetura e autenticação `SERVICE_ROLE_KEY`.
-- **Fluxo de geração do santo:** `CronService.generateSaint` agora obtém dados brutos direto da tabela `saints` (zero latência HTTP); o scraping do Vatican News é mantido apenas como fallback para dias não indexados.
-- **Encoding UTF-8 corrigido:** Forçado `response.encoding = 'utf-8'` no script de scraping, corrigindo caracteres corrompidos nos nomes dos santos.
-
-## [1.2.0] - 2026-05-11
-
-
-### Added
-- **Arquitetura de Cache Híbrido:** Implementação de um sistema de cache de dois níveis para otimização de custos e latência.
-- **Geração Automatizada (CronService):** Sistema de tarefas agendadas que gera conteúdos de Liturgia Diária, Santo do Dia e Reflexões Espirituais semanalmente domingo às 00:01 usando GPT-4o.
-- **Cache Semântico (Vector Search):** Integração com Supabase Vector para reaproveitamento de respostas teológicas complexas (Magisterium AI) baseadas em similaridade de embeddings (threshold 0.92).
-- **Modelo Bridge (Gemini Flash):** Uso do modelo Gemini 1.5 Flash como ponte de baixo custo para envolver conteúdos cacheados na persona da MarIA, economizando tokens de modelos premium.
-- **Painel de Conteúdo Diário:** Nova interface administrativa para revisão, edição e gerenciamento manual dos textos gerados pela cron.
-
-### Changed
-- **AiModule:** Inclusão de `CronService`, `EmbeddingService` e `ScheduleModule`.
-- **Backend Flow:** O processamento de mensagens agora realiza triagem automática em caches locais antes de invocar APIs externas de alto custo.
-- **Sidebar Admin:** Adição de navegação direta para gerenciamento de conteúdos diários.
-
-### Fixed
-- **Intent Routing:** Adição da intenção `REFLECTION` para tratar solicitações de mensagens inspiracionais diárias.
-
-## [1.1.1] - 2026-05-10
-
-### Added
-- **Confirmação de Leitura Automática:** O bot agora marca as mensagens recebidas como lidas imediatamente após o processamento inicial.
-- **Indicador de Digitando:** Implementado o estado de "composing" (digitando) enquanto a IA processa a resposta, oferecendo um feedback visual em tempo real para o usuário no WhatsApp.
-
-### Changed
-- **Serviço UAZAPI:** Expansão do `UazapiService` para incluir métodos de manipulação de presença e status de leitura de chats.
-
-## [1.1.0] - 2026-05-08
-
-### Added
-- **Deploy Automático:** Script bash (`deploy.sh`) e configuração do PM2 (`ecosystem.config.js`) para simplificar e gerenciar a execução do app em servidores VPS Linux.
-- **Integração UAZAPI (WhatsApp):** Recebimento e envio de mensagens via provedor UAZAPI (Webhook e Outbound).
-- **Memória de Longo e Curto Prazo (Supabase):** Implementação de armazenamento de histórico de chat e sumarização assíncrona de contexto geral do usuário a cada 10 mensagens para prover contexto enriquecido ao LLM.
-- **Integração Magisterium AI (Chat API):** Consulta à base oficial de dados teológicos via API robusta.
-- **Arquitetura de Regras Dinâmicas:** Sistema de roteamento de intenções com injeção de regras estritas (`rule_crisis`, `rule_prohibited`, `rule_etiquette`).
-- **Novo Prompt de Persona:** Refinamento do core maternal e acolhedor da MarIA.
-- **Documentação Técnica:** Guia completo de integração com Magisterium AI em `docs/MAGISTERIUM_AI.md`, Script SQL inicial em `docs/sql/uazapi_init.sql` e Fluxo de Mensagens em `docs/MESSAGE_FLOW.md`.
-- **Auditoria de Webhooks:** Tabela `webhook_logs` para armazenamento de payloads brutos da UAZAPI, facilitando depuração e análise de eventos.
-
-### Changed
-- **UI de Parametrização:** Reformulação completa da página de configurações da IA usando **Tabs** para reduzir a carga cognitiva.
-- **Design Premium:** Implementação de estética "Sacred-Digital" com gradientes suaves, tipografia refinada e cards de alta definição.
-- **Segurança (Supabase):** Correção de recursão infinita em políticas RLS usando funções `SECURITY DEFINER`.
-
-### Fixed
-- **Componentes UI:** Correção de importação do `Textarea` no shadcn/ui.
-- **Componentes UI:** Estabilização do componente de Abas (Base UI), corrigindo atributos `data-[active]` e layout `flex` que causavam sobreposição.
-- **Backend:** Resolução de erro de compilação no `AiService` ao importar dependências essenciais do `MagisteriumService`.
-- **Ícones:** Correção global na importação de ícones do `lucide-react`, eliminando prefixos incorretos.
-- **Estabilidade do Roteador:** Tratamento de erros aprimorado na classificação de intenções.
-
-## [1.0.0] - 2026-05-08
-
-### Added
-- Arquitetura de Inteligência Artificial dinâmica com **Two-Step Prompting**.
-- **Roteador de Intenções:** LLM dedicado para classificar mensagens em categorias (Casual, Oração, Teologia, Conselhos).
-- **PromptService:** Sistema de cache em memória para regras da IA com atualização em tempo real.
-- **Painel de Parametrização:** Interface administrativa para editar prompts e regras do sistema.
-
-### Fixed
-- Correção de **Recursão Infinita nas Políticas RLS** do Supabase usando funções `security definer`.
-- Ajuste na localização de componentes shadcn instalados incorretamente.
+- **Estabilização de Dados de Santos:** Migração do scraping live para banco de dados Supabase (`saints`).
+- **Novo Pipeline de Liturgia:** Geração de conteúdo estruturado via IA para WhatsApp.
+- **Alternativa OpenRouter:** Substituição do modelo Gemini Flash por GPT-4o-mini no pipeline de bridge.
