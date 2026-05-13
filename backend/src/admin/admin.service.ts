@@ -1,9 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AdminService {
-  constructor(private supabaseService: SupabaseService) { }
+  constructor(
+    private readonly supabaseService: SupabaseService,
+    private readonly configService: ConfigService,
+  ) { }
 
   async findAll() {
     const supabase = this.supabaseService.getClient();
@@ -355,7 +359,9 @@ export class AdminService {
 
   async syncExchangeRate() {
     try {
-      const response = await fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL');
+      const token = this.configService.get<string>('AWESOME_API_TOKEN');
+      const url = `https://economia.awesomeapi.com.br/json/last/USD-BRL${token ? `?token=${token}` : ''}`;
+      const response = await fetch(url);
 
       if (!response.ok) {
         if (response.status === 403 || response.status === 429) {
