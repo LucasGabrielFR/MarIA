@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { API_URL } from '../lib/api'
+
 import { MainLayout } from '../components/layout/main-layout'
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -84,7 +86,7 @@ const WaUsersPage = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch('http://localhost:3000/admin/wa-users', {
+      const response = await fetch(`${API_URL}/admin/wa-users`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
         }
@@ -102,7 +104,7 @@ const WaUsersPage = () => {
   const fetchMessages = async (userId: string) => {
     setShowHistory(false)
     try {
-      const response = await fetch(`http://localhost:3000/admin/wa-users/${userId}/messages`, {
+      const response = await fetch(`${API_URL}/admin/wa-users/${userId}/messages`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
         }

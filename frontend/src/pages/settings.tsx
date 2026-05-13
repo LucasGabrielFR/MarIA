@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
+import { API_URL } from '../lib/api'
+
 import { MainLayout } from '../components/layout/main-layout'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -36,7 +38,7 @@ export default function SettingsPage() {
 
   const fetchSettings = async () => {
     try {
-      const response = await fetch('http://localhost:3000/admin/settings');
+      const response = await fetch(`${API_URL}/admin/settings`);
       const data = await response.json();
       setSettings(data);
     } catch (error) {
@@ -49,7 +51,7 @@ export default function SettingsPage() {
 
   const fetchAiModels = async () => {
     try {
-      const response = await fetch('http://localhost:3000/admin/ai-models');
+      const response = await fetch(`${API_URL}/admin/ai-models`);
       const data = await response.json();
       // Ordenar por nome em ordem alfabética
       const sorted = Array.isArray(data) ? data.sort((a: any, b: any) => a.name.localeCompare(b.name)) : [];
@@ -61,7 +63,7 @@ export default function SettingsPage() {
 
   const handleUpdate = async (key: string, value: string) => {
     try {
-      const response = await fetch(`http://localhost:3000/admin/settings/${key}`, {
+      const response = await fetch(`${API_URL}/admin/settings/${key}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ value })
@@ -81,7 +83,7 @@ export default function SettingsPage() {
   const handleSyncExchange = async () => {
     setSyncing(true);
     try {
-      const response = await fetch('http://localhost:3000/admin/settings/sync-exchange', { method: 'POST' });
+      const response = await fetch(`${API_URL}/admin/settings/sync-exchange`, { method: 'POST' });
       const data = await response.json();
       if (data.success) {
         toast.success(`Câmbio atualizado: R$ ${data.rate}`);
@@ -99,7 +101,7 @@ export default function SettingsPage() {
   const handleClearCache = async () => {
     setExecuting('cache');
     try {
-      const response = await fetch('http://localhost:3000/admin/settings/clear-cache', { method: 'POST' });
+      const response = await fetch(`${API_URL}/admin/settings/clear-cache`, { method: 'POST' });
       if (response.ok) {
         toast.success("Cache semântico limpo com sucesso!");
       } else {
@@ -116,7 +118,7 @@ export default function SettingsPage() {
   const handleToggleMaintenance = async () => {
     setExecuting('maintenance');
     try {
-      const response = await fetch('http://localhost:3000/admin/settings/toggle-maintenance', { method: 'POST' });
+      const response = await fetch(`${API_URL}/admin/settings/toggle-maintenance`, { method: 'POST' });
       const data = await response.json();
       if (data.success) {
         toast.success(`Modo de manutenção ${data.enabled ? 'ativado' : 'desativado'}!`);

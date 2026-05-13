@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { API_URL } from '../lib/api'
+
 import { StatsCards } from '../components/dashboard/stats-cards'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -12,7 +14,7 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const response = await fetch('http://localhost:3000/admin/stats');
+        const response = await fetch(`${API_URL}/admin/stats`);
         const data = await response.json();
         setStats(data);
       } catch (error) {

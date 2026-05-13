@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { API_URL } from '../lib/api'
+
 import { MainLayout } from '../components/layout/main-layout'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -17,9 +19,9 @@ export default function LogsPage() {
     const fetchData = async () => {
       try {
         const [statsRes, usageRes, webhookRes] = await Promise.all([
-          fetch('http://localhost:3000/admin/stats/daily'),
-          fetch('http://localhost:3000/admin/logs/usage?limit=20'),
-          fetch('http://localhost:3000/admin/logs/webhooks?limit=20')
+          fetch(`${API_URL}/admin/stats/daily`),
+          fetch(`${API_URL}/admin/logs/usage?limit=20`),
+          fetch(`${API_URL}/admin/logs/webhooks?limit=20`)
         ]);
 
         const statsData = await statsRes.json();

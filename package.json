@@ -7,7 +7,8 @@
     "dev:backend": "cd backend && npm run start:dev",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install",
-    "build:all": "cd frontend && npm run build && cd ../backend && npm run build"
+    "build:all": "cd frontend && npm run build && cd ../backend && npm run build",
+    "deploy": "bash deploy.sh"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
