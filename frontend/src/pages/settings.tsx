@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react'
-import { Select } from '@base-ui/react/select';
 import { MainLayout } from '../components/layout/main-layout'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"

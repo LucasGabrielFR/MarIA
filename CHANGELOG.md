@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Otimização de layout nos cards do admin (remoção de overflow-hidden) para evitar corte dos menus suspensos.
 - Melhoria na gestão de eventos (stopPropagation e clickOutside) para garantir uma experiência de busca fluida e sem interrupções.
 
+### Fixed
+- Removido import não utilizado do `Base UI Select` que causava erro de build (TS6133).
+
 ## [1.6.5] - 2026-05-13
 ### Fixed
 - **Remoção de Placeholders:** Eliminada a exibição e salvamento de marcadores internos como `[CONTEÚDO CACHEADO...]` nas mensagens da MarIA.
