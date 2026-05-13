@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PromptService } from './prompt.service';
 import { MagisteriumService } from './magisterium.service';
@@ -7,11 +7,11 @@ import { SupabaseService } from '../supabase/supabase.service';
 import { EmbeddingService } from './embedding.service';
 
 @Injectable()
-export class AiService {
+export class AiService implements OnModuleInit {
   private readonly logger = new Logger(AiService.name);
   private readonly openRouterApiKey: string;
-  private readonly model: string;
-  private readonly bridgeModel: string;
+  private model: string = 'openai/gpt-4o-mini';
+  private bridgeModel: string = 'google/gemini-2.0-flash-lite-001';
 
   constructor(
     private readonly promptService: PromptService,
@@ -22,6 +22,24 @@ export class AiService {
     private readonly embeddingService: EmbeddingService,
   ) {
     this.openRouterApiKey = this.configService.get<string>('OPENROUTER_API_KEY') || '';
+    // Inicializar com variáveis de ambiente se disponíveis, caso contrário usar defaults
+    this.model = this.configService.get<string>('MAIN_MODEL') || 'openai/gpt-4o-mini';
+    this.bridgeModel = this.configService.get<string>('BRIDGE_MODEL') || 'google/gemini-2.0-flash-lite-001';
+  }
+
+  async onModuleInit() {
+    this.logger.log('Inicializando configurações de modelo da IA...');
+    try {
+      const [main, bridge] = await Promise.all([
+        this.getSystemSetting('main_model', this.model),
+        this.getSystemSetting('bridge_model', this.bridgeModel)
+      ]);
+      this.model = main;
+      this.bridgeModel = bridge;
+      this.logger.log(`Modelos configurados: Principal=${this.model}, Bridge=${this.bridgeModel}`);
+    } catch (error) {
+      this.logger.warn('Falha ao carregar modelos do banco, usando defaults.', error);
+    }
   }
 
   /**
@@ -48,6 +66,8 @@ export class AiService {
         { role: 'user', content: userMessage }
       ];
 
+      const model = modelOverride || this.model || 'openai/gpt-4o-mini';
+
       const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -57,7 +77,7 @@ export class AiService {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: modelOverride || this.model,
+          model,
           messages: messagesPayload,
           response_format: isJsonMode ? { type: "json_object" } : undefined,
           temperature: isJsonMode ? 0.1 : 0.7,

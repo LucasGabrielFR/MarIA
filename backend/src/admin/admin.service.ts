@@ -356,13 +356,25 @@ export class AdminService {
   async syncExchangeRate() {
     try {
       const response = await fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL');
-      const data = await response.json();
-      const bid = data.USDBRL.bid;
       
+      if (!response.ok) {
+        if (response.status === 403 || response.status === 429) {
+          console.warn('AwesomeAPI: Quota exceeded ou Rate limited. Mantendo taxa atual.');
+          return { success: false, error: 'Quota exceeded' };
+        }
+        throw new Error(`AwesomeAPI error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (!data.USDBRL || !data.USDBRL.bid) {
+        throw new Error('Dados de câmbio inválidos recebidos');
+      }
+
+      const bid = data.USDBRL.bid;
       await this.updateSystemSetting('brl_rate', bid);
       return { success: true, rate: bid };
     } catch (error) {
-      console.error('Erro ao sincronizar taxa de câmbio:', error);
+      console.error('Erro ao sincronizar taxa de câmbio:', error.message);
       return { success: false, error: error.message };
     }
   }
