@@ -327,8 +327,8 @@ Mensagem: "${message}"`;
       return data?.content;
     };
 
-    // Detectar a data alvo (hoje, amanhã, dia específico, etc.)
-    const targetDate = await this.extractTargetDate(message);
+    // Detectar a data alvo (hoje, amanhã, dia específico, etc.) usando o bridge model
+    const targetDate = await this.extractTargetDate(message, bridgeModel);
     this.logger.log(`Data alvo detectada: ${targetDate} para a mensagem: "${message}"`);
 
     let cachedResponse: string | null = null;

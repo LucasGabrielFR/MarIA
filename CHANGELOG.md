@@ -5,11 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.6.3] - 2026-05-13
+## [1.6.4] - 2026-05-13
 ### Added
-- **Modo de Manutenção:** Possibilidade de pausar o atendimento via WhatsApp com mensagem personalizada e acolhedora.
-- **Gestão de Cache:** Funcionalidade para limpar o cache semântico (Magisterium AI) diretamente pelo painel.
-- **Diálogos de Confirmação:** Implementação de modais de segurança para todas as ações críticas na "Zona de Perigo".
+- **Inteligência de Datas:** Detecção avançada de referências temporais (ex: "domingo", "dia 15", "amanhã") via IA Bridge, garantindo que a liturgia e o santo corretos sejam entregues.
+- **Modelo de Ponte (Configurável):** Nova opção no painel de configurações para definir o modelo de roteamento e extração (ex: Gemini Flash para baixo custo e alta velocidade).
+
+### Changed
+- **Acolhimento Humano:** A saudação da MarIA antes de liturgia/santos agora é contextual e baseada no conteúdo do dia, fugindo de frases genéricas e trazendo uma reflexão inicial rápida.
+- **Dinamismo de Modelos:** O `AiService` agora consome os modelos (`main`, `bridge`) diretamente do banco de dados, permitindo troca a quente sem reinicialização do servidor.
+- **Cabeçalhos de Data:** Toda resposta de liturgia ou santo agora inclui obrigatoriamente um cabeçalho com a data referida (`*Liturgia do dia DD/MM/AAAA*`).
+
+### Fixed
+- **Build Backend:** Corrigido erro de tipagem (TS2554) no `AiService` relacionado à passagem de parâmetros na extração de datas.
+
+## [1.6.3] - 2026-05-13
 
 ## [1.6.2] - 2026-05-13
 

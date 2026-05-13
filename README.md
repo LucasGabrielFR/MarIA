@@ -11,9 +11,11 @@ MarIA é uma IA Generativa integrada ao WhatsApp que personifica a figura de Nos
 - **Modelo de Mensagens Duplas:** Quando o conteúdo vem do cache (Liturgia/Santos), a MarIA envia duas mensagens: uma introdução calorosa personalizada e o conteúdo formatado em seguida, garantindo fidelidade total ao texto e naturalidade no diálogo.
 - **Integração WhatsApp Premium:** Comunicação bidirecional via UAZAPI com suporte a **confirmação de leitura automática** e **indicador de "digitando"** em tempo real.
 - **Dashboard de Telemetria e Auditoria:** Painel estatístico complexo com gráficos de consumo de tokens, análise de custos financeiros (USD/BRL) e auditoria de logs de sistema em tempo real.
-- **Gestão Financeira e IA Dinâmica:** Sincronização automática de câmbio (AwesomeAPI) e seleção assistida de modelos via OpenRouter com visualização de custos e contexto.
+- **IA Bridge e Roteamento Inteligente:** Utilização de um modelo de "ponte" (Bridge AI) de alta velocidade e baixo custo para tarefas de roteamento de intenção e extração de datas, otimizando o fluxo de processamento.
+- **Acolhimento Humano e Contextual:** Antes de entregar conteúdos de liturgia ou santos, a MarIA gera uma saudação espiritual baseada no conteúdo do dia, tornando a conversa mais humana e menos mecânica.
+- **Gestão Financeira e IA Dinâmica:** Sincronização automática de câmbio (AwesomeAPI) e seleção assistida de modelos via OpenRouter com visualização de custos. O sistema permite a troca a quente (hot-swap) dos modelos Principal, Ponte e Cron diretamente pelo painel administrativo.
 - **Controle de Infraestrutura Crítica:** Funcionalidade de **Modo de Manutenção** para pausa imediata de atendimento e ferramenta de **Limpeza de Cache Semântico** para renovação de interpretações teológicas.
-- **Segurança Enterprise:** Implementação de Row Level Security (RLS) em todo o banco de dados, garantindo isolamento total e controle granular de acesso administrativo com **diálogos de confirmação** para ações críticas.
+- **Segurança Enterprise:** Implementação de Row Level Security (RLS) em todo o banco de dados, garantindo isolamento total e controle granular de acesso administrativo com **diálogos de confirmação** para ações críticas e irreversíveis.
 - **Dashboard Admin:** Painel Vite + React para parametrização de prompts, gerenciamento de usuários e curadoria manual de conteúdos diários.
 
 ## 🛠 Arquitetura
