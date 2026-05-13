@@ -41,8 +41,16 @@ export class AdminService {
       .from('usage_logs')
       .select('user_id, model, total_tokens, created_at');
 
+    // Busca mensagens dos últimos 30 dias para calcular frequência
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const { data: recentMessages } = await supabase
+      .from('messages')
+      .select('user_id, created_at')
+      .gte('created_at', thirtyDaysAgo.toISOString());
+
     // Mapeia os dados de uso para cada usuário
-    const usersWithMetrics = users.map(user => {
+    const usersWithMetrics = await Promise.all(users.map(async (user) => {
       const userUsage = usageData?.filter(u => u.user_id === user.id) || [];
       const tokenMetrics = userUsage.reduce((acc: any, curr: any) => {
         const model = curr.model || 'unknown';
@@ -51,15 +59,34 @@ export class AdminService {
         return acc;
       }, {});
 
+      // Contagem de Mensagens Enviadas (Total histórico do usuário)
+      const { count: totalMessages } = await supabase
+        .from('messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('role', 'user');
+
+      // Determinação de Perfil de Engajamento (Mantendo lógica baseada em atividade recente)
+      const userMessages = recentMessages?.filter(m => m.user_id === user.id) || [];
+      const uniqueDays = new Set(userMessages.map(m => new Date(m.created_at).toDateString())).size;
+      const frequency = Math.round((uniqueDays / 30) * 100);
+
+      let engagement = 'Inativo';
+      if (frequency >= 70) engagement = 'Super Engajado';
+      else if (frequency >= 30) engagement = 'Engajado';
+      else if (frequency >= 5) engagement = 'Ocasional';
+
       return {
         ...user,
         context: Array.isArray(user.user_contexts) ? user.user_contexts[0] : (user.user_contexts || null),
         metrics: {
-          total_tokens: Object.values(tokenMetrics).reduce((a: any, b: any) => a + b, 0),
-          breakdown: tokenMetrics
+          total_tokens: Object.values(tokenMetrics).reduce((a: any, b: any) => Number(a) + Number(b), 0),
+          breakdown: tokenMetrics,
+          total_messages: totalMessages || 0,
+          engagement
         }
       };
-    });
+    }));
 
     return usersWithMetrics;
   }
