@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { Select } from '@base-ui/react/select';
 import { MainLayout } from '../components/layout/main-layout'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -139,7 +139,7 @@ export default function SettingsPage() {
     setSettings(prev => prev.map(s => s.key === key ? { ...s, value } : s));
   };
 
-  const ModelSelect = ({ label, value, onChange, description }: { label: string, value: string, onChange: (val: string) => void, description: string }) => {
+  const ModelSelect = ({ label, value, onChange, description }: { label: string, value: string, onChange: (val: string | null) => void, description: string }) => {
     const selectedModel = aiModels.find(m => m.id === value);
     
     return (
@@ -240,8 +240,10 @@ export default function SettingsPage() {
                 label="Modelo Principal (Conversação)"
                 value={getSettingValue('main_model')}
                 onChange={(val) => {
-                  setSettingValue('main_model', val);
-                  handleUpdate('main_model', val);
+                  if (val) {
+                    setSettingValue('main_model', val);
+                    handleUpdate('main_model', val);
+                  }
                 }}
                 description="Usado em todas as interações diretas com fiéis."
               />
@@ -250,8 +252,10 @@ export default function SettingsPage() {
                 label="Modelo de Automação (Crons)"
                 value={getSettingValue('cron_model')}
                 onChange={(val) => {
-                  setSettingValue('cron_model', val);
-                  handleUpdate('cron_model', val);
+                  if (val) {
+                    setSettingValue('cron_model', val);
+                    handleUpdate('cron_model', val);
+                  }
                 }}
                 description="Usado para geração de liturgia, santos e processamentos pesados."
               />

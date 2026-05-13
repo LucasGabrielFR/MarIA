@@ -12,7 +12,6 @@ export default function LogsPage() {
   const [dailyStats, setDailyStats] = useState<any[]>([]);
   const [usageLogs, setUsageLogs] = useState<any[]>([]);
   const [webhookLogs, setWebhookLogs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -32,8 +31,6 @@ export default function LogsPage() {
         setWebhookLogs(webhookData.data || []);
       } catch (error) {
         console.error('Erro ao buscar logs:', error);
-      } finally {
-        setLoading(false);
       }
     };
 
@@ -152,7 +149,7 @@ export default function LogsPage() {
                         contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)', padding: '12px' }}
                         itemStyle={{ fontSize: '12px', fontWeight: '800' }}
                         cursor={{ fill: '#f8fafc' }}
-                        formatter={(value: any, name: string) => [
+                        formatter={(value: any, name: any) => [
                           name === 'costUsd' ? `$${Number(value).toFixed(2)}` : `R$ ${Number(value).toFixed(2)}`,
                           name === 'costUsd' ? 'Custo USD' : 'Custo BRL'
                         ]}
