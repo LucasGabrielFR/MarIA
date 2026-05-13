@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Removido import não utilizado do `Base UI Select` que causava erro de build (TS6133).
+- **Limpeza Profunda:** Removido boilerplate não utilizado do backend (`AppController`, `AppService`).
+- **Otimização de Assets:** Exclusão de arquivos de assets e estilos legados do frontend (`App.css`, `react.svg`, `vite.svg`).
+- **Redução de Dívida Técnica:** Removidos componentes de UI não utilizados (`Sheet`) e auditoria de dependências para um projeto mais enxuto.
 
 ## [1.6.5] - 2026-05-13
 ### Fixed
