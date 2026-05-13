@@ -48,7 +48,7 @@ export class CronService {
     ]);
   }
 
-  private async generateLiturgy(date: string, forceOverride: boolean) {
+  async generateLiturgy(date: string, forceOverride: boolean) {
     if (!forceOverride && await this.checkExists('liturgy', date)) return;
 
     this.logger.log(`Gerando liturgia para ${date}...`);
@@ -72,7 +72,7 @@ export class CronService {
     await this.saveToCache('liturgy', date, result.content);
   }
 
-  private async generateSaint(date: string, forceOverride: boolean) {
+  async generateSaint(date: string, forceOverride: boolean) {
     if (!forceOverride && await this.checkExists('saint', date)) return;
 
     this.logger.log(`Gerando santo do dia para ${date} via Vatican News...`);

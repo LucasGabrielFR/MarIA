@@ -28,7 +28,11 @@ export class LiturgyService {
 
   async getDailyLiturgy(date?: string): Promise<string> {
     try {
-      const url = date ? `${this.apiUrl}?date=${date}` : this.apiUrl;
+      let url = this.apiUrl;
+      if (date) {
+        const [year, month, day] = date.split('-');
+        url = `${this.apiUrl}?dia=${parseInt(day, 10)}&mes=${parseInt(month, 10)}&ano=${year}`;
+      }
       this.logger.log(`Fetching liturgy from ${url}...`);
       const response = await fetch(url);
       

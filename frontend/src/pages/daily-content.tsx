@@ -21,7 +21,7 @@ export default function DailyContentPage() {
   const [contents, setContents] = useState<DailyCache[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
-  const [generating, setGenerating] = useState(false);
+  const [generating, setGenerating] = useState<string | boolean>(false); // false, true (global), or type string (individual)
   const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString('sv-SE'));
 
   const fetchDailyContent = async (date: string) => {
@@ -57,19 +57,25 @@ export default function DailyContentPage() {
     }
   };
 
-  const handleManualGenerate = async () => {
-    const hasContent = contents.length > 0;
-    if (hasContent && !confirm("Já existe conteúdo para este dia. Deseja sobrescrever usando a IA? Isso gastará novos tokens.")) {
+  const handleGenerate = async (type?: 'liturgy' | 'saint') => {
+    const isGlobal = !type;
+    const item = type ? getByType(type) : contents.length > 0;
+    
+    if (item && !confirm(`Já existe conteúdo ${type ? 'para esta categoria' : 'para este dia'}. Deseja sobrescrever usando a IA? Isso gastará novos tokens.`)) {
       return;
     }
 
-    setGenerating(true);
+    setGenerating(type || true);
     try {
       await apiRequest('/ai/daily-cache/generate', {
         method: 'POST',
-        body: JSON.stringify({ date: selectedDate, force: true }),
+        body: JSON.stringify({ 
+          date: selectedDate, 
+          force: true,
+          type: type 
+        }),
       });
-      toast.success("Conteúdo gerado com sucesso!");
+      toast.success(`${type ? 'Conteúdo' : 'Tudo'} gerado com sucesso!`);
       fetchDailyContent(selectedDate);
     } catch (error) {
       toast.error("Erro ao gerar conteúdo via IA");
@@ -97,15 +103,27 @@ export default function DailyContentPage() {
               <CardTitle className="text-xl font-bold text-slate-800">{title}</CardTitle>
               <CardDescription className="font-medium text-slate-500 mt-1">{description}</CardDescription>
             </div>
-            {item ? (
-              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 font-bold px-3 py-1">
-                Gerado em {new Date(item.created_at).toLocaleTimeString()}
-              </Badge>
-            ) : (
-              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 font-bold px-3 py-1">
-                Pendente
-              </Badge>
-            )}
+            <div className="flex items-center gap-3">
+              {item ? (
+                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 font-bold px-3 py-1">
+                  Gerado em {new Date(item.created_at).toLocaleTimeString()}
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 font-bold px-3 py-1">
+                  Pendente
+                </Badge>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleGenerate(type as any)}
+                disabled={generating === true || generating === type}
+                className="h-8 rounded-xl text-primary hover:text-primary hover:bg-primary/10 font-bold gap-1.5"
+              >
+                {generating === type ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                Gerar
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-6">
@@ -152,12 +170,12 @@ export default function DailyContentPage() {
             Atualizar
           </Button>
           <Button 
-            onClick={handleManualGenerate}
-            disabled={generating}
+            onClick={() => handleGenerate()}
+            disabled={generating !== false}
             className="rounded-2xl bg-secondary hover:bg-secondary/90 text-white font-bold px-6 py-6 h-auto shadow-lg shadow-amber-100 transition-all hover:scale-[1.02] active:scale-[0.98]"
           >
-            {generating ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Sparkles className="mr-2 h-5 w-5" />}
-            Gerar com IA
+            {generating === true ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Sparkles className="mr-2 h-5 w-5" />}
+            Gerar Tudo
           </Button>
         </div>
       </div>
@@ -171,7 +189,6 @@ export default function DailyContentPage() {
           <TabsList className="bg-white p-1 rounded-2xl shadow-sm border border-slate-100 h-auto gap-1">
             <TabsTrigger value="liturgy" className="rounded-xl px-8 py-3 data-[state=active]:bg-primary data-[state=active]:text-white font-bold transition-all">Liturgia</TabsTrigger>
             <TabsTrigger value="saint" className="rounded-xl px-8 py-3 data-[state=active]:bg-primary data-[state=active]:text-white font-bold transition-all">Santo do Dia</TabsTrigger>
-            <TabsTrigger value="reflection" className="rounded-xl px-8 py-3 data-[state=active]:bg-primary data-[state=active]:text-white font-bold transition-all">Reflexão</TabsTrigger>
           </TabsList>
 
           <TabsContent value="liturgy">
@@ -190,13 +207,6 @@ export default function DailyContentPage() {
             />
           </TabsContent>
 
-          <TabsContent value="reflection">
-            <ContentEditor 
-              type="reflection" 
-              title="Mensagem de Nossa Senhora" 
-              description="Palavra materna de acolhimento e espiritualidade para o dia."
-            />
-          </TabsContent>
         </Tabs>
       )}
     </MainLayout>

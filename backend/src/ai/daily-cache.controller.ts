@@ -44,10 +44,20 @@ export class DailyCacheController {
   }
 
   @Post('generate')
-  async generateForDay(@Body() body: { date: string, force?: boolean }) {
+  async generateForDay(@Body() body: { date: string, force?: boolean, type?: 'liturgy' | 'saint' }) {
     try {
-      await this.cronService.generateAllForDay(body.date, body.force || false);
-      return { message: `Geração para ${body.date} concluída com sucesso.` };
+      const { date, force, type } = body;
+      const isForce = force || false;
+
+      if (type === 'liturgy') {
+        await this.cronService.generateLiturgy(date, isForce);
+      } else if (type === 'saint') {
+        await this.cronService.generateSaint(date, isForce);
+      } else {
+        await this.cronService.generateAllForDay(date, isForce);
+      }
+
+      return { message: `Geração de ${type || 'tudo'} para ${date} concluída com sucesso.` };
     } catch (error) {
       console.error('ERRO CRÍTICO NA GERAÇÃO:', error);
       throw error;
