@@ -356,13 +356,24 @@ export class AdminService {
   async syncExchangeRate() {
     try {
       const response = await fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL');
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `API error: ${response.status}`);
+      }
+
       const data = await response.json();
+      
+      if (!data || !data.USDBRL || !data.USDBRL.bid) {
+        throw new Error('Invalid API response structure');
+      }
+
       const bid = data.USDBRL.bid;
       
       await this.updateSystemSetting('brl_rate', bid);
       return { success: true, rate: bid };
     } catch (error) {
-      console.error('Erro ao sincronizar taxa de câmbio:', error);
+      console.error('Erro ao sincronizar taxa de câmbio:', error.message);
       return { success: false, error: error.message };
     }
   }
