@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { MainLayout } from '../components/layout/main-layout'
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -9,29 +9,19 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { 
   Search, 
   MessageSquare, 
-  User, 
-  ShieldAlert, 
-  Eye, 
-  EyeOff, 
   TrendingUp, 
   Filter
 } from 'lucide-react'
 import { 
   Dialog, 
   DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogDescription,
-  DialogTrigger
+  DialogTitle,
 } from "@/components/ui/dialog"
 import { 
-  History, 
-  LayoutDashboard, 
   Activity, 
   Settings,
   Heart,
   BrainCircuit,
-  Database
 } from 'lucide-react'
 import { 
   AreaChart, 
@@ -80,7 +70,6 @@ const WaUsersPage = () => {
   const [messages, setMessages] = useState<Message[]>([])
   const [showHistory, setShowHistory] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [loadingMessages, setLoadingMessages] = useState(false)
 
   useEffect(() => {
     fetchUsers()
@@ -104,7 +93,6 @@ const WaUsersPage = () => {
   }
 
   const fetchMessages = async (userId: string) => {
-    setLoadingMessages(true)
     setShowHistory(false)
     try {
       const response = await fetch(`http://localhost:3000/admin/wa-users/${userId}/messages`, {
@@ -117,8 +105,6 @@ const WaUsersPage = () => {
       setMessages(data)
     } catch (error) {
       toast.error('Erro ao buscar histórico de conversas')
-    } finally {
-      setLoadingMessages(false)
     }
   }
 

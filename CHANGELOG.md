@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Erro de sintaxe (JSX Parse Error) no modal de gestão de fiéis.
+- Erro de compilação (Build Error TS6133) causado por imports e estados não utilizados.
 - Otimização de concorrência no backend para evitar travamentos durante o processamento de métricas.
 
 ## [1.5.3] - 2026-05-12
