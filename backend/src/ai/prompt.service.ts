@@ -48,7 +48,7 @@ export class PromptService implements OnModuleInit {
     const magisteriumIntents = ['intent_theology', 'intent_prayer', 'intent_bible', 'intent_liturgy', 'intent_saint'];
     if (magisteriumIntents.includes(key)) {
       return content + '\n\nOBRIGATÓRIO: Ao final da sua resposta, você deve listar as referências exatas de onde a informação foi extraída. ' +
-        'RETIRE as citações numéricas no texto (ex: [^1]) e crie uma seção "*Referências:*" ao final com a lista completa formatada para WhatsApp.';
+        'RETIRE as citações numéricas no texto (ex: [^1]) e crie uma seção "*Referências:*" ao final com a lista completa formatada para WhatsApp em português quando possível.';
     }
     return content;
   }

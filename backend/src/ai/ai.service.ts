@@ -77,10 +77,10 @@ export class AiService {
 
     try {
       const { content, usage } = await this.callOpenRouter(routerPrompt, message, true);
-      
+
       // Logs intent routing usage (internal)
       this.logger.debug(`Intent Router usage: ${JSON.stringify(usage)}`);
-      
+
       const result = JSON.parse(content);
       return {
         intent: result.intent || 'CASUAL',
@@ -193,7 +193,7 @@ Resumo anterior: ${context?.general_summary || 'Nenhum'}`;
       // Extração de Interesses (Badges)
       const interestExtractorPrompt = (this.promptService.getPrompt('interest_extractor') || '')
         .replace('{{previous_interests}}', JSON.stringify(context?.interests || []));
-      
+
       const { content: interestsJson } = await this.callOpenRouter(interestExtractorPrompt, conversationText, true);
       let interests = context?.interests || [];
       try {
@@ -228,6 +228,19 @@ Resumo anterior: ${context?.general_summary || 'Nenhum'}`;
    * Representa a Máquina de Estados da Conversa.
    */
   async processMessage(waChatId: string, message: string, pushName?: string, phone?: string): Promise<string | string[]> {
+    const supabase = this.supabaseService.getClient();
+
+    // 1. Verificar Modo de Manutenção
+    const { data: maintenanceSetting } = await supabase
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'maintenance_mode')
+      .single();
+
+    if (maintenanceSetting?.value === 'true') {
+      return "Minha querida alma, no momento estou em um breve período de recolhimento e oração para melhor te servir. 🙏✨\n\nLogo estarei de volta com novidades! Que a paz de Cristo esteja com você. Mãe MarIA.";
+    }
+
     const user = await this.getOrCreateUser(waChatId, pushName, phone);
     const userId = user.id;
     const userStatus = user.status || 'active';
@@ -266,7 +279,7 @@ Mensagem: "${message}"`;
       const fullSystemPrompt = `${corePersona}\n\nREGRAS ATUAIS:\n${triagePrompt}`;
       const { content: response, usage: triageUsage } = await this.callOpenRouter(fullSystemPrompt, message);
       if (triageUsage) await this.logUsage(userId, triageUsage, this.model);
-      
+
       await this.saveMessage(userId, 'assistant', response);
       return response;
     }
@@ -288,8 +301,6 @@ Mensagem: "${message}"`;
     let intentContext = '';
 
     const todayIso = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
-
-    const supabase = this.supabaseService.getClient();
 
     const getDailyCache = async (type: string, targetDateStr?: string) => {
       const dateToFetch = targetDateStr || todayIso;
@@ -322,9 +333,9 @@ Mensagem: "${message}"`;
       const intentRules = this.promptService.getPrompt(promptKey);
       const finalMessage = includeDate ? `${message} (Considere que hoje é dia ${targetDate})` : message;
       const { content: magisteriumResponse, usage } = await this.magisteriumService.query(finalMessage, intentRules);
-      
+
       if (usage) await this.logUsage(userId, usage, 'magisterium-expert');
-      
+
       return `${intentRules}\n\nCONTEÚDO OFICIAL DO MAGISTERIUM AI:\n${magisteriumResponse}`;
     };
 
@@ -337,7 +348,7 @@ Mensagem: "${message}"`;
           cachedResponse = magisteriumResponse;
           await this.saveToSemanticCache(message, magisteriumResponse, 'THEOLOGY');
         }
-        intentContext = `${this.promptService.getPrompt('intent_theology')}\n\nCONTEÚDO OFICIAL DO MAGISTERIUM (USE ISSO COMO BASE ÚNICA E NÃO RESUMA DEMAIS):\n${cachedResponse}\n\nINSTRUÇÃO ADICIONAL: Reformule o conteúdo acima para o WhatsApp usando emojis e seu tom maternal, mas MANTENHA todos os fatos teológicos e retire todas as citações numéricas como [^1]. Liste as referências completas ao final.`;
+        intentContext = `${this.promptService.getPrompt('intent_theology')}\n\nCONTEÚDO OFICIAL DO MAGISTERIUM (USE ISSO COMO BASE ÚNICA E NÃO RESUMA DEMAIS):\n${cachedResponse}\n\nINSTRUÇÃO ADICIONAL: Reformule o conteúdo acima para o WhatsApp usando emojis e seu tom maternal, mas MANTENHA todos os fatos teológicos e retire todas as citações numéricas como [^1]. Liste as referências completas ao final traduzidas para o português quando possível.`;
         break;
       case 'PRAYER':
         intentContext = await fetchMagisteriumContext('intent_prayer');

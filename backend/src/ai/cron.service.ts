@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { AiService } from './ai.service';
+import { AdminService } from '../admin/admin.service';
 import { LiturgyService } from './liturgy.service';
 import { SaintService } from './saint.service';
 import { MagisteriumService } from './magisterium.service';
@@ -13,12 +14,19 @@ export class CronService {
 
   constructor(
     private readonly aiService: AiService,
+    private readonly adminService: AdminService,
     private readonly liturgyService: LiturgyService,
     private readonly saintService: SaintService,
     private readonly magisteriumService: MagisteriumService,
     private readonly promptService: PromptService,
     private readonly supabaseService: SupabaseService,
   ) { }
+
+  @Cron('5 0 * * *', { timeZone: 'America/Sao_Paulo' }) // Todo dia 00:05
+  async syncExchangeRate() {
+    this.logger.log('Sincronizando taxa de câmbio (USD/BRL)...');
+    await this.adminService.syncExchangeRate();
+  }
 
   @Cron('1 0 * * 0', { timeZone: 'America/Sao_Paulo' }) // Todo domingo 00:01
   async handleWeeklyGenerations() {

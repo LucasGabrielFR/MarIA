@@ -66,7 +66,8 @@ export class AdminService {
 
       // Cálculo de custos por usuário (estimado)
       const modelPrices: Record<string, number> = {
-        'openai/gpt-4o-mini': 0.0000006, // Média aproximada por token
+        'openai/gpt-4o-mini': 0.0000006, 
+        'openai/gpt-4o': 0.000010,
         'google/gemini-2.5-flash-lite': 0.0000002,
         'magisterium-expert': 0.000001,
       };
@@ -190,7 +191,7 @@ export class AdminService {
     // Preços por 1M tokens (USD)
     const modelPrices: Record<string, { input: number, output: number, label: string }> = {
       'openai/gpt-4o-mini': { input: 0.15, output: 0.60, label: 'GPT-4o Mini' },
-      'openai/gpt-4o': { input: 5.00, output: 15.00, label: 'GPT-4o (Standard/Cron)' },
+      'openai/gpt-4o': { input: 2.50, output: 10.00, label: 'GPT-4o (Cron)' },
       'google/gemini-2.5-flash-lite': { input: 0.10, output: 0.40, label: 'Gemini Flash' },
       'magisterium-expert': { input: 1.00, output: 1.00, label: 'Magisterium' },
     };
@@ -225,7 +226,13 @@ export class AdminService {
       breakdown[modelKey].costUsd += cost;
     });
 
-    const brlRate = 5.50;
+    const { data: brlRateSetting } = await supabase
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'brl_rate')
+      .single();
+    
+    const brlRate = parseFloat(brlRateSetting?.value || '5.50');
     
     // Formatar breakdown para array
     const formattedBreakdown = Object.entries(breakdown).map(([key, val]) => ({
@@ -252,5 +259,181 @@ export class AdminService {
         status: 'Healthy'
       }
     };
+  }
+
+  async getDailyStats() {
+    const supabase = this.supabaseService.getClient();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const { data, error } = await supabase
+      .from('usage_logs')
+      .select('created_at, total_tokens, cost, model')
+      .gte('created_at', thirtyDaysAgo.toISOString())
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+
+    const { data: brlRateSetting } = await supabase
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'brl_rate')
+      .single();
+    
+    const brlRate = parseFloat(brlRateSetting?.value || '5.50');
+
+    const dailyStats = data.reduce((acc: any, curr: any) => {
+      const date = new Date(curr.created_at).toLocaleDateString('pt-BR');
+      if (!acc[date]) {
+        acc[date] = { date, tokens: 0, costUsd: 0, costBrl: 0 };
+      }
+      acc[date].tokens += curr.total_tokens || 0;
+      acc[date].costUsd += Number(curr.cost) || 0;
+      acc[date].costBrl += (Number(curr.cost) || 0) * brlRate;
+      return acc;
+    }, {});
+
+    return Object.values(dailyStats);
+  }
+
+  async getUsageLogs(page: number = 1, limit: number = 50) {
+    const supabase = this.supabaseService.getClient();
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    const { data, error, count } = await supabase
+      .from('usage_logs')
+      .select(`
+        *,
+        users (name, wa_chatid)
+      `, { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    if (error) throw error;
+    return { data, count, page, limit };
+  }
+
+  async getWebhookLogs(page: number = 1, limit: number = 50) {
+    const supabase = this.supabaseService.getClient();
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    const { data, error, count } = await supabase
+      .from('webhook_logs')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    if (error) throw error;
+    return { data, count, page, limit };
+  }
+
+  async getSystemSettings() {
+    const supabase = this.supabaseService.getClient();
+    const { data, error } = await supabase
+      .from('system_settings')
+      .select('*')
+      .order('key', { ascending: true });
+
+    if (error) throw error;
+    return data;
+  }
+
+  async updateSystemSetting(key: string, value: string) {
+    const supabase = this.supabaseService.getClient();
+    const { data, error } = await supabase
+      .from('system_settings')
+      .update({ value, updated_at: new Date() })
+      .eq('key', key)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
+  async syncExchangeRate() {
+    try {
+      const response = await fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL');
+      const data = await response.json();
+      const bid = data.USDBRL.bid;
+      
+      await this.updateSystemSetting('brl_rate', bid);
+      return { success: true, rate: bid };
+    } catch (error) {
+      console.error('Erro ao sincronizar taxa de câmbio:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async getAiModels() {
+    try {
+      const response = await fetch('https://openrouter.ai/api/v1/models');
+      const json = await response.json();
+      
+      // Filtrar apenas modelos que suportam texto como entrada e saída
+      // E remover modelos que são apenas para imagens ou áudio
+      const textModels = json.data.filter((model: any) => {
+        const modalities = model.architecture?.modality || '';
+        const inputModalities = model.architecture?.input_modalities || [];
+        const outputModalities = model.architecture?.output_modalities || [];
+
+        return (
+          modalities.includes('text->text') || 
+          (inputModalities.includes('text') && outputModalities.includes('text'))
+        );
+      });
+
+      return textModels.map((model: any) => ({
+        id: model.id,
+        name: model.name,
+        description: model.description,
+        context_length: model.context_length,
+        pricing: {
+          prompt: model.pricing?.prompt || "0",
+          completion: model.pricing?.completion || "0"
+        }
+      }));
+    } catch (error) {
+      console.error('Erro ao buscar modelos do OpenRouter:', error);
+      return [];
+    }
+  }
+
+  async clearSemanticCache() {
+    const supabase = this.supabaseService.getClient();
+    const { error } = await supabase
+      .from('magisterium_cache')
+      .delete()
+      .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
+
+    if (error) throw error;
+    return { success: true };
+  }
+
+  async toggleMaintenanceMode() {
+    const supabase = this.supabaseService.getClient();
+    
+    // Get current status
+    const { data: current } = await supabase
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'maintenance_mode')
+      .single();
+    
+    const isEnabled = current?.value === 'true';
+    const newValue = !isEnabled;
+
+    const { error } = await supabase
+      .from('system_settings')
+      .upsert({ 
+        key: 'maintenance_mode', 
+        value: String(newValue),
+        updated_at: new Date()
+      }, { onConflict: 'key' });
+
+    if (error) throw error;
+    return { success: true, enabled: newValue };
   }
 }

@@ -10,9 +10,10 @@ import { EmbeddingService } from './embedding.service';
 import { AiController } from './ai.controller';
 import { DailyCacheController } from './daily-cache.controller';
 import { SupabaseModule } from '../supabase/supabase.module';
+import { AdminModule } from '../admin/admin.module';
 
 @Module({
-  imports: [ConfigModule, SupabaseModule],
+  imports: [ConfigModule, SupabaseModule, AdminModule],
   controllers: [AiController, DailyCacheController],
   providers: [AiService, PromptService, MagisteriumService, LiturgyService, SaintService, CronService, EmbeddingService],
   exports: [AiService, PromptService, MagisteriumService, LiturgyService, SaintService, CronService, EmbeddingService],

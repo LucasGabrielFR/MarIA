@@ -1,4 +1,4 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Param, Query, Patch, Body, Post } from '@nestjs/common';
 import { AdminService } from './admin.service';
 
 @Controller('admin')
@@ -23,5 +23,50 @@ export class AdminController {
   @Get('stats')
   async getDashboardStats() {
     return this.adminService.getDashboardStats();
+  }
+
+  @Get('stats/daily')
+  async getDailyStats() {
+    return this.adminService.getDailyStats();
+  }
+
+  @Get('logs/usage')
+  async getUsageLogs(@Query('page') page: number, @Query('limit') limit: number) {
+    return this.adminService.getUsageLogs(Number(page) || 1, Number(limit) || 50);
+  }
+
+  @Get('logs/webhooks')
+  async getWebhookLogs(@Query('page') page: number, @Query('limit') limit: number) {
+    return this.adminService.getWebhookLogs(Number(page) || 1, Number(limit) || 50);
+  }
+
+  @Get('settings')
+  async getSystemSettings() {
+    return this.adminService.getSystemSettings();
+  }
+
+  @Patch('settings/:key')
+  async updateSystemSetting(@Param('key') key: string, @Body('value') value: string) {
+    return this.adminService.updateSystemSetting(key, value);
+  }
+
+  @Post('settings/sync-exchange')
+  async syncExchange() {
+    return this.adminService.syncExchangeRate();
+  }
+
+  @Get('ai-models')
+  async getAiModels() {
+    return this.adminService.getAiModels();
+  }
+
+  @Post('settings/clear-cache')
+  async clearCache() {
+    return this.adminService.clearSemanticCache();
+  }
+
+  @Post('settings/toggle-maintenance')
+  async toggleMaintenance() {
+    return this.adminService.toggleMaintenanceMode();
   }
 }
