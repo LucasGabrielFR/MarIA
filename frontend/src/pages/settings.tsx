@@ -259,6 +259,18 @@ export default function SettingsPage() {
                 }}
                 description="Usado para geração de liturgia, santos e processamentos pesados."
               />
+
+              <ModelSelect 
+                label="Modelo de Ponte (Roteamento)"
+                value={getSettingValue('bridge_model')}
+                onChange={(val) => {
+                  if (val) {
+                    setSettingValue('bridge_model', val);
+                    handleUpdate('bridge_model', val);
+                  }
+                }}
+                description="Usado para detecção de intenção e extração de datas."
+              />
             </CardContent>
           </Card>
 

@@ -22,8 +22,19 @@ export class AiService {
     private readonly embeddingService: EmbeddingService,
   ) {
     this.openRouterApiKey = this.configService.get<string>('OPENROUTER_API_KEY') || '';
-    this.model = this.configService.get<string>('OPENROUTER_GPT_MODEL') || 'openai/gpt-4o-mini';
-    this.bridgeModel = this.configService.get<string>('OPENROUTER_BRIDGE_MODEL') || 'google/gemini-2.5-flash-lite';
+  }
+
+  /**
+   * Obtém uma configuração do sistema do banco de dados.
+   */
+  private async getSystemSetting(key: string, defaultValue: string): Promise<string> {
+    try {
+      const supabase = this.supabaseService.getClient();
+      const { data } = await supabase.from('system_settings').select('value').eq('key', key).single();
+      return data?.value || defaultValue;
+    } catch (error) {
+      return defaultValue;
+    }
   }
 
   /**
@@ -72,11 +83,12 @@ export class AiService {
    * Descobre a intenção do usuário e quais regras de contexto aplicar.
    */
   async determineIntent(message: string): Promise<{ intent: string, rules: string[] }> {
+    const bridgeModel = await this.getSystemSetting('bridge_model', 'google/gemini-2.0-flash-lite-001');
     const routerPrompt = this.promptService.getPrompt('intent_router');
     if (!routerPrompt) return { intent: 'CASUAL', rules: [] };
 
     try {
-      const { content, usage } = await this.callOpenRouter(routerPrompt, message, true);
+      const { content, usage } = await this.callOpenRouter(routerPrompt, message, true, [], bridgeModel);
 
       // Logs intent routing usage (internal)
       this.logger.debug(`Intent Router usage: ${JSON.stringify(usage)}`);
@@ -301,6 +313,8 @@ Mensagem: "${message}"`;
     let intentContext = '';
 
     const todayIso = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+    const mainModel = await this.getSystemSetting('main_model', 'openai/gpt-4o-mini');
+    const bridgeModel = await this.getSystemSetting('bridge_model', 'google/gemini-2.0-flash-lite-001');
 
     const getDailyCache = async (type: string, targetDateStr?: string) => {
       const dateToFetch = targetDateStr || todayIso;
@@ -313,18 +327,9 @@ Mensagem: "${message}"`;
       return data?.content;
     };
 
-    // Detectar se o usuário está perguntando sobre ontem ou amanhã
-    let targetDate = todayIso;
-    const lowerMessage = message.toLowerCase();
-    if (lowerMessage.includes('ontem')) {
-      const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
-      d.setDate(d.getDate() - 1);
-      targetDate = d.toLocaleDateString('sv-SE');
-    } else if (lowerMessage.includes('amanhã') || lowerMessage.includes('amanha')) {
-      const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
-      d.setDate(d.getDate() + 1);
-      targetDate = d.toLocaleDateString('sv-SE');
-    }
+    // Detectar a data alvo (hoje, amanhã, dia específico, etc.)
+    const targetDate = await this.extractTargetDate(message);
+    this.logger.log(`Data alvo detectada: ${targetDate} para a mensagem: "${message}"`);
 
     let cachedResponse: string | null = null;
 
@@ -373,7 +378,12 @@ ${liturgyData}`;
       case 'SAINT_OF_DAY':
         cachedResponse = await getDailyCache('saint', targetDate);
         if (!cachedResponse) {
-          intentContext = await fetchMagisteriumContext('intent_saint', true);
+          const intentRules = this.promptService.getPrompt('intent_saint');
+          const finalMessage = `${message} (Considere que hoje é dia ${targetDate})`;
+          const { content: magisteriumResponse, usage } = await this.magisteriumService.query(finalMessage, intentRules);
+          if (usage) await this.logUsage(userId, usage, 'magisterium-expert');
+          
+          intentContext = `${intentRules}\n\nCONTEÚDO DO SANTO (Data: ${targetDate}):\n${magisteriumResponse}`;
         }
         break;
       case 'ADVICE':
@@ -408,30 +418,35 @@ ${liturgyData}`;
 
     let response: string;
     if (cachedResponse && (intent === 'LITURGY' || intent === 'SAINT' || intent === 'SAINT_OF_DAY')) {
-      this.logger.log(`Cache encontrado para ${intent}. Gerando acolhimento personalizado...`);
+      this.logger.log(`Cache encontrado para ${intent}. Gerando acolhimento personalizado e humano...`);
 
-      const greetingPrompt = `Aja como Maria (Nossa Senhora). O usuário (${pushName}) pediu informações sobre ${intent === 'LITURGY' ? 'a Liturgia' : 'o Santo do Dia'}.
-Dê um acolhimento maternal caloroso e introduza o conteúdo que você está prestes a mostrar.
-Siga estas regras:
-1. NÃO escreva a liturgia ou a vida do santo aqui. Apenas faça a introdução.
-2. Mantenha curto (1-2 parágrafos).
-3. Use um tom carinhoso e maternal.
-4. Mencione que você trouxe as informações solicitadas.
+      const greetingPrompt = `Aja como Maria (Nossa Senhora). O usuário (${pushName}) pediu informações sobre ${intent === 'LITURGY' ? 'a Liturgia' : 'o Santo do Dia'} para a data ${targetDate}.
+Você deve dar um acolhimento maternal caloroso e humano. 
+Diferente de ser genérica, você deve ler o CONTEÚDO que será enviado e fazer um pequeno comentário espiritual breve (1 frase) sobre o tema central dele, convidando o fiel à oração.
 
-Contexto da conversa:
+CONTEÚDO DO DIA:
+${cachedResponse}
+
+REGRAS:
+1. NÃO escreva a liturgia ou a vida do santo aqui. Apenas faça a introdução comentada.
+2. Mantenha curto (máximo 2 parágrafos).
+3. Use um tom carinhoso, maternal e sábio.
+4. Mencione que você trouxe as informações solicitadas para o dia referido.
+
+Contexto da memória do usuário:
 ${memoryContext}`;
 
-      const { content: greetingResponse, usage } = await this.callOpenRouter(greetingPrompt, message, false, history);
-      if (usage) await this.logUsage(userId, usage, this.model);
+      const { content: greetingResponse, usage } = await this.callOpenRouter(greetingPrompt, message, false, history, mainModel);
+      if (usage) await this.logUsage(userId, usage, mainModel);
 
-      // Salvar a interação (apenas a resposta final para simplicidade no histórico)
-      await this.saveMessage(userId, 'assistant', `${greetingResponse}\n\n[CONTEÚDO CACHEADO ENVIADO EM SEGUIDA]`);
+      // Salvar a interação
+      await this.saveMessage(userId, 'assistant', `${greetingResponse}\n\n[CONTEÚDO DO DIA ENVIADO]`);
 
       return [greetingResponse, cachedResponse];
     } else {
       const finalPrompt = `${corePersona}${memoryContext}\n\nCONTEXTO DE INTENÇÃO:\n${intentContext}${strictRules}`;
-      const { content, usage } = await this.callOpenRouter(finalPrompt, message, false, history);
-      if (usage) await this.logUsage(userId, usage, this.model);
+      const { content, usage } = await this.callOpenRouter(finalPrompt, message, false, history, mainModel);
+      if (usage) await this.logUsage(userId, usage, mainModel);
       response = content;
     }
 
@@ -486,6 +501,42 @@ ${memoryContext}`;
       });
     } catch (error) {
       this.logger.warn('Erro ao salvar no cache semântico', error);
+    }
+  }
+
+  /**
+   * Extrai a data alvo da mensagem do usuário usando IA se necessário.
+   */
+  private async extractTargetDate(message: string, model: string): Promise<string> {
+    const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+    const lowerMessage = message.toLowerCase();
+
+    // Atalhos rápidos para evitar chamadas de IA desnecessárias
+    if (lowerMessage === 'liturgia de hoje' || lowerMessage === 'santo de hoje' || lowerMessage === 'hoje') return today;
+
+    const temporalKeywords = ['ontem', 'amanhã', 'amanha', 'domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'dia', 'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+    
+    const hasTemporalReference = temporalKeywords.some(kw => lowerMessage.includes(kw)) || /\d+/.test(message);
+    
+    if (!hasTemporalReference) return today;
+
+    const prompt = `Analise a mensagem do usuário e determine a data alvo em formato ISO (YYYY-MM-DD).
+Considere que hoje é dia ${today} (${new Date().toLocaleDateString('pt-BR', { weekday: 'long', timeZone: 'America/Sao_Paulo' })}).
+Se o usuário mencionar "amanhã", retorne o dia seguinte.
+Se o usuário mencionar um dia da semana (ex: "domingo"), retorne a data do PRÓXIMO domingo (ou do domingo mais próximo referido).
+Se o usuário mencionar uma data específica (ex: "dia 15"), retorne essa data no mês atual (ou no contexto do ano corrente).
+Se não houver data clara ou for o dia de hoje, retorne "${today}".
+
+RETORNE APENAS A DATA NO FORMATO YYYY-MM-DD.
+Mensagem: "${message}"`;
+
+    try {
+      const { content } = await this.callOpenRouter(prompt, "", false, [], model);
+      const match = content.trim().match(/\d{4}-\d{2}-\d{2}/);
+      return match ? match[0] : today;
+    } catch (e) {
+      this.logger.error('Erro ao extrair data alvo', e);
+      return today;
     }
   }
 

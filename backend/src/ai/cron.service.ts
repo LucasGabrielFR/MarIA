@@ -63,6 +63,7 @@ export class CronService {
     const rawLiturgy = await this.liturgyService.getDailyLiturgy(date);
     const prompt = 'Você é um especialista em liturgia católica. Com base na liturgia bruta abaixo, gere um conteúdo estruturado e formatado para WhatsApp:\n\n' +
       'REGRAS DE FORMATAÇÃO:\n' +
+      `- COMECE SEMPRE o texto com a data no formato: *Liturgia do dia ${new Date(date + 'T12:00:00').toLocaleDateString('pt-BR')}*\n` +
       '- Use negritos e emojis nos títulos (ex: 📖 *Leituras do Dia:*, ✨ *Mensagem do Dia:*, etc).\n' +
       '- NÃO inclua saudações como "Meu querido filho" ou "A paz de meu Filho". O conteúdo deve ser direto e informativo.\n' +
       '- Mantenha um tom solene e espiritual, mas focado no conteúdo.\n\n' +
@@ -91,6 +92,7 @@ export class CronService {
     const prompt = 'Você é um hagiógrafo especialista. Abaixo você receberá dados brutos de santos do dia.\n' +
       'Gere um conteúdo formatado para WhatsApp com emojis e negritos.\n\n' +
       'REGRAS:\n' +
+      `- COMECE SEMPRE o texto com a data no formato: *Santo do dia ${new Date(date + 'T12:00:00').toLocaleDateString('pt-BR')}*\n` +
       '- NÃO inclua saudações como "Meu querido filho".\n' +
       '- Use emojis temáticos para cada seção.\n\n' +
       'Para CADA santo listado, você deve:\n' +
