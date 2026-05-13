@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Metrificação de Crons:** Implementado o registro de uso de tokens (GPT-4o) para as automações de Liturgia e Santo do Dia, garantindo visibilidade total de custos de infraestrutura.
 - **Consumo por Modelo:** Corrigido erro de exibição `[OBJECT OBJECT]` no detalhamento de tokens por usuário.
 - **Detalhamento I/O:** Corrigido problema de valores zerados em tokens de entrada/saída no modal de fiéis.
+- **Build Frontend:** Removida variável `isGlobal` não utilizada que causava erro de compilação.
 - Erro de sintaxe (JSX Parse Error) no modal de gestão de fiéis.
 - Erro de compilação (Build Error TS6133) causado por imports e estados não utilizados.
 - Otimização de concorrência no backend para evitar travamentos durante o processamento de métricas.

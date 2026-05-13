@@ -58,7 +58,6 @@ export default function DailyContentPage() {
   };
 
   const handleGenerate = async (type?: 'liturgy' | 'saint') => {
-    const isGlobal = !type;
     const item = type ? getByType(type) : contents.length > 0;
     
     if (item && !confirm(`Já existe conteúdo ${type ? 'para esta categoria' : 'para este dia'}. Deseja sobrescrever usando a IA? Isso gastará novos tokens.`)) {
