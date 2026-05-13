@@ -6,7 +6,10 @@ const SidebarContainer = styled.aside`
   background: linear-gradient(180deg, #002D6E 0%, #0047AB 100%);
   color: white;
   width: 260px;
-  height: 100vh;
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
   display: flex;
   flex-direction: column;
   padding: 1.5rem;
