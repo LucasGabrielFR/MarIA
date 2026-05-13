@@ -179,22 +179,29 @@ export class AiService implements OnModuleInit {
   }
 
   /**
-   * Condensa o contexto do usuário se passaram 10 mensagens desde a última atualização.
+   * Condensa o contexto do usuário a cada 10 novas mensagens.
    */
   private async updateContextIfNeeded(userId: string, lastMessageId: string) {
     const supabase = this.supabaseService.getClient();
 
-    // Busca contexto atual
+    // 1. Busca contexto atual
     const { data: context } = await supabase
       .from('user_contexts')
       .select('*')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
-    // Conta mensagens desde o último processamento
+    // 2. Conta mensagens desde o último processamento
     let query = supabase.from('messages').select('id', { count: 'exact' }).eq('user_id', userId);
+    
     if (context?.last_processed_message_id) {
-      const { data: lastMsg } = await supabase.from('messages').select('created_at').eq('id', context.last_processed_message_id).single();
+      // Busca a data da última mensagem processada para contar apenas as novas
+      const { data: lastMsg } = await supabase
+        .from('messages')
+        .select('created_at')
+        .eq('id', context.last_processed_message_id)
+        .maybeSingle();
+        
       if (lastMsg) {
         query = query.gt('created_at', lastMsg.created_at);
       }
@@ -202,31 +209,46 @@ export class AiService implements OnModuleInit {
 
     const { count } = await query;
 
-    // Se tivermos 10 ou mais novas mensagens, atualizar resumo
+    // 3. Se tivermos 10 ou mais novas mensagens, atualizar resumo
     if (count && count >= 10) {
-      this.logger.log(`Atualizando resumo de contexto para o usuário ${userId}...`);
+      this.logger.log(`Atingido limite de 10 mensagens para o usuário ${userId}. Iniciando condensação de contexto...`);
 
+      // Busca as últimas 10 mensagens exatas para o processamento
       const { data: recentMessages } = await supabase
         .from('messages')
         .select('role, content')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
-        .limit(30);
+        .limit(10);
 
-      const conversationText = recentMessages?.reverse().map(m => `${m.role}: ${m.content}`).join('\n') || '';
+      const conversationText = recentMessages?.reverse().map(m => `${m.role === 'user' ? 'Usuário' : 'MarIA'}: ${m.content}`).join('\n') || '';
 
-      const summarizationPrompt = `Você é um assistente de IA focado em entender os interesses, necessidades e tom do usuário.
-Resuma os principais interesses, dúvidas recentes e personalidade do usuário com base nas mensagens abaixo.
-Mantenha o resumo em um parágrafo conciso. Se houver um resumo anterior, mescle com as novas informações sem perder o histórico fundamental.
-Resumo anterior: ${context?.general_summary || 'Nenhum'}`;
+      // Prompt aprimorado: Contexto Anterior + 10 Últimas Mensagens
+      const summarizationPrompt = `Você é um sistema de memória de longo prazo para a MarIA (assistente católica).
+Seu objetivo é atualizar o resumo do perfil do usuário combinando o contexto antigo com as 10 mensagens mais recentes.
 
-      const { content: newSummary } = await this.callOpenRouter(summarizationPrompt, conversationText);
+CONTEXTO ATUAL (RESUMO ANTERIOR):
+${context?.general_summary || 'Nenhum histórico disponível ainda.'}
 
-      // Extração de Interesses (Badges)
+NOVAS INTERAÇÕES (ÚLTIMAS 10 MENSAGENS):
+${conversationText}
+
+TAFA:
+1. Analise as novas interações para identificar mudanças de tom, novos interesses, pedidos específicos ou fatos sobre a vida do fiel.
+2. Crie um NOVO resumo consolidado, mantendo as informações essenciais do contexto antigo e integrando as novas descobertas.
+3. O texto deve ser contínuo, em terceira pessoa, focado em ajudar a MarIA a ter uma conversa personalizada e empática.
+4. Mantenha o resumo conciso (máximo 1 parágrafo denso).`;
+
+      const mainModel = await this.getSystemSetting('main_model', 'openai/gpt-4o-mini');
+      const { content: newSummary, usage } = await this.callOpenRouter(summarizationPrompt, "Gere o resumo consolidado.", false, [], mainModel);
+      
+      if (usage) await this.logUsage(userId, usage, mainModel);
+
+      // Extração de Interesses (Badges) - Também usando apenas as 10 mensagens
       const interestExtractorPrompt = (this.promptService.getPrompt('interest_extractor') || '')
         .replace('{{previous_interests}}', JSON.stringify(context?.interests || []));
 
-      const { content: interestsJson } = await this.callOpenRouter(interestExtractorPrompt, conversationText, true);
+      const { content: interestsJson } = await this.callOpenRouter(interestExtractorPrompt, conversationText, true, [], mainModel);
       let interests = context?.interests || [];
       try {
         const extracted = JSON.parse(interestsJson);
@@ -235,23 +257,23 @@ Resumo anterior: ${context?.general_summary || 'Nenhum'}`;
         this.logger.warn(`Falha ao extrair interesses para o usuário ${userId}`);
       }
 
-      // Atualizar no banco
+      // 4. Atualizar ou Criar no banco
+      const updateData = {
+        general_summary: newSummary,
+        interests: interests,
+        last_processed_message_id: lastMessageId,
+        updated_at: new Date().toISOString()
+      };
+
       if (context) {
-        await supabase.from('user_contexts').update({
-          general_summary: newSummary,
-          interests: interests,
-          last_processed_message_id: lastMessageId,
-          updated_at: new Date().toISOString()
-        }).eq('user_id', userId);
+        await supabase.from('user_contexts').update(updateData).eq('user_id', userId);
       } else {
         await supabase.from('user_contexts').insert({
           user_id: userId,
-          general_summary: newSummary,
-          interests: interests,
-          last_processed_message_id: lastMessageId
+          ...updateData
         });
       }
-      this.logger.log(`Resumo de contexto e interesses atualizados para o usuário ${userId}.`);
+      this.logger.log(`Contexto e interesses atualizados com sucesso para o usuário ${userId}.`);
     }
   }
 
