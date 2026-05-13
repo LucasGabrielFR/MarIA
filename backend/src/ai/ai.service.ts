@@ -481,7 +481,7 @@ ${memoryContext}`;
   /**
    * Salva o log de uso de tokens no banco de dados.
    */
-  private async logUsage(userId: string, usage: any, model: string) {
+  async logUsage(userId: string | null, usage: any, model: string) {
     try {
       const supabase = this.supabaseService.getClient();
       await supabase.from('usage_logs').insert({
@@ -492,7 +492,7 @@ ${memoryContext}`;
         model: model,
       });
     } catch (error) {
-      this.logger.warn(`Falha ao salvar usage log para o usuário ${userId}`, error);
+      this.logger.warn(`Falha ao salvar usage log para ${userId || 'SYSTEM/CRON'}`, error);
     }
   }
 }

@@ -19,4 +19,9 @@ export class AdminController {
   async findUserMessages(@Param('id') id: string) {
     return this.adminService.getUserMessages(id);
   }
+
+  @Get('stats')
+  async getDashboardStats() {
+    return this.adminService.getDashboardStats();
+  }
 }

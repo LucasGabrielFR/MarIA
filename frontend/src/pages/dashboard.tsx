@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { StatsCards } from '../components/dashboard/stats-cards'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -6,16 +7,38 @@ import { MainLayout } from '../components/layout/main-layout'
 import { cn } from "@/lib/utils"
 
 export default function DashboardPage() {
-  const recentConversations = [
-    { id: 1, user: "Lucas Gabriel", status: "Ativo", time: "2 min atrás", type: "Teológico" },
-    { id: 2, user: "Maria Silva", status: "Finalizado", time: "15 min atrás", type: "Acolhimento" },
-    { id: 3, user: "João Bento", status: "Ativo", time: "1 hora atrás", type: "Doutrina" },
-    { id: 4, user: "Ana Paula", status: "Ativo", time: "3 horas atrás", type: "Acolhimento" },
-  ];
+  const [stats, setStats] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await fetch('http://localhost:3000/admin/stats');
+        const data = await response.json();
+        setStats(data);
+      } catch (error) {
+        console.error('Erro ao buscar estatísticas:', error);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
+  const conversations = stats?.recentConversations || [];
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return 'Agora';
+    if (diffInMinutes < 60) return `${diffInMinutes} min atrás`;
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h atrás`;
+    return date.toLocaleDateString('pt-BR');
+  };
 
   return (
     <MainLayout title="Dashboard Geral" subtitle="Bem-vindo ao painel de controle da MarIA.">
-      <StatsCards />
+      <StatsCards stats={stats} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-10">
         <div className="lg:col-span-2 bg-white rounded-3xl shadow-sm p-8 border border-slate-100">
@@ -36,26 +59,29 @@ export default function DashboardPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {recentConversations.map((conv) => (
+                {conversations.map((conv: any) => (
                   <TableRow key={conv.id} className="border-slate-50 hover:bg-slate-50/50 transition-all duration-200 cursor-pointer group">
                     <TableCell className="font-bold flex items-center gap-3 py-4">
                       <Avatar className="h-9 w-9 border border-slate-100 shadow-sm">
                         <AvatarFallback className="bg-blue-50 text-primary text-xs font-bold">{conv.user[0]}</AvatarFallback>
                       </Avatar>
-                      <span className="group-hover:text-primary transition-colors">{conv.user}</span>
+                      <div className="flex flex-col">
+                        <span className="group-hover:text-primary transition-colors">{conv.user}</span>
+                        <span className="text-[10px] text-slate-400 font-normal line-clamp-1 max-w-[200px]">{conv.content}</span>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="font-medium text-slate-600 bg-slate-50 border-slate-200 px-3 py-1">
-                        {conv.type}
+                        {conv.role === 'user' ? 'Pergunta' : 'Resposta'}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge className={conv.status === 'Ativo' ? 'bg-green-100 text-green-700 hover:bg-green-100 border-none px-3 py-1' : 'bg-slate-100 text-slate-700 hover:bg-slate-100 border-none px-3 py-1'}>
-                        <span className={cn("h-1.5 w-1.5 rounded-full mr-2", conv.status === 'Ativo' ? "bg-green-600" : "bg-slate-400")}></span>
+                      <Badge className={conv.status === 'Ativo' ? 'bg-green-100 text-green-700 hover:bg-green-100 border-none px-3 py-1' : 'bg-amber-100 text-amber-700 hover:bg-amber-100 border-none px-3 py-1'}>
+                        <span className={cn("h-1.5 w-1.5 rounded-full mr-2", conv.status === 'Ativo' ? "bg-green-600" : "bg-amber-600")}></span>
                         {conv.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right text-slate-400 text-sm font-medium">{conv.time}</TableCell>
+                    <TableCell className="text-right text-slate-400 text-sm font-medium">{formatTime(conv.time)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -71,31 +97,80 @@ export default function DashboardPage() {
                 <p className="text-sm font-bold text-primary">Status da Persona</p>
                 <span className="text-[10px] bg-primary text-white px-2 py-0.5 rounded-full font-bold">ONLINE</span>
               </div>
-              <p className="text-xs text-slate-500 mb-4 font-medium">Nossa Senhora (Acolhedora) ativa e respondendo.</p>
+              <p className="text-xs text-slate-500 mb-4 font-medium">Persona {stats?.health?.prompts || '...'} ativa e operante.</p>
               <div className="h-2 w-full bg-blue-100 rounded-full overflow-hidden">
-                <div className="h-full bg-primary w-[92%] rounded-full shadow-[0_0_8px_rgba(0,71,171,0.4)]"></div>
+                <div className="h-full bg-primary w-[100%] rounded-full shadow-[0_0_8px_rgba(0,71,171,0.4)]"></div>
               </div>
             </div>
             
             <div className="p-5 rounded-2xl bg-amber-50/50 border border-amber-100 hover:border-secondary/30 transition-all group">
               <div className="flex justify-between items-center mb-2">
-                <p className="text-sm font-bold text-secondary">Limite de API</p>
-                <span className="text-[10px] bg-secondary text-white px-2 py-0.5 rounded-full font-bold">OK</span>
+                <p className="text-sm font-bold text-secondary">Banco de Dados</p>
+                <span className="text-[10px] bg-secondary text-white px-2 py-0.5 rounded-full font-bold">{stats?.health?.database || '...'}</span>
               </div>
-              <p className="text-xs text-slate-500 mb-4 font-medium">Consumo de tokens dentro da margem segura.</p>
+              <p className="text-xs text-slate-500 mb-4 font-medium">Conexão com Supabase está estável.</p>
               <div className="h-2 w-full bg-amber-100 rounded-full overflow-hidden">
-                <div className="h-full bg-secondary w-[35%] rounded-full shadow-[0_0_8px_rgba(212,175,55,0.4)]"></div>
+                <div className="h-full bg-secondary w-[100%] rounded-full shadow-[0_0_8px_rgba(212,175,55,0.4)]"></div>
               </div>
             </div>
 
             <div className="p-5 rounded-2xl bg-green-50/50 border border-green-100 hover:border-green-300 transition-all">
-              <p className="text-sm font-bold text-green-700 mb-1">WhatsApp Cloud</p>
-              <p className="text-xs text-slate-500 font-medium">Instância conectada via Uazapi.</p>
+              <p className="text-sm font-bold text-green-700 mb-1">Status Geral</p>
+              <p className="text-xs text-slate-500 font-medium">Sistema operando em modo: {stats?.health?.status || '...'}</p>
             </div>
           </div>
           <button className="w-full mt-8 py-4 bg-primary text-white rounded-2xl font-bold shadow-xl shadow-blue-200 hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300">
             Ir para Configurações
           </button>
+        </div>
+      </div>
+
+      <div className="mt-10 bg-white rounded-3xl shadow-sm p-8 border border-slate-100">
+        <h3 className="text-xl font-bold text-slate-800 mb-8">Análise Detalhada de IA</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {stats?.modelBreakdown?.map((item: any) => (
+            <div key={item.model} className="p-6 rounded-2xl border border-slate-100 bg-slate-50/30 hover:shadow-md transition-all group">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">{item.name}</p>
+                  <p className="text-lg font-bold text-slate-700">{item.tokens.toLocaleString()} tokens</p>
+                </div>
+                <div className="h-10 w-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+                  <span className="text-xs font-bold italic">AI</span>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <div className="flex justify-between text-[11px] bg-white p-2 rounded-lg border border-slate-50">
+                  <span className="text-slate-400 font-bold uppercase tracking-tight">Entrada (Prompt)</span>
+                  <span className="text-slate-700 font-black">{item.promptTokens.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-[11px] bg-white p-2 rounded-lg border border-slate-50">
+                  <span className="text-slate-400 font-bold uppercase tracking-tight">Saída (Completion)</span>
+                  <span className="text-slate-700 font-black">{item.completionTokens.toLocaleString()}</span>
+                </div>
+                
+                <div className="pt-2 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-500 font-medium">Custo USD</span>
+                    <span className="text-slate-700 font-bold">${item.costUsd}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-500 font-medium">Custo BRL</span>
+                    <span className="text-green-600 font-bold">R$ {item.costBrl.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                </div>
+                <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden mt-4">
+                  <div 
+                    className="h-full bg-primary rounded-full" 
+                    style={{ width: `${Math.min((item.tokens / (stats?.totalTokens || 1)) * 100, 100)}%` }}
+                  ></div>
+                </div>
+                <p className="text-[10px] text-slate-400 text-center font-bold">
+                  Representa {Math.round((item.tokens / (stats?.totalTokens || 1)) * 100)}% do volume total
+                </p>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </MainLayout>

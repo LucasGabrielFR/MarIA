@@ -66,6 +66,9 @@ export class CronService {
       'LITURGIA CRUA:\n' + rawLiturgy;
 
     const result = await this.aiService.callOpenRouter(prompt, `Gere o roteiro litúrgico formatado do dia ${date}.`, false, [], 'openai/gpt-4o');
+    if (result.usage) {
+      await this.aiService.logUsage(null, result.usage, 'openai/gpt-4o');
+    }
     await this.saveToCache('liturgy', date, result.content);
   }
 
@@ -90,6 +93,9 @@ export class CronService {
       saints.map(s => `SANTO: ${s.title}\nBIOGRAFIA: ${s.content}`).join('\n\n---\n\n');
 
     const result = await this.aiService.callOpenRouter(prompt, `Gere a hagiografia formatada do dia ${date}.`, false, [], 'openai/gpt-4o');
+    if (result.usage) {
+      await this.aiService.logUsage(null, result.usage, 'openai/gpt-4o');
+    }
     await this.saveToCache('saint', date, result.content);
   }
 

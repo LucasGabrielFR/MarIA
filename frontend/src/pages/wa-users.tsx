@@ -50,7 +50,14 @@ interface WaUser {
   }
   metrics: {
     total_tokens: number
-    breakdown: Record<string, number>
+    total_cost_usd: number
+    breakdown: Array<{
+      model: string
+      tokens: number
+      promptTokens: number
+      completionTokens: number
+      costUsd: number
+    }>
     total_messages: number
     engagement: string
   }
@@ -315,7 +322,7 @@ const WaUsersPage = () => {
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-8 px-1">
                   {[
                     { label: 'Consumo Total', value: selectedUser.metrics.total_tokens.toLocaleString(), unit: 'tokens', icon: TrendingUp, color: 'blue' },
-                    { label: 'Saldo Mensagens', value: selectedUser.credits, unit: 'créditos', icon: MessageSquare, color: 'green' },
+                    { label: 'Custo Total (IA)', value: `$${selectedUser.metrics.total_cost_usd?.toFixed(3)}`, unit: 'USD', icon: TrendingUp, color: 'green' },
                     { label: 'Mensagens Enviadas', value: selectedUser.metrics.total_messages.toLocaleString(), unit: 'mensagens', icon: MessageSquare, color: 'amber' },
                     { label: 'Interação', value: selectedUser.metrics.engagement, unit: 'perfil', icon: Heart, color: 'pink' }
                   ].map((stat, i) => (
@@ -392,14 +399,23 @@ const WaUsersPage = () => {
                       <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100">
                         <h3 className="text-lg font-black text-slate-800 mb-6">Consumo por Modelo</h3>
                         <div className="space-y-6">
-                          {Object.entries(selectedUser.metrics.breakdown).map(([model, count]) => (
-                            <div key={model}>
+                          {selectedUser.metrics.breakdown.map((item: any) => (
+                            <div key={item.model} className="group/item">
                               <div className="flex justify-between text-[10px] font-black uppercase mb-2">
-                                <span>{model}</span>
-                                <span>{Math.round((count / selectedUser.metrics.total_tokens) * 100)}%</span>
+                                <div className="flex flex-col">
+                                  <span className="text-slate-800">{item.model}</span>
+                                  <span className="text-slate-400 font-bold">${item.costUsd?.toFixed(4)} USD</span>
+                                </div>
+                                <div className="text-right">
+                                  <span className="text-primary">{item.tokens.toLocaleString()} tokens</span>
+                                  <div className="flex gap-2 justify-end text-[8px] text-slate-400 font-bold uppercase mt-0.5">
+                                    <span>IN: {item.promptTokens?.toLocaleString()}</span>
+                                    <span>OUT: {item.completionTokens?.toLocaleString()}</span>
+                                  </div>
+                                </div>
                               </div>
                               <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                                <div className="h-full bg-primary" style={{ width: `${(count / selectedUser.metrics.total_tokens) * 100}%` }} />
+                                <div className="h-full bg-primary" style={{ width: `${(item.tokens / selectedUser.metrics.total_tokens) * 100}%` }} />
                               </div>
                             </div>
                           ))}
