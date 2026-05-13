@@ -3,18 +3,18 @@ import { SupabaseService } from '../supabase/supabase.service';
 
 @Injectable()
 export class AdminService {
-  constructor(private supabaseService: SupabaseService) {}
+  constructor(private supabaseService: SupabaseService) { }
 
   async findAll() {
     const supabase = this.supabaseService.getClient();
-    
+
     const { data, error } = await supabase
       .from('admins')
       .select('id, name, email, role, created_at')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    
+
     return data;
   }
 
@@ -53,7 +53,7 @@ export class AdminService {
     const usersWithMetrics = await Promise.all(users.map(async (user) => {
       const userUsage = usageData?.filter(u => u.user_id === user.id) || [];
       const tokenMetrics: Record<string, { total: number, prompt: number, completion: number }> = {};
-      
+
       userUsage.forEach((curr: any) => {
         const model = curr.model || 'unknown';
         if (!tokenMetrics[model]) {
@@ -66,7 +66,7 @@ export class AdminService {
 
       // Cálculo de custos por usuário (estimado)
       const modelPrices: Record<string, number> = {
-        'openai/gpt-4o-mini': 0.0000006, 
+        'openai/gpt-4o-mini': 0.0000006,
         'openai/gpt-4o': 0.000010,
         'google/gemini-2.5-flash-lite': 0.0000002,
         'magisterium-expert': 0.000001,
@@ -203,7 +203,7 @@ export class AdminService {
     usageLogs?.forEach(log => {
       const modelKey = log.model || 'openai/gpt-4o-mini';
       totalTokens += log.total_tokens || 0;
-      
+
       const prices = modelPrices[modelKey] || modelPrices['openai/gpt-4o-mini'];
       const cost = (
         (log.prompt_tokens || 0) * (prices.input / 1000000) +
@@ -231,9 +231,9 @@ export class AdminService {
       .select('value')
       .eq('key', 'brl_rate')
       .single();
-    
+
     const brlRate = parseFloat(brlRateSetting?.value || '5.50');
-    
+
     // Formatar breakdown para array
     const formattedBreakdown = Object.entries(breakdown).map(([key, val]) => ({
       model: key,
@@ -279,7 +279,7 @@ export class AdminService {
       .select('value')
       .eq('key', 'brl_rate')
       .single();
-    
+
     const brlRate = parseFloat(brlRateSetting?.value || '5.50');
 
     const dailyStats = data.reduce((acc: any, curr: any) => {
@@ -356,7 +356,7 @@ export class AdminService {
   async syncExchangeRate() {
     try {
       const response = await fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL');
-      
+
       if (!response.ok) {
         if (response.status === 403 || response.status === 429) {
           console.warn('AwesomeAPI: Quota exceeded ou Rate limited. Mantendo taxa atual.');
@@ -375,6 +375,7 @@ export class AdminService {
       return { success: true, rate: bid };
     } catch (error) {
       console.error('Erro ao sincronizar taxa de câmbio:', error.message);
+      console.error('Erro ao sincronizar taxa de câmbio:', error.message);
       return { success: false, error: error.message };
     }
   }
@@ -383,7 +384,7 @@ export class AdminService {
     try {
       const response = await fetch('https://openrouter.ai/api/v1/models');
       const json = await response.json();
-      
+
       // Filtrar apenas modelos que suportam texto como entrada e saída
       // E remover modelos que são apenas para imagens ou áudio
       const textModels = json.data.filter((model: any) => {
@@ -392,7 +393,7 @@ export class AdminService {
         const outputModalities = model.architecture?.output_modalities || [];
 
         return (
-          modalities.includes('text->text') || 
+          modalities.includes('text->text') ||
           (inputModalities.includes('text') && outputModalities.includes('text'))
         );
       });
@@ -426,21 +427,21 @@ export class AdminService {
 
   async toggleMaintenanceMode() {
     const supabase = this.supabaseService.getClient();
-    
+
     // Get current status
     const { data: current } = await supabase
       .from('system_settings')
       .select('value')
       .eq('key', 'maintenance_mode')
       .single();
-    
+
     const isEnabled = current?.value === 'true';
     const newValue = !isEnabled;
 
     const { error } = await supabase
       .from('system_settings')
-      .upsert({ 
-        key: 'maintenance_mode', 
+      .upsert({
+        key: 'maintenance_mode',
         value: String(newValue),
         updated_at: new Date()
       }, { onConflict: 'key' });
