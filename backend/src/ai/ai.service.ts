@@ -369,6 +369,7 @@ Mensagem: "${message}"`;
 1. Apresentar as passagens das leituras.
 2. Elaborar uma reflexão espiritual profunda.
 3. Finalizar com uma oração.
+4. **IMPORTANTE**: NÃO use termos relativos como "hoje", "amanhã" ou "ontem". Use "nesta liturgia" ou "neste dia".
 
 DADOS DA LITURGIA:
 ${liturgyData}`;
@@ -432,6 +433,8 @@ REGRAS:
 2. Mantenha curto (máximo 2 parágrafos).
 3. Use um tom carinhoso, maternal e sábio.
 4. Mencione que você trouxe as informações solicitadas para o dia referido.
+5. JAMAIS inclua placeholders, etiquetas internas ou avisos de sistema como "[CONTEÚDO CACHEADO...]" ou "[CONTEÚDO DO DIA...]" no seu texto. Sua resposta deve conter apenas a sua fala maternal direta para o fiel.
+6. NÃO use termos relativos como "hoje", "amanhã" ou "ontem". Refira-se à data solicitada (${targetDate}) ou use "neste dia".
 
 Contexto da memória do usuário:
 ${memoryContext}`;
@@ -439,8 +442,8 @@ ${memoryContext}`;
       const { content: greetingResponse, usage } = await this.callOpenRouter(greetingPrompt, message, false, history, mainModel);
       if (usage) await this.logUsage(userId, usage, mainModel);
 
-      // Salvar a interação
-      await this.saveMessage(userId, 'assistant', `${greetingResponse}\n\n[CONTEÚDO DO DIA ENVIADO]`);
+      // Salvar a interação (apenas o acolhimento para o histórico)
+      await this.saveMessage(userId, 'assistant', greetingResponse);
 
       return [greetingResponse, cachedResponse];
     } else {
