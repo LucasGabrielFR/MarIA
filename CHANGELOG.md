@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.6] - 2026-05-13
+### Added
+- Reconstrução total do componente `ModelSelect` do zero para máxima estabilidade e controle de foco.
+- Seletor de modelos customizado com busca em tempo real, glassmorphism e ordenação alfabética.
+- Otimização de layout nos cards do admin (remoção de overflow-hidden) para evitar corte dos menus suspensos.
+- Melhoria na gestão de eventos (stopPropagation e clickOutside) para garantir uma experiência de busca fluida e sem interrupções.
+
 ## [1.6.5] - 2026-05-13
 ### Fixed
 - **Remoção de Placeholders:** Eliminada a exibição e salvamento de marcadores internos como `[CONTEÚDO CACHEADO...]` nas mensagens da MarIA.

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Select } from '@base-ui/react/select';
 import { MainLayout } from '../components/layout/main-layout'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
-import { Cpu, DollarSign, ShieldCheck, Save, RefreshCw, AlertTriangle, Trash2, Power } from 'lucide-react'
+import { Cpu, DollarSign, ShieldCheck, Save, RefreshCw, AlertTriangle, Trash2, Power, ChevronDown, Search } from 'lucide-react'
 import { 
   Dialog, 
   DialogContent, 
@@ -52,7 +52,9 @@ export default function SettingsPage() {
     try {
       const response = await fetch('http://localhost:3000/admin/ai-models');
       const data = await response.json();
-      setAiModels(data);
+      // Ordenar por nome em ordem alfabética
+      const sorted = Array.isArray(data) ? data.sort((a: any, b: any) => a.name.localeCompare(b.name)) : [];
+      setAiModels(sorted);
     } catch (error) {
       console.error('Erro ao buscar modelos:', error);
     }
@@ -139,75 +141,6 @@ export default function SettingsPage() {
     setSettings(prev => prev.map(s => s.key === key ? { ...s, value } : s));
   };
 
-  const ModelSelect = ({ label, value, onChange, description }: { label: string, value: string, onChange: (val: string | null) => void, description: string }) => {
-    const selectedModel = aiModels.find(m => m.id === value);
-    
-    return (
-      <div className="space-y-2">
-        <Label className="font-bold text-slate-700 ml-1">{label}</Label>
-        <Select.Root value={value} onValueChange={onChange}>
-          <Select.Trigger className="w-full flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 hover:bg-slate-50 transition-all h-11 shadow-sm">
-            <Select.Value placeholder="Selecione um modelo...">
-              {selectedModel ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-slate-800">{selectedModel.name}</span>
-                  <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-bold">
-                    ${(Number(selectedModel.pricing.prompt) * 1000000).toFixed(2)}/M
-                  </span>
-                </div>
-              ) : null}
-            </Select.Value>
-            <Select.Icon className="text-slate-400">
-              <Cpu size={14} />
-            </Select.Icon>
-          </Select.Trigger>
-
-          <Select.Portal>
-            <Select.Positioner sideOffset={8} className="z-50 w-[var(--select-trigger-width)]">
-              <Select.Popup className="bg-white/95 backdrop-blur-xl shadow-2xl rounded-2xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                <Select.List className="p-1.5 max-h-[300px] overflow-y-auto">
-                  {aiModels.map((model) => (
-                    <Select.Item
-                      key={model.id}
-                      value={model.id}
-                      className="group flex flex-col gap-0.5 px-3 py-2.5 rounded-xl cursor-pointer outline-none data-[highlighted]:bg-slate-50 data-[selected]:bg-blue-50/50 transition-colors"
-                    >
-                      <div className="flex items-center justify-between">
-                        <Select.ItemText className="text-sm font-bold text-slate-700 group-data-[highlighted]:text-primary group-data-[selected]:text-primary transition-colors">
-                          {model.name}
-                        </Select.ItemText>
-                        <Select.ItemIndicator className="text-primary">
-                          <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                        </Select.ItemIndicator>
-                      </div>
-                      <div className="flex items-center gap-3 text-[10px] font-medium text-slate-400">
-                        <span className="flex items-center gap-1">
-                          <span className="opacity-60">Input:</span> 
-                          <span className="text-slate-500">${(Number(model.pricing.prompt) * 1000000).toFixed(2)}/M</span>
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <span className="opacity-60">Output:</span> 
-                          <span className="text-slate-500">${(Number(model.pricing.completion) * 1000000).toFixed(2)}/M</span>
-                        </span>
-                        {model.context_length && (
-                          <span className="flex items-center gap-1 ml-auto">
-                            <span className="opacity-60">Ctx:</span>
-                            <span className="text-slate-500">{(model.context_length / 1000).toFixed(0)}k</span>
-                          </span>
-                        )}
-                      </div>
-                    </Select.Item>
-                  ))}
-                </Select.List>
-              </Select.Popup>
-            </Select.Positioner>
-          </Select.Portal>
-        </Select.Root>
-        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider ml-1">{description}</p>
-      </div>
-    );
-  };
-
   if (loading) {
     return (
       <MainLayout title="Configurações" subtitle="Carregando...">
@@ -222,8 +155,7 @@ export default function SettingsPage() {
     <MainLayout title="Configurações" subtitle="Gerenciamento global do sistema e parâmetros de IA.">
       <div className="space-y-8 max-w-5xl">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* IA Configuration */}
-          <Card className="rounded-3xl border-none shadow-sm bg-white overflow-hidden">
+          <Card className="rounded-3xl border-none shadow-sm bg-white">
             <CardHeader className="border-b border-slate-50 pb-6">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 bg-blue-50 text-primary rounded-xl">
@@ -246,6 +178,7 @@ export default function SettingsPage() {
                   }
                 }}
                 description="Usado em todas as interações diretas com fiéis."
+                aiModels={aiModels}
               />
 
               <ModelSelect 
@@ -258,6 +191,7 @@ export default function SettingsPage() {
                   }
                 }}
                 description="Usado para geração de liturgia, santos e processamentos pesados."
+                aiModels={aiModels}
               />
 
               <ModelSelect 
@@ -270,12 +204,13 @@ export default function SettingsPage() {
                   }
                 }}
                 description="Usado para detecção de intenção e extração de datas."
+                aiModels={aiModels}
               />
             </CardContent>
           </Card>
 
           {/* Financial */}
-          <Card className="rounded-3xl border-none shadow-sm bg-white overflow-hidden">
+          <Card className="rounded-3xl border-none shadow-sm bg-white">
             <CardHeader className="border-b border-slate-50 pb-6">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 bg-green-50 text-green-600 rounded-xl">
@@ -424,3 +359,152 @@ export default function SettingsPage() {
     </MainLayout>
   )
 }
+
+// Componente ModelSelect reconstruído do zero para máxima estabilidade e controle de foco
+const ModelSelect = ({ 
+  label, 
+  value, 
+  onChange, 
+  description, 
+  aiModels 
+}: { 
+  label: string, 
+  value: string, 
+  onChange: (val: string | null) => void, 
+  description: string,
+  aiModels: any[]
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const selectedModel = aiModels.find(m => m.id === value);
+
+  const filteredModels = aiModels.filter(model => 
+    model.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    model.id.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Fechar ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
+  // Focar o input ao abrir
+  useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 50);
+      return () => clearTimeout(timer);
+    } else {
+      setSearchTerm('');
+    }
+  }, [isOpen]);
+  
+  return (
+    <div className="space-y-2 relative" ref={containerRef}>
+      <div className="flex flex-col gap-1">
+        <Label className="text-sm font-semibold text-slate-700 ml-1">{label}</Label>
+        <p className="text-[11px] text-slate-400 font-medium leading-relaxed ml-1">
+          {description}
+        </p>
+      </div>
+
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-slate-200 bg-white hover:border-primary hover:ring-4 hover:ring-primary/5 transition-all text-sm font-semibold text-slate-700 shadow-sm group h-12 outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary"
+        >
+          <div className="flex items-center gap-2.5">
+            {selectedModel ? (
+              <>
+                <div className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+                <span className="truncate max-w-[200px] text-left">{selectedModel.name}</span>
+              </>
+            ) : (
+              <span className="text-slate-400 font-medium">Selecione um modelo</span>
+            )}
+          </div>
+          <ChevronDown className={`w-4 h-4 text-slate-400 group-hover:text-primary transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        </button>
+
+        {isOpen && (
+          <div className="absolute top-full left-0 right-0 z-50 mt-2 bg-white/95 backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] rounded-2xl border border-slate-200/60 overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-top">
+            <div className="p-3 border-b border-slate-100 bg-slate-50/30">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                <Input
+                  ref={inputRef}
+                  placeholder="Filtrar modelos..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="h-9 pl-9 text-xs rounded-lg border-slate-200 bg-white/50 focus-visible:ring-primary/20 focus-visible:border-primary transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="max-h-[280px] min-h-[100px] overflow-y-auto p-1.5 scrollbar-thin scrollbar-thumb-slate-200">
+              {filteredModels.length > 0 ? (
+                filteredModels.map((model) => (
+                  <div
+                    key={model.id}
+                    onClick={() => {
+                      onChange(model.id);
+                      setIsOpen(false);
+                    }}
+                    className={`group flex flex-col gap-1 px-3.5 py-3 rounded-xl cursor-pointer transition-all mb-0.5 last:mb-0 ${
+                      value === model.id ? 'bg-primary/5' : 'hover:bg-primary/[0.03]'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className={`text-[13px] font-bold transition-colors truncate ${
+                        value === model.id ? 'text-primary' : 'text-slate-700 group-hover:text-primary'
+                      }`}>
+                        {model.name}
+                      </span>
+                      {value === model.id && (
+                        <div className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_rgba(59,130,246,0.4)]" />
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 text-[10px] font-bold text-slate-400">
+                      <div className="flex items-center gap-1 bg-slate-100 px-1.5 py-0.5 rounded-md">
+                        <span className="opacity-60 uppercase text-[8px]">In</span> 
+                        <span className="text-slate-600">${(Number(model.pricing.prompt) * 1000000).toFixed(2)}/M</span>
+                      </div>
+                      <div className="flex items-center gap-1 bg-slate-100 px-1.5 py-0.5 rounded-md">
+                        <span className="opacity-60 uppercase text-[8px]">Out</span> 
+                        <span className="text-slate-600">${(Number(model.pricing.completion) * 1000000).toFixed(2)}/M</span>
+                      </div>
+                      {model.context_length && (
+                        <div className="flex items-center gap-1 ml-auto text-slate-400">
+                          <span className="opacity-60">Ctx:</span>
+                          <span>{(model.context_length / 1000).toFixed(0)}k</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="py-12 flex flex-col items-center justify-center gap-3 opacity-40">
+                  <Search className="w-8 h-8" />
+                  <span className="text-xs font-bold uppercase tracking-widest">Nenhum modelo</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
