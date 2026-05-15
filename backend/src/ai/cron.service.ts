@@ -63,19 +63,8 @@ export class CronService {
     this.logger.log(`Gerando liturgia para ${date}...`);
     const rawLiturgy = await this.liturgyService.getDailyLiturgy(date);
     const formattedDate = new Date(date + 'T12:00:00').toLocaleDateString('pt-BR');
-    const prompt = 'Você é um especialista em liturgia católica. Com base na liturgia bruta abaixo, gere um conteúdo estruturado e formatado para WhatsApp:\n\n' +
-      'REGRAS DE FORMATAÇÃO:\n' +
-      `- **IMPORTANTE**: O conteúdo pode ser lido em datas diferentes da original. Por isso, NÃO use termos relativos como "hoje", "amanhã", "ontem", "neste domingo", etc. Utilize sempre termos absolutos ou atemporais como "nesta liturgia", "neste dia", "neste dia ${formattedDate}" ou "a Igreja celebra".\n` +
-      `- COMECE OBRIGATORIAMENTE o texto com o cabeçalho: *Liturgia do dia ${formattedDate}*\n` +
-      '- Use negritos e emojis nos títulos (ex: 📖 *Leituras do Dia:*, ✨ *Mensagem do Dia:*, etc).\n' +
-      '- NÃO inclua saudações como "Meu querido filho" ou "A paz de meu Filho". O conteúdo deve ser direto e informativo.\n' +
-      '- Mantenha um tom solene e espiritual, mas focado no conteúdo.\n\n' +
-      'ESTRUTURA:\n' +
-      '1. ✨ *Mensagem do Dia:* Uma síntese de 2 parágrafos sobre a mensagem central do dia.\n' +
-      '2. 📖 *Leituras do Dia:* Liste as referências e um BREVE resumo (2-3 linhas) de cada uma (1ª Leitura, 2ª Leitura(se houver), Salmo, Evangelho).\n' +
-      '3. 🕊️ *Reflexão:* Uma exegese espiritual profunda e pastoral sobre o conjunto das leituras.\n' +
-      '4. 🙏 *Minha Oração Diária:* Uma oração fervorosa EM PRIMEIRA PESSOA, baseada no Evangelho, formatada em itálico.\n\n' +
-      'LITURGIA CRUA:\n' + rawLiturgy;
+    const promptTemplate = this.promptService.getPrompt('generator_liturgy');
+    const prompt = promptTemplate.replace(/{{formattedDate}}/g, formattedDate) + '\n\n' + rawLiturgy;
 
     const result = await this.aiService.callOpenRouter(prompt, `Gere o roteiro litúrgico formatado do dia ${date}.`, false, [], 'openai/gpt-4o');
     if (result.usage) {
@@ -93,19 +82,9 @@ export class CronService {
     const saints = await this.saintService.getSaintOfDay(date);
     const formattedDate = new Date(date + 'T12:00:00').toLocaleDateString('pt-BR');
 
-    const prompt = 'Você é um hagiógrafo especialista. Abaixo você receberá dados brutos de santos do dia.\n' +
-      'Gere um conteúdo formatado para WhatsApp com emojis e negritos.\n\n' +
-      'REGRAS:\n' +
-      `- **IMPORTANTE**: O conteúdo pode ser lido em datas diferentes da original. Por isso, NÃO use termos relativos como "hoje", "amanhã", "ontem", "neste domingo", etc. Utilize sempre termos absolutos ou atemporais como "nesta celebração", "neste dia", "neste dia ${formattedDate}" ou "a Igreja celebra".\n` +
-      `- COMECE OBRIGATORIAMENTE o texto com o cabeçalho: *Santo do dia ${formattedDate}*\n` +
-      '- NÃO inclua saudações como "Meu querido filho".\n' +
-      '- Use emojis temáticos para cada seção.\n\n' +
-      'Para CADA santo listado, você deve:\n' +
-      '1. ⚜️ *[Nome do Santo]*: Nome e títulos em negrito.\n' +
-      '2. 📜 *A Vida do Santo*: Um resumo profundo e espiritual (3-5 parágrafos).\n' +
-      '3. 🙏 *Oração e Intercessão*: Uma oração fervorosa em primeira pessoa pedindo a intercessão.\n\n' +
-      'DADOS BRUTOS:\n' +
-      saints.map(s => `SANTO: ${s.title}\nBIOGRAFIA: ${s.content}`).join('\n\n---\n\n');
+    const promptTemplate = this.promptService.getPrompt('generator_saint');
+    const rawData = saints.map(s => `SANTO: ${s.title}\nBIOGRAFIA: ${s.content}`).join('\n\n---\n\n');
+    const prompt = promptTemplate.replace(/{{formattedDate}}/g, formattedDate) + '\n\n' + rawData;
 
     const result = await this.aiService.callOpenRouter(prompt, `Gere a hagiografia formatada do dia ${date}.`, false, [], 'openai/gpt-4o');
     if (result.usage) {
@@ -132,17 +111,8 @@ export class CronService {
 
     const formattedDate = targetDate.toLocaleDateString('pt-BR');
 
-    const prompt = 'Você é um especialista em espiritualidade mariana e na oração do Santo Terço. ' +
-      `Gere a contemplação para os Mistérios ${mysteryType} do Santo Terço.\n\n` +
-      'REGRAS DE FORMATAÇÃO:\n' +
-      `- COMECE OBRIGATORIAMENTE o texto com o cabeçalho: *Mistérios ${mysteryType} (${formattedDate})*\n` +
-      '- NÃO inclua saudações como "Meu querido filho" ou avisos. Vá direto aos mistérios.\n' +
-      '- Mantenha um tom devocional, reflexivo e focado na vida de Jesus e Maria.\n' +
-      '- Para cada um dos 5 mistérios, siga ESTRITAMENTE a estrutura abaixo:\n\n' +
-      'ESTRUTURA PARA CADA MISTÉRIO (exemplo para o 1º):\n' +
-      '🕊️ *1º Mistério: [Nome do Mistério]*\n' +
-      '📖 *Palavra:* [Passagem bíblica exata que fundamenta e relata o acontecimento deste mistério]\n' +
-      '✨ *Reflexão:* [Uma breve reflexão espiritual focada EXCLUSIVAMENTE na passagem bíblica citada e no acontecimento do mistério. Máx 2 parágrafos curtos]\n';
+    let prompt = this.promptService.getPrompt('generator_rosary');
+    prompt = prompt.replace(/{{mysteryType}}/g, mysteryType).replace(/{{formattedDate}}/g, formattedDate);
 
     const result = await this.aiService.callOpenRouter(prompt, `Gere os Mistérios ${mysteryType} do dia ${date}.`, false, [], 'openai/gpt-4o');
     if (result.usage) {

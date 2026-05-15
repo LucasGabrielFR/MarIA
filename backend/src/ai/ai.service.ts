@@ -224,20 +224,9 @@ export class AiService implements OnModuleInit {
       const conversationText = recentMessages?.reverse().map(m => `${m.role === 'user' ? 'Usuário' : 'MarIA'}: ${m.content}`).join('\n') || '';
 
       // Prompt aprimorado: Contexto Anterior + 10 Últimas Mensagens
-      const summarizationPrompt = `Você é um sistema de memória de longo prazo para a MarIA (assistente católica).
-Seu objetivo é atualizar o resumo do perfil do usuário combinando o contexto antigo com as 10 mensagens mais recentes.
-
-CONTEXTO ATUAL (RESUMO ANTERIOR):
-${context?.general_summary || 'Nenhum histórico disponível ainda.'}
-
-NOVAS INTERAÇÕES (ÚLTIMAS 10 MENSAGENS):
-${conversationText}
-
-TAFA:
-1. Analise as novas interações para identificar mudanças de tom, novos interesses, pedidos específicos ou fatos sobre a vida do fiel.
-2. Crie um NOVO resumo consolidado, mantendo as informações essenciais do contexto antigo e integrando as novas descobertas.
-3. O texto deve ser contínuo, em terceira pessoa, focado em ajudar a MarIA a ter uma conversa personalizada e empática.
-4. Mantenha o resumo conciso (máximo 1 parágrafo denso).`;
+      const summarizationPrompt = (this.promptService.getPrompt('memory_summarization') || '')
+        .replace('{{previous_summary}}', context?.general_summary || 'Nenhum histórico disponível ainda.')
+        .replace('{{recent_messages}}', conversationText);
 
       const mainModel = await this.getSystemSetting('main_model', 'openai/gpt-4o-mini');
       const { content: newSummary, usage } = await this.callOpenRouter(summarizationPrompt, "Gere o resumo consolidado.", false, [], mainModel);
@@ -307,10 +296,8 @@ TAFA:
     // Lógica de Triagem de Nome
     if (userStatus === 'triage_name') {
       // 1. Tentar extrair o nome da mensagem atual
-      const extractionPrompt = `Analise a mensagem do usuário e extraia APENAS o nome próprio (primeiro nome ou nome completo) que ele informou.
-Se o usuário disse o nome, retorne apenas o nome. Exemplo: "João".
-Se o usuário NÃO disse o nome na mensagem, retorne a palavra "null".
-Mensagem: "${message}"`;
+      const extractionPrompt = (this.promptService.getPrompt('extractor_name') || '')
+        .replace('{{message}}', message);
 
       const { content: extractedName, usage } = await this.callOpenRouter(extractionPrompt, "", false);
       if (usage) await this.logUsage(userId, usage, this.model);
@@ -600,15 +587,10 @@ ${memoryContext}`;
     
     if (!hasTemporalReference) return today;
 
-    const prompt = `Analise a mensagem do usuário e determine a data alvo em formato ISO (YYYY-MM-DD).
-Considere que hoje é dia ${today} (${new Date().toLocaleDateString('pt-BR', { weekday: 'long', timeZone: 'America/Sao_Paulo' })}).
-Se o usuário mencionar "amanhã", retorne o dia seguinte.
-Se o usuário mencionar um dia da semana (ex: "domingo"), retorne a data do PRÓXIMO domingo (ou do domingo mais próximo referido).
-Se o usuário mencionar uma data específica (ex: "dia 15"), retorne essa data no mês atual (ou no contexto do ano corrente).
-Se não houver data clara ou for o dia de hoje, retorne "${today}".
-
-RETORNE APENAS A DATA NO FORMATO YYYY-MM-DD.
-Mensagem: "${message}"`;
+    const prompt = (this.promptService.getPrompt('extractor_date') || '')
+      .replace('{{today}}', today)
+      .replace('{{weekday}}', new Date().toLocaleDateString('pt-BR', { weekday: 'long', timeZone: 'America/Sao_Paulo' }))
+      .replace('{{message}}', message);
 
     try {
       const { content } = await this.callOpenRouter(prompt, "", false, [], model);

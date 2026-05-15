@@ -15,7 +15,9 @@ import {
   ShieldAlert, 
   Compass,
   ScrollText,
-  Zap
+  Zap,
+  Brain,
+  PenTool
 } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
 import { toast } from 'sonner';
@@ -98,7 +100,9 @@ export default function AiSettingsPage() {
     if (key.includes('triage')) return <MessageSquare className="text-indigo-500 h-5 w-5" />;
     if (key.includes('rule')) return <ShieldAlert className="text-rose-500 h-5 w-5" />;
     if (key.includes('intent')) return <Zap className="text-amber-600 h-5 w-5" />;
-    return <Bot className="text-primary h-5 w-5" />;
+    if (key.includes('generator')) return <PenTool className="text-emerald-500 h-5 w-5" />;
+    if (key.includes('extractor') || key.includes('memory')) return <Brain className="text-purple-500 h-5 w-5" />;
+    return <Bot className="text-slate-500 h-5 w-5" />;
   };
 
   const formatKeyName = (key: string) => {
@@ -128,6 +132,16 @@ export default function AiSettingsPage() {
       label: 'Onboarding',
       icon: <ScrollText className="w-4 h-4" />,
       keys: ['triage_name', 'triage_expectations']
+    },
+    extractors: {
+      label: 'Extratores e Memória',
+      icon: <Brain className="w-4 h-4" />,
+      keys: ['memory_summarization', 'extractor_name', 'extractor_date']
+    },
+    generators: {
+      label: 'Geradores de Conteúdo',
+      icon: <PenTool className="w-4 h-4" />,
+      keys: ['generator_liturgy', 'generator_saint', 'generator_rosary']
     }
   };
 
