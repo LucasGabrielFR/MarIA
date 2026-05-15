@@ -89,12 +89,20 @@ export class AdminService {
         costUsd: Number((data.total * (modelPrices[model] || modelPrices['openai/gpt-4o-mini'])).toFixed(4))
       }));
 
-      // Contagem de Mensagens Enviadas (Total histórico do usuário)
-      const { count: totalMessages } = await supabase
+      // Contagem de Mensagens (Separação por Role)
+      const { count: userMsgCount } = await supabase
         .from('messages')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)
         .eq('role', 'user');
+
+      const { count: assistantMsgCount } = await supabase
+        .from('messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('role', 'assistant');
+
+      const totalMessages = (userMsgCount || 0) + (assistantMsgCount || 0);
 
       // Determinação de Perfil de Engajamento (Mantendo lógica baseada em atividade recente)
       const userMessages = recentMessages?.filter(m => m.user_id === user.id) || [];
@@ -114,6 +122,8 @@ export class AdminService {
           total_cost_usd: Number(userCostUsd.toFixed(4)),
           breakdown: userBreakdown,
           total_messages: totalMessages || 0,
+          total_user_messages: userMsgCount || 0,
+          total_assistant_messages: assistantMsgCount || 0,
           engagement
         }
       };
@@ -144,11 +154,10 @@ export class AdminService {
       .from('users')
       .select('*', { count: 'exact', head: true });
 
-    // 2. Total de Mensagens (role = user)
+    // 2. Total de Mensagens (Total de Interações)
     const { count: totalMessages } = await supabase
       .from('messages')
-      .select('*', { count: 'exact', head: true })
-      .eq('role', 'user');
+      .select('*', { count: 'exact', head: true });
 
     // 3. Consumo de Tokens e Custos
     const { data: usageLogs } = await supabase

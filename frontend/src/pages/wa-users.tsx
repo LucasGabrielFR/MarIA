@@ -24,6 +24,8 @@ import {
   Settings,
   Heart,
   BrainCircuit,
+  User,
+  Bot
 } from 'lucide-react'
 import { 
   AreaChart, 
@@ -61,6 +63,8 @@ interface WaUser {
       costUsd: number
     }>
     total_messages: number
+    total_user_messages: number
+    total_assistant_messages: number
     engagement: string
   }
 }
@@ -321,12 +325,14 @@ const WaUsersPage = () => {
                 </div>
 
                 {/* Quick Metrics */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-8 px-1">
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mt-8 px-1">
                   {[
                     { label: 'Consumo Total', value: selectedUser.metrics.total_tokens.toLocaleString(), unit: 'tokens', icon: TrendingUp, color: 'blue' },
                     { label: 'Custo Total (IA)', value: `$${selectedUser.metrics.total_cost_usd?.toFixed(3)}`, unit: 'USD', icon: TrendingUp, color: 'green' },
-                    { label: 'Mensagens Enviadas', value: selectedUser.metrics.total_messages.toLocaleString(), unit: 'mensagens', icon: MessageSquare, color: 'amber' },
-                    { label: 'Interação', value: selectedUser.metrics.engagement, unit: 'perfil', icon: Heart, color: 'pink' }
+                    { label: 'Interação', value: selectedUser.metrics.engagement, unit: 'perfil', icon: Heart, color: 'pink' },
+                    { label: 'Total Mensagens', value: selectedUser.metrics.total_messages.toLocaleString(), unit: 'mensagens', icon: MessageSquare, color: 'amber' },
+                    { label: 'Fiel (Usuário)', value: selectedUser.metrics.total_user_messages.toLocaleString(), unit: 'mensagens', icon: User, color: 'amber' },
+                    { label: 'MarIA (Bot)', value: selectedUser.metrics.total_assistant_messages.toLocaleString(), unit: 'mensagens', icon: Bot, color: 'amber' }
                   ].map((stat, i) => (
                     <div key={i} className="bg-slate-50/80 rounded-2xl p-4 border border-slate-100/50 hover:bg-white hover:shadow-lg hover:border-white transition-all duration-300 group">
                       <div className="flex justify-between items-start mb-2">

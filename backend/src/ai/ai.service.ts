@@ -6,6 +6,10 @@ import { LiturgyService } from './liturgy.service';
 import { SupabaseService } from '../supabase/supabase.service';
 import { EmbeddingService } from './embedding.service';
 
+const MAGISTERIUM_INSTRUCTION = '\n\nOBRIGATÓRIO: Ao final da sua resposta, você deve listar as referências exatas de onde a informação foi extraída. ' +
+  'RETIRE as citações numéricas no texto (ex: [^1]) e crie uma seção "*Referências:*" ao final com a lista completa formatada para WhatsApp. ' +
+  'ATENÇÃO: As fontes informadas devem ser OBRIGATORIAMENTE traduzidas para o português sempre que possível (exceto nomes oficiais de documentos em latim). É essencial que você forneça TODAS as fontes.';
+
 @Injectable()
 export class AiService implements OnModuleInit {
   private readonly logger = new Logger(AiService.name);
@@ -370,7 +374,7 @@ export class AiService implements OnModuleInit {
 
       if (usage) await this.logUsage(userId, usage, 'magisterium-expert');
 
-      return `${intentRules}\n\nCONTEÚDO OFICIAL DO MAGISTERIUM AI:\n${magisteriumResponse}`;
+      return `${intentRules}${MAGISTERIUM_INSTRUCTION}\n\nCONTEÚDO OFICIAL DO MAGISTERIUM AI:\n${magisteriumResponse}`;
     };
 
     switch (intent) {
@@ -382,7 +386,7 @@ export class AiService implements OnModuleInit {
           cachedResponse = magisteriumResponse;
           await this.saveToSemanticCache(message, magisteriumResponse, 'THEOLOGY');
         }
-        intentContext = `${this.promptService.getPrompt('intent_theology')}\n\nCONTEÚDO OFICIAL DO MAGISTERIUM (USE ISSO COMO BASE ÚNICA E NÃO RESUMA DEMAIS):\n${cachedResponse}\n\nINSTRUÇÃO ADICIONAL: Reformule o conteúdo acima para o WhatsApp usando emojis e seu tom maternal, mas MANTENHA todos os fatos teológicos e retire todas as citações numéricas como [^1]. Liste as referências completas ao final traduzidas para o português quando possível.`;
+        intentContext = `${this.promptService.getPrompt('intent_theology')}${MAGISTERIUM_INSTRUCTION}\n\nCONTEÚDO OFICIAL DO MAGISTERIUM (USE ISSO COMO BASE ÚNICA E NÃO RESUMA DEMAIS):\n${cachedResponse}\n\nINSTRUÇÃO ADICIONAL: Reformule o conteúdo acima para o WhatsApp usando emojis e seu tom maternal, mas MANTENHA todos os fatos teológicos e retire todas as citações numéricas como [^1]. Liste as referências completas ao final traduzidas para o português quando possível.`;
         break;
       case 'PRAYER':
         intentContext = await fetchMagisteriumContext('intent_prayer');
@@ -413,7 +417,7 @@ ${liturgyData}`;
           const { content: magisteriumResponse, usage } = await this.magisteriumService.query(finalMessage, intentRules);
           if (usage) await this.logUsage(userId, usage, 'magisterium-expert');
           
-          intentContext = `${intentRules}\n\nCONTEÚDO DO SANTO (Data: ${targetDate}):\n${magisteriumResponse}`;
+          intentContext = `${intentRules}${MAGISTERIUM_INSTRUCTION}\n\nCONTEÚDO DO SANTO (Data: ${targetDate}):\n${magisteriumResponse}`;
         }
         break;
       case 'ROSARY_MYSTERIES':

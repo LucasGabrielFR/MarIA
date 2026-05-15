@@ -43,7 +43,7 @@ export function StatsCards({ stats }: StatsCardsProps) {
       
       <Card className="border-none shadow-sm hover:shadow-md transition-all duration-300 bg-white group">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-semibold text-slate-500 group-hover:text-primary transition-colors">Mensagens Recebidas</CardTitle>
+          <CardTitle className="text-sm font-semibold text-slate-500 group-hover:text-primary transition-colors">Total de Mensagens</CardTitle>
           <div className="p-2 bg-blue-50 rounded-lg group-hover:bg-blue-100 transition-colors">
             <MessageCircle className="h-4 w-4 text-primary" />
           </div>
@@ -51,7 +51,7 @@ export function StatsCards({ stats }: StatsCardsProps) {
         <CardContent>
           <div className="text-3xl font-bold text-slate-800">{stats.totalMessages.toLocaleString('pt-BR')}</div>
           <p className="text-xs text-slate-500 flex items-center mt-2 font-medium">
-            Total de interações dos usuários
+            Interações totais (Fiel + MarIA)
           </p>
         </CardContent>
       </Card>
