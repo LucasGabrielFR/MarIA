@@ -484,18 +484,10 @@ export class AdminService {
 
     if (ctxError) throw ctxError;
 
-    // 3. Deletar logs de uso (Consumo de Tokens / Custos)
-    const { error: usageError } = await supabase
-      .from('usage_logs')
-      .delete()
-      .eq('user_id', userId);
-
-    if (usageError) throw usageError;
-
-    // 4. Resetar status do usuário para 'triage' (Inicia onboarding novamente)
+    // 3. Resetar status do usuário para 'disabled' (Dados pessoais apagados, métricas mantidas)
     const { error: userError } = await supabase
       .from('users')
-      .update({ status: 'triage' })
+      .update({ status: 'disabled' })
       .eq('id', userId);
 
     if (userError) throw userError;

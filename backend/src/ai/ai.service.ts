@@ -290,7 +290,14 @@ export class AiService implements OnModuleInit {
 
     const user = await this.getOrCreateUser(waChatId, pushName, phone);
     const userId = user.id;
-    const userStatus = user.status || 'active';
+    let userStatus = user.status || 'active';
+
+    // Se o usuário estava 'disabled' (dados apagados), resetar para triagem ao novo contato
+    if (userStatus === 'disabled') {
+      this.logger.log(`Usuário ${userId} (disabled) entrou em contato. Resetando para triagem.`);
+      await supabase.from('users').update({ status: 'triage_name' }).eq('id', userId);
+      userStatus = 'triage_name';
+    }
 
     // Salvar a mensagem do usuário
     await this.saveMessage(userId, 'user', message);

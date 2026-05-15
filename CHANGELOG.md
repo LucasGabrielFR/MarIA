@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.5] - 2026-05-15
+### Changed
+- **Preservação de Métricas:** Ao excluir os dados, as métricas de consumo de tokens e custos agora são PRESERVADAS para fins de auditoria e controle administrativo.
+- **Status 'Desativado':** O usuário agora recebe o status `disabled` após a limpeza de dados, aparecendo de forma distinta no painel administrativo.
+- **Recuperação Automática:** Se um usuário desativado enviar uma nova mensagem, ele é automaticamente reativado e encaminhado para a triagem inicial.
+
 ## [1.8.4] - 2026-05-15
 ### Changed
 - **Reinício de Triagem:** Ao excluir os dados de um fiel, o status do usuário agora é resetado automaticamente para `triage`. Isso garante que, em um novo contato, o usuário passe novamente por todo o processo de onboarding e acolhimento inicial.

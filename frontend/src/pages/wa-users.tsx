@@ -265,14 +265,16 @@ const WaUsersPage = () => {
                               "px-3 py-1 border-none",
                               user.status === 'active' 
                                 ? 'bg-green-100 text-green-700 hover:bg-green-100' 
+                                : user.status === 'disabled'
+                                ? 'bg-slate-100 text-slate-500 hover:bg-slate-100'
                                 : 'bg-amber-100 text-amber-700 hover:bg-amber-100'
                             )}
                           >
                             <span className={cn(
                               "h-1.5 w-1.5 rounded-full mr-2",
-                              user.status === 'active' ? "bg-green-600" : "bg-amber-600"
+                              user.status === 'active' ? "bg-green-600" : user.status === 'disabled' ? "bg-slate-400" : "bg-amber-600"
                             )}></span>
-                            {user.status === 'active' ? 'Ativo' : 'Triagem'}
+                            {user.status === 'active' ? 'Ativo' : user.status === 'disabled' ? 'Desativado' : 'Triagem'}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -325,7 +327,7 @@ const WaUsersPage = () => {
                       </Avatar>
                       <div className={cn(
                         "absolute bottom-0.5 right-0.5 h-5 w-5 rounded-full border-2 border-white shadow-md",
-                        selectedUser.status === 'active' ? "bg-green-500" : "bg-amber-500 animate-pulse"
+                        selectedUser.status === 'active' ? "bg-green-500" : selectedUser.status === 'disabled' ? "bg-slate-400" : "bg-amber-500 animate-pulse"
                       )} />
                     </div>
                     <div className="space-y-1">
@@ -335,9 +337,13 @@ const WaUsersPage = () => {
                         </DialogTitle>
                         <Badge variant="outline" className={cn(
                           "rounded-full px-3 py-1 border-none font-black text-[10px] uppercase tracking-tighter shadow-sm",
-                          selectedUser.status === 'active' ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"
+                          selectedUser.status === 'active' 
+                            ? "bg-green-100 text-green-700" 
+                            : selectedUser.status === 'disabled'
+                            ? "bg-slate-100 text-slate-500"
+                            : "bg-amber-100 text-amber-700"
                         )}>
-                          {selectedUser.status === 'active' ? 'Ativo' : 'Em Triagem'}
+                          {selectedUser.status === 'active' ? 'ATIVO' : selectedUser.status === 'disabled' ? 'DESATIVADO' : 'TRIAGEM'}
                         </Badge>
                       </div>
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-slate-400 font-bold text-sm">
