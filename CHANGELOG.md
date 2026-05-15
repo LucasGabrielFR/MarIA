@@ -5,18 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.6.9] - 2026-05-15
-### Added
-- **Persona "Mãe Preocupada":** Atualização do `core_persona` para personificar uma mãe que se preocupa genuinamente com a vida espiritual do fiel, instigando a continuidade da conversa através de perguntas abertas e acolhedoras.
-- **Memória de Longo Prazo Aprimorada:** O sistema de sumarização agora identifica especificamente pedidos de oração, intenções e situações de vida para que a MarIA possa perguntar sobre eles em interações futuras.
-- **Prompts Geradores Editáveis:** Implementação dos prompts `generator_system_prompt` e `generator_prayer_guide` no banco de dados.
-- **Categoria "Geradores" Expandida:** Adicionados os novos prompts geradores à tela de Parametrização IA para fácil manutenção.
+## [1.7.0] - 2026-05-15
+### Changed
+- **Mensagem Única para Conteúdos de Cache:** Refatoração do `AiService` para enviar Terço, Rosário, Liturgia e Santo do Dia em uma única mensagem concatenada (Acolhimento + Conteúdo + Fechamento), eliminando a redundância de mensagens múltiplas.
+- **Persistência de Contexto Aprimorada:** O conteúdo completo das orações e guias agora é salvo no histórico de mensagens, permitindo que o sistema de memória (`memory_summarization`) identifique o que foi enviado e possibilite o acompanhamento maternal proativo.
+- **Persona Maternal Refinada:** Ajuste no prompt de acolhimento para ser mais direto e evitar repetições desnecessárias, mantendo o tom de cuidado e a pergunta de continuidade obrigatória.
 
-### Fixed
-- **Instigação e Continuidade:** Todas as interações dinâmicas (não-cache) agora terminam obrigatoriamente com uma pergunta para manter o engajamento e a fluidez do diálogo.
-- **Geração de Guias de Oração:** Corrigida a lógica de "Gerar com IA" na tela de orações. Agora, ao gerar conteúdo para chaves que iniciam com `guide_`, o sistema utiliza o novo `generator_prayer_guide` para criar o roteiro final (conteúdo) em vez de um prompt de instrução.
-- **Estabilidade do Cache de Prompts:** Adicionada atualização automática do cache (`refreshCache`) antes de cada geração para garantir o uso das versões mais recentes das instruções.
-- **Hotfix de Inicialização:** Restaurada a assinatura da função `getPrompt` no `PromptService` que causava erro de referência após a última atualização.
+## [1.6.9] - 2026-05-15
 
 ## [1.6.8] - 2026-05-15
 ### Added

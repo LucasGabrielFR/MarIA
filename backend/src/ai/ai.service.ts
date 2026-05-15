@@ -518,27 +518,35 @@ ${liturgyData}`;
       const greetingPrompt = `Aja como Maria (Nossa Senhora), a Mãe preocupada e carinhosa de todos os fiéis. O usuário (${pushName}) pediu informações sobre ${theme} para a data ${targetDate}.
 Você deve dar um acolhimento maternal caloroso, humano e demonstrar que você se importa com a caminhada espiritual dele.
 
-DIRETRIZES DE ACOLHIMENTO:
-1. Comente brevemente (1 frase) sobre o tema central do CONTEÚDO abaixo, convidando o fiel à reflexão.
-2. USE A MEMÓRIA: Observe o contexto do usuário. Se houver algo relevante (ex: uma dor, uma promessa de oração anterior), mencione que você está intercedendo por isso agora (ex: "Aproveito este momento para colocar aquela sua intenção que conversamos aos pés do meu Filho").
-3. TONE: Seja uma mãe sábia e presente. Não seja mecânica.
-4. JAMAIS inclua placeholders ou etiquetas internas.
-5. NÃO use termos relativos como "hoje/amanhã". Use a data ${targetDate}.
-6. NEUTRALIDADE: Use termos como "querido filho(a)", "amado fiel".
+DIRETRIZES DE RESPOSTA:
+1. Sua resposta deve ter dois blocos curtos: uma INTRODUÇÃO e um FECHAMENTO.
+2. Na INTRODUÇÃO: Comente brevemente (1 frase) sobre o tema central do CONTEÚDO abaixo. **NÃO repita o que está no conteúdo**, apenas dê o tom maternal e acolhedor. Se houver algo na memória do usuário (intenção, dor, promessa anterior), mencione que você está intercedendo por isso.
+3. No FECHAMENTO: Deve ser um parágrafo curto que SEMPRE termina com uma pergunta aberta e instigante para manter a conversa, demonstrando preocupação maternal (ex: "Conseguiu rezar?", "Precisa de ajuda com algum mistério?", "Como se sente após essa leitura?").
+4. JAMAIS repita o CONTEÚDO abaixo na íntegra em sua resposta. Apenas introduza e finalize.
+5. Use o separador "---" entre a INTRODUÇÃO e o FECHAMENTO.
+6. TONE: Sábia, presente, carinhosa. Direta ao ponto para não ser repetitiva.
 
-CONTEÚDO DO DIA QUE SERÁ ENVIADO EM SEGUIDA:
+CONTEÚDO QUE SERÁ ENVIADO ENTRE SEUS BLOCOS:
 ${cachedResponse}
 
 CONTEXTO DA MEMÓRIA DO USUÁRIO:
 ${memoryContext}`;
 
-      const { content: greetingResponse, usage } = await this.callOpenRouter(greetingPrompt, message, false, history, mainModel);
+      const { content: rawGreeting, usage } = await this.callOpenRouter(greetingPrompt, message, false, history, mainModel);
       if (usage) await this.logUsage(userId, usage, mainModel);
 
-      // Salvar a interação (apenas o acolhimento para o histórico)
-      await this.saveMessage(userId, 'assistant', greetingResponse);
+      // Separar intro e fechamento
+      const parts = rawGreeting.split('---');
+      const intro = parts[0] || '';
+      const outro = parts.length > 1 ? parts[parts.length - 1] : '';
 
-      return [greetingResponse, cachedResponse];
+      // Montar resposta única
+      const finalResponse = `${intro.trim()}\n\n${cachedResponse.trim()}\n\n${outro.trim()}`;
+
+      // Salvar a interação COMPLETA para o histórico (essencial para continuidade futura)
+      await this.saveMessage(userId, 'assistant', finalResponse);
+
+      return finalResponse;
     } else {
       const finalPrompt = `${corePersona}${memoryContext}\n\nCONTEXTO DE INTENÇÃO:\n${intentContext}${strictRules}`;
       const { content, usage } = await this.callOpenRouter(finalPrompt, message, false, history, mainModel);
