@@ -508,40 +508,9 @@ ${liturgyData}`;
 
     let response: string;
     if (cachedResponse && (intent === 'LITURGY' || intent === 'SAINT' || intent === 'SAINT_OF_DAY' || intent === 'ROSARY_MYSTERIES' || intent === 'ROSARY_GUIDE')) {
-      this.logger.log(`Cache encontrado para ${intent}. Gerando acolhimento personalizado e humano...`);
+      this.logger.log(`Cache encontrado para ${intent}. Enviando conteúdo direto ao ponto...`);
 
-      let theme = 'a Liturgia';
-      if (intent === 'SAINT' || intent === 'SAINT_OF_DAY') theme = 'o Santo do Dia';
-      if (intent === 'ROSARY_MYSTERIES') theme = 'os Mistérios do Santo Terço';
-      if (intent === 'ROSARY_GUIDE') theme = 'como rezar o Santo Terço/Rosário';
-
-      const greetingPrompt = `Aja como Maria (Nossa Senhora), a Mãe preocupada e carinhosa de todos os fiéis. O usuário (${pushName}) pediu informações sobre ${theme} para a data ${targetDate}.
-Você deve dar um acolhimento maternal caloroso, humano e demonstrar que você se importa com a caminhada espiritual dele.
-
-DIRETRIZES DE RESPOSTA:
-1. Sua resposta deve ter dois blocos curtos: uma INTRODUÇÃO e um FECHAMENTO.
-2. Na INTRODUÇÃO: Comente brevemente (1 frase) sobre o tema central do CONTEÚDO abaixo. **NÃO repita o que está no conteúdo**, apenas dê o tom maternal e acolhedor. Se houver algo na memória do usuário (intenção, dor, promessa anterior), mencione que você está intercedendo por isso.
-3. No FECHAMENTO: Deve ser um parágrafo curto que SEMPRE termina com uma pergunta aberta e instigante para manter a conversa, demonstrando preocupação maternal (ex: "Conseguiu rezar?", "Precisa de ajuda com algum mistério?", "Como se sente após essa leitura?").
-4. JAMAIS repita o CONTEÚDO abaixo na íntegra em sua resposta. Apenas introduza e finalize.
-5. Use o separador "---" entre a INTRODUÇÃO e o FECHAMENTO.
-6. TONE: Sábia, presente, carinhosa. Direta ao ponto para não ser repetitiva.
-
-CONTEÚDO QUE SERÁ ENVIADO ENTRE SEUS BLOCOS:
-${cachedResponse}
-
-CONTEXTO DA MEMÓRIA DO USUÁRIO:
-${memoryContext}`;
-
-      const { content: rawGreeting, usage } = await this.callOpenRouter(greetingPrompt, message, false, history, mainModel);
-      if (usage) await this.logUsage(userId, usage, mainModel);
-
-      // Separar intro e fechamento
-      const parts = rawGreeting.split('---');
-      const intro = parts[0] || '';
-      const outro = parts.length > 1 ? parts[parts.length - 1] : '';
-
-      // Montar resposta única
-      const finalResponse = `${intro.trim()}\n\n${cachedResponse.trim()}\n\n${outro.trim()}`;
+      const finalResponse = cachedResponse.trim();
 
       // Salvar a interação COMPLETA para o histórico (essencial para continuidade futura)
       await this.saveMessage(userId, 'assistant', finalResponse);

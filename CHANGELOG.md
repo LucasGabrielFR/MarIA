@@ -5,11 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.1] - 2026-05-15
+### Changed
+- **Mensagem Única e Direta:** Refatoração do `AiService` para enviar Terço, Rosário, Liturgia e Santo do Dia de forma direta. Removemos a geração dinâmica de acolhimento por IA para esses itens, evitando redundâncias e garantindo que o conteúdo chegue "direto ao ponto" conforme solicitado.
+
 ## [1.7.0] - 2026-05-15
 ### Changed
-- **Mensagem Única para Conteúdos de Cache:** Refatoração do `AiService` para enviar Terço, Rosário, Liturgia e Santo do Dia em uma única mensagem concatenada (Acolhimento + Conteúdo + Fechamento), eliminando a redundância de mensagens múltiplas.
-- **Persistência de Contexto Aprimorada:** O conteúdo completo das orações e guias agora é salvo no histórico de mensagens, permitindo que o sistema de memória (`memory_summarization`) identifique o que foi enviado e possibilite o acompanhamento maternal proativo.
-- **Persona Maternal Refinada:** Ajuste no prompt de acolhimento para ser mais direto e evitar repetições desnecessárias, mantendo o tom de cuidado e a pergunta de continuidade obrigatória.
+- **Versão Dinâmica no Frontend:** O rodapé da aplicação agora consome a versão diretamente do `package.json` raiz do projeto via Vite `define`.
 
 ## [1.6.9] - 2026-05-15
 

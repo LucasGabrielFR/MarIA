@@ -53,7 +53,7 @@ export function MainLayout({ children, title, subtitle }: MainLayoutProps) {
 
           <footer className="mt-12 pt-6 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-4 text-slate-400 text-sm font-medium">
             <p>© {new Date().getFullYear()} copy by AcutisTech/MarIA</p>
-            <p className="bg-white px-3 py-1 rounded-full border border-slate-200 shadow-sm">v1.6.7</p>
+            <p className="bg-white px-3 py-1 rounded-full border border-slate-200 shadow-sm">v{import.meta.env.VITE_APP_VERSION}</p>
           </footer>
         </div>
       </main>
