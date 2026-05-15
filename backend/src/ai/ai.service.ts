@@ -416,12 +416,35 @@ ${liturgyData}`;
           intentContext = `${intentRules}\n\nCONTEÚDO DO SANTO (Data: ${targetDate}):\n${magisteriumResponse}`;
         }
         break;
-      case 'ROSARY':
+      case 'ROSARY_MYSTERIES':
         const lowerMsg = message.toLowerCase();
         const isFullRosary = lowerMsg.includes('rosário') || lowerMsg.includes('rosario');
+        const specificType = ['gozosos', 'luminosos', 'dolorosos', 'gloriosos'].find(t => lowerMsg.includes(t));
         
         let rosaryContent = '';
-        if (!isFullRosary) {
+        if (specificType) {
+          this.logger.log(`Buscando mistérios específicos: ${specificType}`);
+          // Busca nos caches da semana corrente
+          const baseDate = new Date(targetDate + 'T12:00:00');
+          const day = baseDate.getDay();
+          const diffToMonday = baseDate.getDate() - day + (day === 0 ? -6 : 1);
+          const monday = new Date(baseDate.setDate(diffToMonday));
+          
+          const weekDates = [0, 1, 2, 3, 4, 5, 6].map(offset => {
+            const d = new Date(monday);
+            d.setDate(monday.getDate() + offset);
+            return d.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+          });
+
+          const { data: weekCaches } = await supabase
+            .from('daily_cache')
+            .select('content')
+            .eq('type', 'rosary')
+            .in('cache_date', weekDates);
+          
+          const found = weekCaches?.find(c => c.content.toLowerCase().includes(specificType));
+          rosaryContent = found ? found.content : `Não encontrei os mistérios ${specificType} na base da semana corrente.`;
+        } else if (!isFullRosary) {
           rosaryContent = await getDailyCache('rosary', targetDate) || 'Mistérios do dia não encontrados no cache.';
         } else {
           const baseDate = new Date(targetDate + 'T12:00:00');
@@ -444,8 +467,14 @@ ${liturgyData}`;
           rosaryContent = rosaryCaches?.map(c => c.content).join('\n\n====================\n\n') || 'Mistérios da semana não encontrados no cache.';
         }
         
-        intentContext = `${this.promptService.getPrompt('intent_rosary')}\n\nCONTEÚDO DOS MISTÉRIOS:\n${rosaryContent}`;
+        intentContext = `${this.promptService.getPrompt('intent_rosary_mysteries')}\n\nCONTEÚDO DOS MISTÉRIOS:\n${rosaryContent}`;
         cachedResponse = rosaryContent;
+        break;
+      case 'ROSARY_GUIDE':
+        const lowerMsgGuide = message.toLowerCase();
+        const isFullRosaryGuide = lowerMsgGuide.includes('rosário') || lowerMsgGuide.includes('rosario');
+        const guideKey = isFullRosaryGuide ? 'guide_rosary' : 'guide_terco';
+        cachedResponse = this.promptService.getPrompt(guideKey) || 'Roteiro não encontrado.';
         break;
       case 'ADVICE':
         intentContext = this.promptService.getPrompt('intent_advice');
@@ -478,12 +507,13 @@ ${liturgyData}`;
     }
 
     let response: string;
-    if (cachedResponse && (intent === 'LITURGY' || intent === 'SAINT' || intent === 'SAINT_OF_DAY' || intent === 'ROSARY')) {
+    if (cachedResponse && (intent === 'LITURGY' || intent === 'SAINT' || intent === 'SAINT_OF_DAY' || intent === 'ROSARY_MYSTERIES' || intent === 'ROSARY_GUIDE')) {
       this.logger.log(`Cache encontrado para ${intent}. Gerando acolhimento personalizado e humano...`);
 
       let theme = 'a Liturgia';
       if (intent === 'SAINT' || intent === 'SAINT_OF_DAY') theme = 'o Santo do Dia';
-      if (intent === 'ROSARY') theme = 'o Santo Terço/Rosário';
+      if (intent === 'ROSARY_MYSTERIES') theme = 'os Mistérios do Santo Terço';
+      if (intent === 'ROSARY_GUIDE') theme = 'como rezar o Santo Terço/Rosário';
 
       const greetingPrompt = `Aja como Maria (Nossa Senhora). O usuário (${pushName}) pediu informações sobre ${theme} para a data ${targetDate}.
 Você deve dar um acolhimento maternal caloroso e humano. 
@@ -499,6 +529,7 @@ REGRAS:
 4. Mencione que você trouxe as informações solicitadas para o dia referido.
 5. JAMAIS inclua placeholders, etiquetas internas ou avisos de sistema como "[CONTEÚDO CACHEADO...]" ou "[CONTEÚDO DO DIA...]" no seu texto. Sua resposta deve conter apenas a sua fala maternal direta para o fiel.
 6. NÃO use termos relativos como "hoje", "amanhã" ou "ontem". Refira-se à data solicitada (${targetDate}) ou use "neste dia".
+7. **IMPORTANTE**: Use uma linguagem acolhedora que seja neutra em relação ao gênero (ex: use "querido filho(a)", "amado fiel", "paz do Senhor") para garantir que todos se sintam acolhidos da mesma forma, pois somos todos filhos de Deus.
 
 Contexto da memória do usuário:
 ${memoryContext}`;

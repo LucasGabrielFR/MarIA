@@ -42,16 +42,16 @@ export class PromptService implements OnModuleInit {
     this.logger.log(`Carregados ${this.promptCache.size} prompts na memória.`);
   }
 
-  getPrompt(key: string): string {
-    let content = this.promptCache.get(key) || '';
-
-    // Injeta o rosary_guide no intent_rosary dinamicamente
-    if (key === 'intent_rosary' && content.includes('{{rosary_guide}}')) {
-      const rosaryGuide = this.promptCache.get('rosary_guide') || '';
-      content = content.replace('{{rosary_guide}}', rosaryGuide);
-    }
-
-    const magisteriumIntents = ['intent_theology', 'intent_prayer', 'intent_bible', 'intent_liturgy', 'intent_saint', 'intent_rosary'];
+    const magisteriumIntents = [
+      'intent_theology',
+      'intent_prayer',
+      'intent_bible',
+      'intent_liturgy',
+      'intent_saint',
+      'intent_rosary_mysteries',
+      'guide_terco',
+      'guide_rosary'
+    ];
     if (magisteriumIntents.includes(key)) {
       return content + '\n\nOBRIGATÓRIO: Ao final da sua resposta, você deve listar as referências exatas de onde a informação foi extraída. ' +
         'RETIRE as citações numéricas no texto (ex: [^1]) e crie uma seção "*Referências:*" ao final com a lista completa formatada para WhatsApp. ' +

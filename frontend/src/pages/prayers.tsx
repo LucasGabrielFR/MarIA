@@ -101,7 +101,7 @@ export default function PrayersPage() {
     guides: {
       label: 'Guias de Oração',
       icon: <BookHeart className="w-4 h-4" />,
-      keys: ['rosary_guide']
+      keys: ['guide_terco', 'guide_rosary']
     }
   };
 
