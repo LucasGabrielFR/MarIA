@@ -102,6 +102,10 @@ export function Sidebar() {
           <Brain size={20} />
           <span className="font-medium">Parametrização IA</span>
         </NavItemLink>
+        <NavItemLink to="/prayers" $active={isActive('/prayers')}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M11 6.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 1 0 0-5Z"/><path d="M12 11.5v3"/></svg>
+          <span className="font-medium">Orações</span>
+        </NavItemLink>
         <NavItemLink to="/daily-content" $active={isActive('/daily-content')}>
           <Calendar size={20} />
           <span className="font-medium">Conteúdo Diário</span>
