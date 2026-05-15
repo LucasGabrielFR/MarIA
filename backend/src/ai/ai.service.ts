@@ -486,6 +486,9 @@ ${liturgyData}`;
       case 'SENSITIVE_DATA':
         intentContext = this.promptService.getPrompt('intent_sensitive_data');
         break;
+      case 'HUMAN_CLARIFICATION':
+        intentContext = this.promptService.getPrompt('intent_human_clarification');
+        break;
       case 'CASUAL':
       default:
         intentContext = this.promptService.getPrompt('intent_casual');

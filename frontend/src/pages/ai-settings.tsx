@@ -121,7 +121,7 @@ export default function AiSettingsPage() {
     intentions: {
       label: 'Intenções',
       icon: <Zap className="w-4 h-4" />,
-      keys: ['intent_theology', 'intent_prayer', 'intent_bible', 'intent_liturgy', 'intent_saint', 'intent_rosary', 'intent_advice', 'intent_casual', 'intent_sensitive_data']
+      keys: ['intent_theology', 'intent_prayer', 'intent_bible', 'intent_liturgy', 'intent_saint', 'intent_rosary', 'intent_advice', 'intent_casual', 'intent_sensitive_data', 'intent_human_clarification']
     },
     rules: {
       label: 'Regras Estritas',

@@ -1,6 +1,6 @@
 {
   "name": "maria-root",
-  "version": "1.7.6",
+  "version": "1.8.0",
   "description": "Root orchestrator for MarIA project",
   "scripts": {
     "dev:frontend": "cd frontend && npm run dev",
