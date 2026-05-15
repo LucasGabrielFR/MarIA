@@ -76,11 +76,11 @@ export class UazapiController {
         if (responseText) {
           if (Array.isArray(responseText)) {
             for (const text of responseText) {
+              await this.sleepForTyping(text);
               await this.uazapiService.sendMessage(chatId, text);
-              // Pequeno delay para mensagens sequenciais
-              await new Promise(resolve => setTimeout(resolve, 800));
             }
           } else {
+            await this.sleepForTyping(responseText);
             await this.uazapiService.sendMessage(chatId, responseText);
           }
           this.logger.log(`Response sent to ${chatId}`);
@@ -91,5 +91,21 @@ export class UazapiController {
     }
 
     return { status: 'success' };
+  }
+
+  /**
+   * Simula o tempo de digitação humano com base no tamanho do texto.
+   * Delay entre 2 e 10 segundos, com fator randômico.
+   */
+  private async sleepForTyping(text: string): Promise<void> {
+    const charsPerSecond = 25; // Velocidade de digitação média-rápida
+    const baseDelay = (text.length / charsPerSecond) * 1000;
+    
+    // Adicionar jitter randômico (+/- 15%)
+    const jitter = 0.85 + Math.random() * 0.3;
+    const finalDelay = Math.min(Math.max(baseDelay * jitter, 2000), 10000);
+    
+    this.logger.debug(`Simulating typing for ${finalDelay.toFixed(0)}ms (${text.length} chars)`);
+    await new Promise(resolve => setTimeout(resolve, finalDelay));
   }
 }
