@@ -131,20 +131,18 @@ export class CronService {
     }
 
     const formattedDate = targetDate.toLocaleDateString('pt-BR');
-    const rawLiturgy = await this.liturgyService.getDailyLiturgy(date);
 
-    const prompt = 'Você é um especialista em espiritualidade mariana e liturgia católica. ' +
-      `Com base na liturgia bruta da semana/dia fornecida abaixo, gere a contemplação para os Mistérios ${mysteryType} do Santo Terço.\n\n` +
+    const prompt = 'Você é um especialista em espiritualidade mariana e na oração do Santo Terço. ' +
+      `Gere a contemplação para os Mistérios ${mysteryType} do Santo Terço.\n\n` +
       'REGRAS DE FORMATAÇÃO:\n' +
       `- COMECE OBRIGATORIAMENTE o texto com o cabeçalho: *Mistérios ${mysteryType} (${formattedDate})*\n` +
       '- NÃO inclua saudações como "Meu querido filho" ou avisos. Vá direto aos mistérios.\n' +
-      '- Mantenha um tom devocional, reflexivo e mariano.\n' +
+      '- Mantenha um tom devocional, reflexivo e focado na vida de Jesus e Maria.\n' +
       '- Para cada um dos 5 mistérios, siga ESTRITAMENTE a estrutura abaixo:\n\n' +
       'ESTRUTURA PARA CADA MISTÉRIO (exemplo para o 1º):\n' +
       '🕊️ *1º Mistério: [Nome do Mistério]*\n' +
-      '📖 *Palavra:* [Breve passagem bíblica relacionada ao mistério]\n' +
-      '✨ *Reflexão:* [Uma breve reflexão que conecte o mistério com a mensagem da liturgia fornecida abaixo. Máx 2 parágrafos curtos]\n\n' +
-      'LITURGIA CRUA PARA CONTEXTO:\n' + rawLiturgy;
+      '📖 *Palavra:* [Passagem bíblica exata que fundamenta e relata o acontecimento deste mistério]\n' +
+      '✨ *Reflexão:* [Uma breve reflexão espiritual focada EXCLUSIVAMENTE na passagem bíblica citada e no acontecimento do mistério. Máx 2 parágrafos curtos]\n';
 
     const result = await this.aiService.callOpenRouter(prompt, `Gere os Mistérios ${mysteryType} do dia ${date}.`, false, [], 'openai/gpt-4o');
     if (result.usage) {
