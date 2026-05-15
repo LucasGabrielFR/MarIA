@@ -33,6 +33,7 @@ export default function AiSettingsPage() {
   const [prompts, setPrompts] = React.useState<AiPrompt[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState<string | null>(null);
+  const [generating, setGenerating] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     fetchPrompts();
@@ -71,6 +72,26 @@ export default function AiSettingsPage() {
     }
   };
 
+  const generateAiPrompt = async (prompt: AiPrompt) => {
+    setGenerating(prompt.key);
+    try {
+      const data = await apiRequest(`/ai/prompts/generate`, {
+        method: 'POST',
+        body: JSON.stringify({ 
+          key: prompt.key, 
+          description: prompt.description,
+          currentContent: prompt.content
+        })
+      });
+      handleContentChange(prompt.key, data.content);
+      toast.success('Conteúdo gerado! Clique em salvar para aplicar.');
+    } catch (error) {
+      toast.error('Erro ao gerar com IA');
+    } finally {
+      setGenerating(null);
+    }
+  };
+
   const getIconForKey = (key: string) => {
     if (key.includes('core')) return <Sparkles className="text-amber-500 h-5 w-5" />;
     if (key.includes('router')) return <Compass className="text-blue-600 h-5 w-5" />;
@@ -96,7 +117,7 @@ export default function AiSettingsPage() {
     intentions: {
       label: 'Intenções',
       icon: <Zap className="w-4 h-4" />,
-      keys: ['intent_theology', 'intent_prayer', 'intent_bible', 'intent_liturgy', 'intent_saint', 'intent_advice', 'intent_casual']
+      keys: ['intent_theology', 'intent_prayer', 'intent_bible', 'intent_liturgy', 'intent_saint', 'intent_rosary', 'intent_advice', 'intent_casual', 'rosary_guide']
     },
     rules: {
       label: 'Regras Estritas',
@@ -133,17 +154,31 @@ export default function AiSettingsPage() {
               </CardDescription>
             </div>
           </div>
-          <Button 
-            onClick={() => savePrompt(prompt)}
-            disabled={saving === prompt.key}
-            className="bg-primary hover:bg-primary/90 text-white rounded-2xl shadow-xl shadow-blue-100 font-black px-8 h-12 transition-all active:scale-95"
-          >
-            {saving === prompt.key ? (
-              <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Salvando</>
-            ) : (
-              <><Save className="mr-2 h-5 w-5" /> Salvar</>
-            )}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button 
+              onClick={() => generateAiPrompt(prompt)}
+              disabled={generating === prompt.key}
+              variant="outline"
+              className="bg-white hover:bg-slate-50 text-indigo-600 border-indigo-100 rounded-2xl shadow-sm font-bold px-6 h-12 transition-all active:scale-95"
+            >
+              {generating === prompt.key ? (
+                <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Gerando</>
+              ) : (
+                <><Sparkles className="mr-2 h-5 w-5" /> Gerar com IA</>
+              )}
+            </Button>
+            <Button 
+              onClick={() => savePrompt(prompt)}
+              disabled={saving === prompt.key}
+              className="bg-primary hover:bg-primary/90 text-white rounded-2xl shadow-xl shadow-blue-100 font-black px-8 h-12 transition-all active:scale-95"
+            >
+              {saving === prompt.key ? (
+                <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Salvando</>
+              ) : (
+                <><Save className="mr-2 h-5 w-5" /> Salvar</>
+              )}
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="p-8 space-y-6">
