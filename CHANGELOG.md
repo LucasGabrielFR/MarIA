@@ -7,10 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.6.9] - 2026-05-15
 ### Added
-- **Prompts Geradores Editáveis:** Implementação dos prompts `generator_system_prompt` e `generator_prayer_guide` no banco de dados, permitindo customizar como a IA gera novas instruções de sistema e roteiros de oração.
+- **Persona "Mãe Preocupada":** Atualização do `core_persona` para personificar uma mãe que se preocupa genuinamente com a vida espiritual do fiel, instigando a continuidade da conversa através de perguntas abertas e acolhedoras.
+- **Memória de Longo Prazo Aprimorada:** O sistema de sumarização agora identifica especificamente pedidos de oração, intenções e situações de vida para que a MarIA possa perguntar sobre eles em interações futuras.
+- **Prompts Geradores Editáveis:** Implementação dos prompts `generator_system_prompt` e `generator_prayer_guide` no banco de dados.
 - **Categoria "Geradores" Expandida:** Adicionados os novos prompts geradores à tela de Parametrização IA para fácil manutenção.
 
 ### Fixed
+- **Instigação e Continuidade:** Todas as interações dinâmicas (não-cache) agora terminam obrigatoriamente com uma pergunta para manter o engajamento e a fluidez do diálogo.
 - **Geração de Guias de Oração:** Corrigida a lógica de "Gerar com IA" na tela de orações. Agora, ao gerar conteúdo para chaves que iniciam com `guide_`, o sistema utiliza o novo `generator_prayer_guide` para criar o roteiro final (conteúdo) em vez de um prompt de instrução.
 - **Estabilidade do Cache de Prompts:** Adicionada atualização automática do cache (`refreshCache`) antes de cada geração para garantir o uso das versões mais recentes das instruções.
 - **Hotfix de Inicialização:** Restaurada a assinatura da função `getPrompt` no `PromptService` que causava erro de referência após a última atualização.
