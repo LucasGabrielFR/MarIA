@@ -69,4 +69,9 @@ export class AdminController {
   async toggleMaintenance() {
     return this.adminService.toggleMaintenanceMode();
   }
+
+  @Post('wa-users/:id/clear-data')
+  async clearUserData(@Param('id') id: string) {
+    return this.adminService.clearUserData(id);
+  }
 }

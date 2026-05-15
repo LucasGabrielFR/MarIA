@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.4] - 2026-05-15
+### Changed
+- **Reinício de Triagem:** Ao excluir os dados de um fiel, o status do usuário agora é resetado automaticamente para `triage`. Isso garante que, em um novo contato, o usuário passe novamente por todo o processo de onboarding e acolhimento inicial.
+
+## [1.8.3] - 2026-05-15
+### Added
+- **Exclusão de Dados do Fiel:** Adicionado botão "Excluir dados" no card de detalhes do usuário. Permite apagar permanentemente o histórico de mensagens, contextos e métricas de consumo, preservando apenas nome e telefone por solicitação de privacidade.
+
+## [1.8.2] - 2026-05-15
+### Changed
+- **Prioridade Sacerdotal Absoluta:** Ajustados os prompts `core_persona`, `intent_advice` e `rule_crisis` para garantir que a indicação de um sacerdote seja a PRIMEIRA e mais importante recomendação em casos de dor, solidão ou crise espiritual. O apoio de saúde mental (CVV/médicos) agora é tratado como complementar ao auxílio espiritual superior oferecido pela Igreja.
+
+## [1.8.1] - 2026-05-15
+### Changed
+- **Orientação Pastoral:** Atualizados os prompts de Persona Core, Conselhos, Teologia e Esclarecimento Humano para enfatizar a importância de buscar um sacerdote (padre). A MarIA agora reforça que o auxílio pastoral real e os sacramentos são insubstituíveis e superiores para o apoio emocional e espiritual profundo.
+
 ## [1.8.0] - 2026-05-15
 ### Added
 - **Intenção de Esclarecimento Humano:** Nova intent `HUMAN_CLARIFICATION` para lidar com situações onde o fiel confunde a IA com uma pessoa real ou divindade. A MarIA agora esclarece sua natureza tecnológica com humildade e doçura.

@@ -464,4 +464,42 @@ export class AdminService {
     if (error) throw error;
     return { success: true, enabled: newValue };
   }
+
+  async clearUserData(userId: string) {
+    const supabase = this.supabaseService.getClient();
+
+    // 1. Deletar mensagens (Histórico)
+    const { error: msgError } = await supabase
+      .from('messages')
+      .delete()
+      .eq('user_id', userId);
+
+    if (msgError) throw msgError;
+
+    // 2. Deletar contextos (Análise Pastoral / Resumo / Interesses)
+    const { error: ctxError } = await supabase
+      .from('user_contexts')
+      .delete()
+      .eq('user_id', userId);
+
+    if (ctxError) throw ctxError;
+
+    // 3. Deletar logs de uso (Consumo de Tokens / Custos)
+    const { error: usageError } = await supabase
+      .from('usage_logs')
+      .delete()
+      .eq('user_id', userId);
+
+    if (usageError) throw usageError;
+
+    // 4. Resetar status do usuário para 'triage' (Inicia onboarding novamente)
+    const { error: userError } = await supabase
+      .from('users')
+      .update({ status: 'triage' })
+      .eq('id', userId);
+
+    if (userError) throw userError;
+
+    return { success: true };
+  }
 }

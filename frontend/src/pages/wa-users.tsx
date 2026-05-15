@@ -25,7 +25,9 @@ import {
   Heart,
   BrainCircuit,
   User,
-  Bot
+  Bot,
+  Trash2,
+  AlertTriangle
 } from 'lucide-react'
 import { 
   AreaChart, 
@@ -83,6 +85,8 @@ const WaUsersPage = () => {
   const [messages, setMessages] = useState<Message[]>([])
   const [showHistory, setShowHistory] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     fetchUsers()
@@ -118,6 +122,33 @@ const WaUsersPage = () => {
       setMessages(data)
     } catch (error) {
       toast.error('Erro ao buscar histórico de conversas')
+    }
+  }
+
+  const handleClearData = async () => {
+    if (!selectedUser) return
+    
+    setDeleting(true)
+    try {
+      const response = await fetch(`${API_URL}/admin/wa-users/${selectedUser.id}/clear-data`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
+        }
+      })
+      
+      if (!response.ok) throw new Error('Falha ao apagar dados')
+      
+      toast.success('Todos os dados pessoais e conversas foram apagados')
+      setShowDeleteConfirm(false)
+      
+      // Atualizar a lista e fechar o modal principal ou atualizar o selecionado
+      await fetchUsers()
+      setSelectedUser(null)
+    } catch (error) {
+      toast.error('Erro ao processar solicitação de exclusão')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -316,12 +347,20 @@ const WaUsersPage = () => {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Button variant="outline" className="rounded-xl border-slate-200 font-black h-11 px-6 text-xs hover:bg-slate-50 shadow-sm transition-all hover:scale-105 active:scale-95">
-                      <Settings className="h-4 w-4 mr-2" />
-                      Configurações
-                    </Button>
-                  </div>
+                    <div className="flex items-center gap-3">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setShowDeleteConfirm(true)}
+                        className="rounded-xl border-red-100 font-black h-11 px-6 text-xs text-red-500 hover:bg-red-50 hover:text-red-600 shadow-sm transition-all hover:scale-105 active:scale-95"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Excluir dados
+                      </Button>
+                      <Button variant="outline" className="rounded-xl border-slate-200 font-black h-11 px-6 text-xs hover:bg-slate-50 shadow-sm transition-all hover:scale-105 active:scale-95">
+                        <Settings className="h-4 w-4 mr-2" />
+                        Configurações
+                      </Button>
+                    </div>
                 </div>
 
                 {/* Quick Metrics */}
@@ -456,6 +495,46 @@ const WaUsersPage = () => {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Modal */}
+      <Dialog open={showDeleteConfirm} onOpenChange={() => setShowDeleteConfirm(false)}>
+        <DialogContent className="bg-white border-none sm:max-w-[450px] p-8 rounded-[2rem] shadow-2xl">
+          <div className="flex flex-col items-center text-center space-y-6">
+            <div className="h-20 w-20 bg-red-50 rounded-3xl flex items-center justify-center">
+              <AlertTriangle className="h-10 w-10 text-red-500" />
+            </div>
+            
+            <div className="space-y-2">
+              <DialogTitle className="text-2xl font-black text-slate-900 tracking-tight">
+                Apagar dados de {selectedUser?.name}?
+              </DialogTitle>
+              <p className="text-sm font-bold text-slate-500 leading-relaxed">
+                Esta ação irá apagar permanentemente todas as mensagens, resumos pastorais, interesses e métricas de consumo. 
+                <span className="block mt-2 text-red-500 uppercase text-[10px] tracking-widest font-black">
+                  Nome e Telefone serão preservados.
+                </span>
+              </p>
+            </div>
+
+            <div className="flex flex-col w-full gap-3">
+              <Button 
+                onClick={handleClearData}
+                disabled={deleting}
+                className="bg-red-500 hover:bg-red-600 text-white rounded-2xl h-14 font-black shadow-lg shadow-red-200/50 transition-all hover:scale-[1.02] active:scale-95"
+              >
+                {deleting ? 'Apagando...' : 'Sim, Apagar Tudo'}
+              </Button>
+              <Button 
+                variant="ghost" 
+                onClick={() => setShowDeleteConfirm(false)}
+                className="text-slate-400 font-bold hover:bg-slate-50 h-12 rounded-2xl"
+              >
+                Cancelar
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </MainLayout>
