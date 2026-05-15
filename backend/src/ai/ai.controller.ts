@@ -52,14 +52,22 @@ export class AiController {
   }
   @Post('generate')
   async generatePrompt(@Body() data: { key: string; description: string; currentContent?: string }) {
-    const systemPrompt = `Você é um engenheiro de prompt especialista. Sua tarefa é criar instruções detalhadas (system prompt) para uma IA baseada na chave e descrição informadas. O resultado deve ser direto e não deve conter markdown no inicio nem no fim, ou seja, retorne APENAS o texto do prompt e nada mais.`;
+    // Garante que o cache está atualizado para pegar novos geradores ou mudanças neles
+    await this.promptService.refreshCache();
+
+    // Decide qual prompt gerador usar baseado na chave
+    const isGuide = data.key.startsWith('guide_');
+    const generatorKey = isGuide ? 'generator_prayer_guide' : 'generator_system_prompt';
     
-    let userMessage = `Gere as regras de comportamento para a IA.
+    // Busca a instrução do gerador no banco (via service)
+    const systemPrompt = this.promptService.getPrompt(generatorKey);
+    
+    let userMessage = `Gere o conteúdo solicitado para a MarIA:
 Chave (Identificador): ${data.key}
 Descrição: ${data.description}`;
 
     if (data.currentContent) {
-      userMessage += `\n\nConteúdo atual (use como base se for bom, apenas melhore ou expanda):\n${data.currentContent}`;
+      userMessage += `\n\nConteúdo atual (use como base para melhorar ou expandir):\n${data.currentContent}`;
     }
 
     try {

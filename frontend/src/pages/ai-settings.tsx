@@ -141,7 +141,7 @@ export default function AiSettingsPage() {
     generators: {
       label: 'Geradores de Conteúdo',
       icon: <PenTool className="w-4 h-4" />,
-      keys: ['generator_liturgy', 'generator_saint', 'generator_rosary']
+      keys: ['generator_system_prompt', 'generator_prayer_guide', 'generator_liturgy', 'generator_saint', 'generator_rosary']
     }
   };
 

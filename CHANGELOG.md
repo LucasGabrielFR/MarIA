@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.9] - 2026-05-15
+### Added
+- **Prompts Geradores Editáveis:** Implementação dos prompts `generator_system_prompt` e `generator_prayer_guide` no banco de dados, permitindo customizar como a IA gera novas instruções de sistema e roteiros de oração.
+- **Categoria "Geradores" Expandida:** Adicionados os novos prompts geradores à tela de Parametrização IA para fácil manutenção.
+
+### Fixed
+- **Geração de Guias de Oração:** Corrigida a lógica de "Gerar com IA" na tela de orações. Agora, ao gerar conteúdo para chaves que iniciam com `guide_`, o sistema utiliza o novo `generator_prayer_guide` para criar o roteiro final (conteúdo) em vez de um prompt de instrução.
+- **Estabilidade do Cache de Prompts:** Adicionada atualização automática do cache (`refreshCache`) antes de cada geração para garantir o uso das versões mais recentes das instruções.
+- **Hotfix de Inicialização:** Restaurada a assinatura da função `getPrompt` no `PromptService` que causava erro de referência após a última atualização.
+
 ## [1.6.8] - 2026-05-15
 ### Added
 - **Oração do Terço/Rosário Semanal:** Novo fluxo no `CronService` que gera semanalmente os 4 mistérios do Santo Terço (Gozosos, Dolorosos, Gloriosos, Luminosos) personalizados e atrelados à Liturgia de cada dia correspondente.
