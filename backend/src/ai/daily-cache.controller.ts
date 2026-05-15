@@ -44,7 +44,7 @@ export class DailyCacheController {
   }
 
   @Post('generate')
-  async generateForDay(@Body() body: { date: string, force?: boolean, type?: 'liturgy' | 'saint' }) {
+  async generateForDay(@Body() body: { date: string, force?: boolean, type?: 'liturgy' | 'saint' | 'rosary' }) {
     try {
       const { date, force, type } = body;
       const isForce = force || false;
@@ -53,6 +53,8 @@ export class DailyCacheController {
         await this.cronService.generateLiturgy(date, isForce);
       } else if (type === 'saint') {
         await this.cronService.generateSaint(date, isForce);
+      } else if (type === 'rosary') {
+        await this.cronService.generateRosary(date, isForce);
       } else {
         await this.cronService.generateAllForDay(date, isForce);
       }

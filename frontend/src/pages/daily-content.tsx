@@ -11,7 +11,7 @@ import { Loader2, Save, RefreshCw, Sparkles, Calendar as CalendarIcon } from 'lu
 
 interface DailyCache {
   id: string;
-  type: 'liturgy' | 'saint' | 'reflection';
+  type: 'liturgy' | 'saint' | 'reflection' | 'rosary';
   cache_date: string;
   content: string;
   created_at: string;
@@ -57,7 +57,7 @@ export default function DailyContentPage() {
     }
   };
 
-  const handleGenerate = async (type?: 'liturgy' | 'saint') => {
+  const handleGenerate = async (type?: 'liturgy' | 'saint' | 'rosary') => {
     const item = type ? getByType(type) : contents.length > 0;
     
     if (item && !confirm(`Já existe conteúdo ${type ? 'para esta categoria' : 'para este dia'}. Deseja sobrescrever usando a IA? Isso gastará novos tokens.`)) {
@@ -188,6 +188,7 @@ export default function DailyContentPage() {
           <TabsList className="bg-white p-1 rounded-2xl shadow-sm border border-slate-100 h-auto gap-1">
             <TabsTrigger value="liturgy" className="rounded-xl px-8 py-3 data-[state=active]:bg-primary data-[state=active]:text-white font-bold transition-all">Liturgia</TabsTrigger>
             <TabsTrigger value="saint" className="rounded-xl px-8 py-3 data-[state=active]:bg-primary data-[state=active]:text-white font-bold transition-all">Santo do Dia</TabsTrigger>
+            <TabsTrigger value="rosary" className="rounded-xl px-8 py-3 data-[state=active]:bg-primary data-[state=active]:text-white font-bold transition-all">Terço Diário</TabsTrigger>
           </TabsList>
 
           <TabsContent value="liturgy">
@@ -203,6 +204,14 @@ export default function DailyContentPage() {
               type="saint" 
               title="Santo do Dia" 
               description="Hagiografia e ensinamentos do santo celebrado hoje."
+            />
+          </TabsContent>
+
+          <TabsContent value="rosary">
+            <ContentEditor 
+              type="rosary" 
+              title="Mistérios do Terço" 
+              description="Reflexões sobre os mistérios baseadas na liturgia da semana."
             />
           </TabsContent>
 
