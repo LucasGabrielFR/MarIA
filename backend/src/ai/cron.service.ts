@@ -53,6 +53,7 @@ export class CronService {
     await Promise.all([
       this.generateLiturgy(date, forceOverride),
       this.generateSaint(date, forceOverride),
+      this.generateRosary(date, forceOverride),
     ]);
   }
 
@@ -111,6 +112,45 @@ export class CronService {
       await this.aiService.logUsage(null, result.usage, 'openai/gpt-4o');
     }
     await this.saveToCache('saint', date, result.content);
+  }
+
+  async generateRosary(date: string, forceOverride: boolean) {
+    if (!forceOverride && await this.checkExists('rosary', date)) return;
+
+    this.logger.log(`Gerando mistérios do terço para ${date}...`);
+    
+    const targetDate = new Date(date + 'T12:00:00');
+    const dayOfWeek = targetDate.getDay();
+    let mysteryType = '';
+    
+    switch (dayOfWeek) {
+      case 1: case 6: mysteryType = 'Gozosos'; break;
+      case 2: case 5: mysteryType = 'Dolorosos'; break;
+      case 3: case 0: mysteryType = 'Gloriosos'; break;
+      case 4: mysteryType = 'Luminosos'; break;
+    }
+
+    const formattedDate = targetDate.toLocaleDateString('pt-BR');
+    const rawLiturgy = await this.liturgyService.getDailyLiturgy(date);
+
+    const prompt = 'Você é um especialista em espiritualidade mariana e liturgia católica. ' +
+      `Com base na liturgia bruta da semana/dia fornecida abaixo, gere a contemplação para os Mistérios ${mysteryType} do Santo Terço.\n\n` +
+      'REGRAS DE FORMATAÇÃO:\n' +
+      `- COMECE OBRIGATORIAMENTE o texto com o cabeçalho: *Mistérios ${mysteryType} (${formattedDate})*\n` +
+      '- NÃO inclua saudações como "Meu querido filho" ou avisos. Vá direto aos mistérios.\n' +
+      '- Mantenha um tom devocional, reflexivo e mariano.\n' +
+      '- Para cada um dos 5 mistérios, siga ESTRITAMENTE a estrutura abaixo:\n\n' +
+      'ESTRUTURA PARA CADA MISTÉRIO (exemplo para o 1º):\n' +
+      '🕊️ *1º Mistério: [Nome do Mistério]*\n' +
+      '📖 *Palavra:* [Breve passagem bíblica relacionada ao mistério]\n' +
+      '✨ *Reflexão:* [Uma breve reflexão que conecte o mistério com a mensagem da liturgia fornecida abaixo. Máx 2 parágrafos curtos]\n\n' +
+      'LITURGIA CRUA PARA CONTEXTO:\n' + rawLiturgy;
+
+    const result = await this.aiService.callOpenRouter(prompt, `Gere os Mistérios ${mysteryType} do dia ${date}.`, false, [], 'openai/gpt-4o');
+    if (result.usage) {
+      await this.aiService.logUsage(null, result.usage, 'openai/gpt-4o');
+    }
+    await this.saveToCache('rosary', date, result.content);
   }
 
 

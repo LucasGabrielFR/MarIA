@@ -429,6 +429,37 @@ ${liturgyData}`;
           intentContext = `${intentRules}\n\nCONTEÚDO DO SANTO (Data: ${targetDate}):\n${magisteriumResponse}`;
         }
         break;
+      case 'ROSARY':
+        const lowerMsg = message.toLowerCase();
+        const isFullRosary = lowerMsg.includes('rosário') || lowerMsg.includes('rosario');
+        
+        let rosaryContent = '';
+        if (!isFullRosary) {
+          rosaryContent = await getDailyCache('rosary', targetDate) || 'Mistérios do dia não encontrados no cache.';
+        } else {
+          const baseDate = new Date(targetDate + 'T12:00:00');
+          const day = baseDate.getDay();
+          const diffToMonday = baseDate.getDate() - day + (day === 0 ? -6 : 1);
+          const monday = new Date(baseDate.setDate(diffToMonday));
+          
+          const datesToFetch = [0, 1, 2, 3].map(offset => {
+            const d = new Date(monday);
+            d.setDate(monday.getDate() + offset);
+            return d.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+          });
+          
+          const { data: rosaryCaches } = await supabase
+            .from('daily_cache')
+            .select('content')
+            .eq('type', 'rosary')
+            .in('cache_date', datesToFetch);
+            
+          rosaryContent = rosaryCaches?.map(c => c.content).join('\n\n====================\n\n') || 'Mistérios da semana não encontrados no cache.';
+        }
+        
+        intentContext = `${this.promptService.getPrompt('intent_rosary')}\n\nCONTEÚDO DOS MISTÉRIOS:\n${rosaryContent}`;
+        cachedResponse = rosaryContent;
+        break;
       case 'ADVICE':
         intentContext = this.promptService.getPrompt('intent_advice');
         break;
@@ -460,10 +491,14 @@ ${liturgyData}`;
     }
 
     let response: string;
-    if (cachedResponse && (intent === 'LITURGY' || intent === 'SAINT' || intent === 'SAINT_OF_DAY')) {
+    if (cachedResponse && (intent === 'LITURGY' || intent === 'SAINT' || intent === 'SAINT_OF_DAY' || intent === 'ROSARY')) {
       this.logger.log(`Cache encontrado para ${intent}. Gerando acolhimento personalizado e humano...`);
 
-      const greetingPrompt = `Aja como Maria (Nossa Senhora). O usuário (${pushName}) pediu informações sobre ${intent === 'LITURGY' ? 'a Liturgia' : 'o Santo do Dia'} para a data ${targetDate}.
+      let theme = 'a Liturgia';
+      if (intent === 'SAINT' || intent === 'SAINT_OF_DAY') theme = 'o Santo do Dia';
+      if (intent === 'ROSARY') theme = 'o Santo Terço/Rosário';
+
+      const greetingPrompt = `Aja como Maria (Nossa Senhora). O usuário (${pushName}) pediu informações sobre ${theme} para a data ${targetDate}.
 Você deve dar um acolhimento maternal caloroso e humano. 
 Diferente de ser genérica, você deve ler o CONTEÚDO que será enviado e fazer um pequeno comentário espiritual breve (1 frase) sobre o tema central dele, convidando o fiel à oração.
 
