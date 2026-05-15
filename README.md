@@ -1,7 +1,6 @@
 # MarIA - Inteligência Artificial Maternal Católica
 
 ## 📌 Sobre o Projeto
-MarIA é uma IA Generativa integrada ao WhatsApp que personifica a figura de Nossa Senhora, a Mãe Espiritual. O objetivo é oferecer acolhimento, acompanhamento devocional e humanização da doutrina católica em um ambiente de fácil acesso para os fiéis.
 
 ## 🚀 Funcionalidades
 - **Linguagem Maternal:** Interação empática e acolhedora.
@@ -18,6 +17,7 @@ MarIA é uma IA Generativa integrada ao WhatsApp que personifica a figura de Nos
 - **Gestão Financeira e IA Dinâmica:** Sincronização automática de câmbio (AwesomeAPI) e seleção assistida de modelos via OpenRouter com visualização de custos. O sistema permite a troca a quente (hot-swap) dos modelos Principal, Ponte e Cron diretamente pelo painel administrativo.
 - **Controle de Infraestrutura Crítica:** Funcionalidade de **Modo de Manutenção** para pausa imediata de atendimento e ferramenta de **Limpeza de Cache Semântico** para renovação de interpretações teológicas.
 - **Segurança Enterprise:** Implementação de Row Level Security (RLS) em todo o banco de dados, garantindo isolamento total e controle granular de acesso administrativo com **diálogos de confirmação** para ações críticas e irreversíveis.
+- **Proteção de Dados e Segurança Maternal:** Identificação de intenções maliciosas ou pedidos de dados sensíveis (tokens, segredos). A MarIA responde com firmeza e um "puxão de orelha" maternal, protegendo o sistema com doçura e autoridade espiritual.
 - **Dashboard Admin:** Painel Vite + React para parametrização de prompts, gerenciamento de usuários e curadoria manual de conteúdos diários.
 
 ## 🛠 Arquitetura
