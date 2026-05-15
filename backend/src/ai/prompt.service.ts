@@ -42,6 +42,9 @@ export class PromptService implements OnModuleInit {
     this.logger.log(`Carregados ${this.promptCache.size} prompts na memória.`);
   }
 
+  getPrompt(key: string): string {
+    const content = this.promptCache.get(key) || '';
+
     const magisteriumIntents = [
       'intent_theology',
       'intent_prayer',
