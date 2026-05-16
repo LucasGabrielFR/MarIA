@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Isenção de Cache:** Consultas a conteúdos utilitários (Liturgia, Santo do Dia) servidas via cache não contabilizam mais para a cota de mensagens dos planos Premium e Patrono.
 - **Redesign da Parametrização:** Interface de prompts totalmente reformulada com sidebar vertical, glassmorphism e busca global.
 - **Documentação Contextual:** Adicionadas labels "Onde funciona" e "Impacto no Comportamento" para cada prompt administrativo, facilitando o ajuste fino da IA.
+- **Métricas de Exclusão:** Usuários que solicitam exclusão de dados agora são marcados como `disabled`, permitindo melhor rastreio administrativo. Ao retornarem, o sistema reinicia a triagem automaticamente.
 
 ### Changed
 - **Arquitetura de Quotas:** O `AiService` agora centraliza a contagem de mensagens, garantindo justiça no consumo conforme o tier do fiel.

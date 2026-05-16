@@ -484,11 +484,11 @@ export class AdminService {
 
     if (ctxError) throw ctxError;
 
-    // 3. Resetar status do usuário para 'triage_intro' (para reiniciar o onboarding)
+    // 3. Resetar status do usuário para 'disabled' (para identificar exclusão e metrificar)
     const { error: userError } = await supabase
       .from('users')
       .update({ 
-        status: 'triage_intro',
+        status: 'disabled',
         expectations: null
       })
       .eq('id', userId);
