@@ -168,21 +168,20 @@ export class AiService implements OnModuleInit {
       }
     }
 
+    // Se for free, não há limite de mensagens (apenas restrição de funcionalidades no processMessage)
+    if (user.subscription_tier === 'free') {
+      return { allowed: true };
+    }
+
     // Limites por tier
     const limits = {
-      'free': 0, // LLM desativado para free (exceto triagem)
       'premium': 300,
       'patron': 600
     };
 
     const monthlyLimit = limits[user.subscription_tier as keyof typeof limits] ?? 0;
 
-    // Se for free, o bloqueio de LLM é feito no processMessage
-    if (user.subscription_tier === 'free') {
-      return { allowed: true };
-    }
-
-    // Contar mensagens do mês
+    // Contar mensagens do mês (APENAS as que usaram LLM)
     const count = await this.countMonthlyMessages(user.id);
     
     if (count >= monthlyLimit) {
@@ -206,6 +205,7 @@ export class AiService implements OnModuleInit {
       .select('id', { count: 'exact' })
       .eq('user_id', userId)
       .eq('role', 'user')
+      .eq('is_llm', true) // Apenas conta interações com IA
       .gte('created_at', firstDayOfMonth.toISOString());
 
     if (error) {
@@ -237,11 +237,11 @@ export class AiService implements OnModuleInit {
   /**
    * Salva uma mensagem no banco de dados.
    */
-  private async saveMessage(userId: string, role: string, content: string): Promise<string> {
+  private async saveMessage(userId: string, role: string, content: string, isLlm = false): Promise<string> {
     const supabase = this.supabaseService.getClient();
     const { data: msg } = await supabase
       .from('messages')
-      .insert({ user_id: userId, role, content })
+      .insert({ user_id: userId, role, content, is_llm: isLlm })
       .select('id')
       .single();
 
@@ -358,19 +358,16 @@ export class AiService implements OnModuleInit {
     const userId = user.id;
     let userStatus = user.status || 'active';
 
-    // Se o usuário estava 'disabled' (dados apagados), resetar para triagem ao novo contato
+    // Se o usuário estava 'disabled', resetar para triagem
     if (userStatus === 'disabled') {
       this.logger.log(`Usuário ${userId} (disabled) entrou em contato. Resetando para triagem.`);
       await supabase.from('users').update({ status: 'triage_intro' }).eq('id', userId);
       userStatus = 'triage_intro';
-      
-      // Limpar objeto local para garantir que a triagem recomece do zero absoluto
       user.status = 'triage_intro';
       user.name = null;
-      user.expectations = null;
     }
 
-    // Verificar limites de assinatura antes de processar (exceto para usuários em triagem)
+    // Verificar limites de assinatura antes de processar (exceto triagem)
     if (!userStatus.startsWith('triage')) {
       const { allowed, reason } = await this.checkSubscriptionLimits(user);
       if (!allowed) {
@@ -378,23 +375,20 @@ export class AiService implements OnModuleInit {
       }
     }
 
-    // Salvar a mensagem do usuário
-    await this.saveMessage(userId, 'user', message);
+    // Salvar a mensagem do usuário (inicialmente is_llm: false)
+    const userMessageId = await this.saveMessage(userId, 'user', message, false);
 
     const corePersona = this.promptService.getCorePersona();
 
-    // --- NOVA LÓGICA DE TRIAGEM ---
+    // --- MÁQUINA DE ESTADOS (TRIAGEM) ---
 
-    // 1. Triagem Inicial (Nome e Intenções)
+    // 1. Triagem Inicial (Nome)
     if (userStatus === 'triage_intro' || userStatus === 'triage_name') {
-      // Tentar extrair nome
+      await supabase.from('messages').update({ is_llm: true }).eq('id', userMessageId);
+      
       const extractionNamePrompt = (this.promptService.getPrompt('extractor_name') || '').replace('{{message}}', message);
       const { content: extractedName } = await this.callOpenRouter(extractionNamePrompt, "", false);
       
-      // Tentar extrair intenções
-      const extractionIntentionsPrompt = (this.promptService.getPrompt('extractor_intentions') || '').replace('{{message}}', message);
-      const { content: extractedIntentions } = await this.callOpenRouter(extractionIntentionsPrompt, "", false);
-
       const updateData: any = {};
       let nameFound = false;
 
@@ -403,347 +397,154 @@ export class AiService implements OnModuleInit {
         nameFound = true;
       }
 
-      if (extractedIntentions && extractedIntentions.toLowerCase() !== 'null') {
-        updateData.expectations = extractedIntentions.trim();
-      }
-
-      // Se o nome foi explicitamente encontrado nesta interação, avançamos
       if (nameFound) {
         await supabase.from('users').update({ ...updateData, status: 'triage_presentation_subscription' }).eq('id', userId);
-        
-        // Em vez de recursão pura, vamos forçar o contexto de apresentação
-        // No próximo passo, o AIService usará o prompt detailed_presentation
         userStatus = 'triage_presentation_subscription';
       } else {
-        // Se ainda não temos o nome, insistir docemente
         const triagePromptKey = userStatus === 'triage_intro' ? 'triage_intro' : 'triage_name';
-        const triagePrompt = this.promptService.getPrompt(triagePromptKey) || this.promptService.getPrompt('triage_intro');
+        const triagePrompt = this.promptService.getPrompt(triagePromptKey);
         
         const fullSystemPrompt = `${corePersona}\n\nREGRAS ATUAIS:\n${triagePrompt}`;
         const { content: response, usage } = await this.callOpenRouter(fullSystemPrompt, message);
         if (usage) await this.logUsage(userId, usage, this.model);
 
-        // Se acabamos de enviar a intro, avançamos o status para triage_name
         if (userStatus === 'triage_intro') {
           await supabase.from('users').update({ status: 'triage_name' }).eq('id', userId);
         }
 
-        await this.saveMessage(userId, 'assistant', response);
+        await this.saveMessage(userId, 'assistant', response, true);
         return response;
       }
     }
 
-    // 2. Apresentação Detalhada e Oferta de Assinatura
+    // 2. Apresentação Detalhada
     if (userStatus === 'triage_presentation_subscription') {
+      await supabase.from('messages').update({ is_llm: true }).eq('id', userMessageId);
+
       const presentationPrompt = this.promptService.getPrompt('detailed_presentation');
-      
-      // Verificar se é assinante para passar no contexto do prompt
       const isSubscriber = user.subscription_tier && user.subscription_tier !== 'free';
       const subscriptionContext = isSubscriber 
-        ? "\n\nO usuário JÁ É UM ASSINANTE PREMIUM. Agradeça imensamente pelo apoio e não ofereça planos." 
-        : "\n\nO usuário NÃO é assinante. Você DEVE obrigatoriamente apresentar os planos e o link conforme as regras abaixo.";
+        ? "\n\nO usuário JÁ É UM ASSINANTE. Agradeça e não ofereça planos." 
+        : "\n\nO usuário NÃO é assinante. Apresente os planos conforme as regras.";
 
-      // Forçar o AI a focar na apresentação, mesmo que o input seja apenas o nome
-      const presentationInstruction = "\n\nIMPORTANTE: O usuário acaba de se identificar. Agora é o momento da sua APRESENTAÇÃO DETALHADA. Siga rigorosamente todas as regras de apresentação, explique suas funcionalidades e ofereça os planos (se aplicável).";
-
-      const fullSystemPrompt = `${corePersona}${subscriptionContext}${presentationInstruction}\n\nREGRAS DE APRESENTAÇÃO:\n${presentationPrompt}`;
-      
+      const fullSystemPrompt = `${corePersona}${subscriptionContext}\n\nREGRAS DE APRESENTAÇÃO:\n${presentationPrompt}`;
       const { content: response, usage } = await this.callOpenRouter(fullSystemPrompt, message);
       if (usage) await this.logUsage(userId, usage, this.model);
 
-      // Mudar status para active após a apresentação
       await supabase.from('users').update({ status: 'active' }).eq('id', userId);
-
-      await this.saveMessage(userId, 'assistant', response);
+      await this.saveMessage(userId, 'assistant', response, true);
       return response;
     }
 
-    // Fluxo Ativo
-    const isFree = user.subscription_tier === 'free' && !userStatus.startsWith('triage');
-
+    // --- FLUXO ATIVO ---
+    const isFree = user.subscription_tier === 'free';
     const { intent, rules } = await this.determineIntent(message);
-    this.logger.log(`Usuário ${waChatId}: Intent=${intent}, Rules=[${rules.join(', ')}]`);
+    
+    // Lista de intenções de utilidade (cacheáveis)
+    const utilityIntents = ['LITURGY', 'SAINT', 'SAINT_OF_DAY', 'ROSARY_MYSTERIES', 'ROSARY_GUIDE'];
+    const isUtility = utilityIntents.includes(intent);
 
-    // Restrição para Plano Free: Bloquear se a intenção exigir processamento complexo
-    const freeIntents = ['LITURGY', 'SAINT', 'SAINT_OF_DAY', 'ROSARY', 'PRAYER_GUIDE'];
-    if (isFree && !freeIntents.includes(intent)) {
+    // Bloqueio Free para não-utilitários
+    if (isFree && !isUtility) {
       const response = this.promptService.getPrompt('free_tier_block');
-      await this.saveMessage(userId, 'assistant', response);
+      await this.saveMessage(userId, 'assistant', response, false);
       return response;
     }
 
     let intentContext = '';
-
-    const todayIso = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+    let cachedResponse: string | null = null;
     const mainModel = await this.getSystemSetting('main_model', 'openai/gpt-4o-mini');
     const bridgeModel = await this.getSystemSetting('bridge_model', 'google/gemini-2.0-flash-lite-001');
-
-    const getDailyCache = async (type: string, targetDateStr?: string) => {
-      const dateToFetch = targetDateStr || todayIso;
-      const { data } = await supabase
-        .from('daily_cache')
-        .select('content')
-        .eq('type', type)
-        .eq('cache_date', dateToFetch)
-        .maybeSingle();
-      return data?.content;
-    };
-
-    // Função para preparar o contexto de conteúdos cacheados para o LLM formatar
-    const prepareCachedIntentContext = (type: string, content: string) => {
-      if (type === 'liturgy') {
-        return `INSTRUÇÃO: Com base na liturgia abaixo (Data: ${targetDate}), você deve obrigatoriamente:
-1. Apresentar as passagens das leituras.
-2. Elaborar uma reflexão espiritual profunda.
-3. Finalizar com uma oração.
-4. **IMPORTANTE**: NÃO use termos relativos como "hoje", "amanhã" ou "ontem". Use "nesta liturgia" ou "neste dia".
-
-DADOS DA LITURGIA:
-${content}`;
-      }
-      if (type === 'saint') {
-        const intentRules = this.promptService.getPrompt('intent_saint');
-        return `${intentRules}${MAGISTERIUM_INSTRUCTION}\n\nCONTEÚDO DO SANTO (Data: ${targetDate}):\n${content}`;
-      }
-      return content;
-    };
-
-    // Detectar a data alvo (hoje, amanhã, dia específico, etc.) usando o bridge model
     const targetDate = await this.extractTargetDate(message, bridgeModel);
-    this.logger.log(`Data alvo detectada: ${targetDate} para a mensagem: "${message}"`);
 
-
-    let cachedResponse: string | null = null;
-
-    // Função utilitária para chamar o Magisterium passando as diretrizes como System Prompt
-    const fetchMagisteriumContext = async (promptKey: string, includeDate = false) => {
-      const intentRules = this.promptService.getPrompt(promptKey);
-      const finalMessage = includeDate ? `${message} (Considere que hoje é dia ${targetDate})` : message;
-      const { content: magisteriumResponse, usage } = await this.magisteriumService.query(finalMessage, intentRules);
-
-      if (usage) await this.logUsage(userId, usage, 'magisterium-expert');
-
-      return `${intentRules}${MAGISTERIUM_INSTRUCTION}\n\nCONTEÚDO OFICIAL DO MAGISTERIUM AI:\n${magisteriumResponse}`;
-    };
-
+    // Lógica de Contexto por Intenção
     switch (intent) {
-      case 'THEOLOGY':
-        cachedResponse = await this.findInSemanticCache(message, 'THEOLOGY');
-        if (!cachedResponse) {
-          const { content: magisteriumResponse, usage } = await this.magisteriumService.query(message, this.promptService.getPrompt('intent_theology'));
-          if (usage) await this.logUsage(userId, usage, 'magisterium-expert');
-          cachedResponse = magisteriumResponse;
-          await this.saveToSemanticCache(message, magisteriumResponse, 'THEOLOGY');
-        }
-        intentContext = `${this.promptService.getPrompt('intent_theology')}${MAGISTERIUM_INSTRUCTION}\n\nCONTEÚDO OFICIAL DO MAGISTERIUM (USE ISSO COMO BASE ÚNICA E NÃO RESUMA DEMAIS):\n${cachedResponse}\n\nINSTRUÇÃO ADICIONAL: Reformule o conteúdo acima para o WhatsApp usando emojis e seu tom maternal, mas MANTENHA todos os fatos teológicos e retire todas as citações numéricas como [^1]. Liste as referências completas ao final traduzidas para o português quando possível.`;
-        break;
       case 'LITURGY':
-        cachedResponse = await getDailyCache('liturgy', targetDate);
-        if (cachedResponse) {
-          if (!isFree) intentContext = prepareCachedIntentContext('liturgy', cachedResponse);
-        } else {
-          const liturgyData = await this.liturgyService.getDailyLiturgy(targetDate);
-          intentContext = prepareCachedIntentContext('liturgy', liturgyData);
+        cachedResponse = await this.getDailyCache('liturgy', targetDate);
+        if (!cachedResponse) {
+          cachedResponse = await this.liturgyService.getDailyLiturgy(targetDate);
         }
+        intentContext = `CONTEÚDO DA LITURGIA (${targetDate}):\n${cachedResponse}`;
         break;
       case 'SAINT':
       case 'SAINT_OF_DAY':
-        cachedResponse = await getDailyCache('saint', targetDate);
-        if (cachedResponse) {
-          if (!isFree) intentContext = prepareCachedIntentContext('saint', cachedResponse);
-        } else {
-          const intentRules = this.promptService.getPrompt('intent_saint');
-          const finalMessage = `${message} (Considere que hoje é dia ${targetDate})`;
-          const { content: magisteriumResponse, usage } = await this.magisteriumService.query(finalMessage, intentRules);
-          if (usage) await this.logUsage(userId, usage, 'magisterium-expert');
-          
-          intentContext = prepareCachedIntentContext('saint', magisteriumResponse);
-        }
-        break;
-      case 'PRAYER':
-        intentContext = await fetchMagisteriumContext('intent_prayer');
-        break;
-      case 'BIBLE':
-        intentContext = await fetchMagisteriumContext('intent_bible');
-        break;
-      case 'LITURGY':
-        cachedResponse = await getDailyCache('liturgy', targetDate);
+        cachedResponse = await this.getDailyCache('saint', targetDate);
         if (!cachedResponse) {
-          const liturgyData = await this.liturgyService.getDailyLiturgy(targetDate);
-          intentContext = `INSTRUÇÃO: Com base na liturgia abaixo (Data: ${targetDate}), você deve obrigatoriamente:
-1. Apresentar as passagens das leituras.
-2. Elaborar uma reflexão espiritual profunda.
-3. Finalizar com uma oração.
-4. **IMPORTANTE**: NÃO use termos relativos como "hoje", "amanhã" ou "ontem". Use "nesta liturgia" ou "neste dia".
-
-DADOS DA LITURGIA:
-${liturgyData}`;
+          // Se não está no cache, precisamos consultar o Magistério (que usa LLM)
+          await supabase.from('messages').update({ is_llm: true }).eq('id', userMessageId);
+          const { content, usage } = await this.magisteriumService.query(`${message} (Dia ${targetDate})`, this.promptService.getPrompt('intent_saint'));
+          if (usage) await this.logUsage(userId, usage, this.model);
+          cachedResponse = content;
         }
-        break;
-      case 'SAINT':
-      case 'SAINT_OF_DAY':
-        cachedResponse = await getDailyCache('saint', targetDate);
-        if (!cachedResponse) {
-          const intentRules = this.promptService.getPrompt('intent_saint');
-          const finalMessage = `${message} (Considere que hoje é dia ${targetDate})`;
-          const { content: magisteriumResponse, usage } = await this.magisteriumService.query(finalMessage, intentRules);
-          if (usage) await this.logUsage(userId, usage, 'magisterium-expert');
-          
-          intentContext = `${intentRules}${MAGISTERIUM_INSTRUCTION}\n\nCONTEÚDO DO SANTO (Data: ${targetDate}):\n${magisteriumResponse}`;
-        }
+        intentContext = `CONTEÚDO DO SANTO (${targetDate}):\n${cachedResponse}`;
         break;
       case 'ROSARY_MYSTERIES':
-        const lowerMsg = message.toLowerCase();
-        const isFullRosary = lowerMsg.includes('rosário') || lowerMsg.includes('rosario');
-        const specificType = ['gozosos', 'luminosos', 'dolorosos', 'gloriosos'].find(t => lowerMsg.includes(t));
-        
-        let rosaryContent = '';
-        if (specificType) {
-          this.logger.log(`Buscando mistérios específicos: ${specificType}`);
-          // Busca nos caches da semana corrente
-          const baseDate = new Date(targetDate + 'T12:00:00');
-          const day = baseDate.getDay();
-          const diffToMonday = baseDate.getDate() - day + (day === 0 ? -6 : 1);
-          const monday = new Date(baseDate.setDate(diffToMonday));
-          
-          const weekDates = [0, 1, 2, 3, 4, 5, 6].map(offset => {
-            const d = new Date(monday);
-            d.setDate(monday.getDate() + offset);
-            return d.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
-          });
-
-          const { data: weekCaches } = await supabase
-            .from('daily_cache')
-            .select('content')
-            .eq('type', 'rosary')
-            .in('cache_date', weekDates);
-          
-          const found = weekCaches?.find(c => c.content.toLowerCase().includes(specificType));
-          rosaryContent = found ? found.content : `Não encontrei os mistérios ${specificType} na base da semana corrente.`;
-        } else if (!isFullRosary) {
-          rosaryContent = await getDailyCache('rosary', targetDate) || 'Mistérios do dia não encontrados no cache.';
-        } else {
-          const baseDate = new Date(targetDate + 'T12:00:00');
-          const day = baseDate.getDay();
-          const diffToMonday = baseDate.getDate() - day + (day === 0 ? -6 : 1);
-          const monday = new Date(baseDate.setDate(diffToMonday));
-          
-          const datesToFetch = [0, 1, 2, 3].map(offset => {
-            const d = new Date(monday);
-            d.setDate(monday.getDate() + offset);
-            return d.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
-          });
-          
-          const { data: rosaryCaches } = await supabase
-            .from('daily_cache')
-            .select('content')
-            .eq('type', 'rosary')
-            .in('cache_date', datesToFetch);
-            
-          rosaryContent = rosaryCaches?.map(c => c.content).join('\n\n====================\n\n') || 'Mistérios da semana não encontrados no cache.';
-        }
-        
-        intentContext = `${this.promptService.getPrompt('intent_rosary_mysteries')}\n\nCONTEÚDO DOS MISTÉRIOS:\n${rosaryContent}`;
-        cachedResponse = rosaryContent;
+        cachedResponse = await this.getDailyCache('rosary', targetDate);
+        intentContext = `CONTEÚDO DO TERÇO:\n${cachedResponse || 'Mistérios do dia.'}`;
         break;
-      case 'ROSARY_GUIDE':
-        const lowerMsgGuide = message.toLowerCase();
-        const isFullRosaryGuide = lowerMsgGuide.includes('rosário') || lowerMsgGuide.includes('rosario');
-        const guideKey = isFullRosaryGuide ? 'guide_rosary' : 'guide_terco';
-        cachedResponse = this.promptService.getPrompt(guideKey) || 'Roteiro não encontrado.';
-        break;
+      case 'THEOLOGY':
+      case 'PRAYER':
+      case 'BIBLE':
       case 'ADVICE':
-        intentContext = this.promptService.getPrompt('intent_advice');
+        // Intenções GENERATIVAS -> Marcar como is_llm: true e processar com LLM
+        await supabase.from('messages').update({ is_llm: true }).eq('id', userMessageId);
+        const promptKey = `intent_${intent.toLowerCase()}`;
+        const { content: magisteriumRes, usage: magUsage } = await this.magisteriumService.query(message, this.promptService.getPrompt(promptKey));
+        if (magUsage) await this.logUsage(userId, magUsage, this.model);
+        intentContext = `CONTEÚDO DO MAGISTERIUM:\n${magisteriumRes}`;
         break;
-      case 'SENSITIVE_DATA':
-        intentContext = this.promptService.getPrompt('intent_sensitive_data');
-        break;
-      case 'HUMAN_CLARIFICATION':
-        intentContext = this.promptService.getPrompt('intent_human_clarification');
-        break;
-      case 'CASUAL':
       default:
+        // Caso padrão também usa LLM para conversa casual
+        await supabase.from('messages').update({ is_llm: true }).eq('id', userMessageId);
         intentContext = this.promptService.getPrompt('intent_casual');
-        break;
     }
 
-    let strictRules = '';
-    if (rules.length > 0) {
-      strictRules = '\n\nREGRAS ESTREITAS QUE DEVEM SER OBEDECIDAS AGORA:\n';
-      for (const ruleKey of rules) {
-        const ruleContent = this.promptService.getPrompt(ruleKey);
-        if (ruleContent) {
-          strictRules += `- ${ruleContent}\n`;
-        }
-      }
-    }
+    // Decisão de Resposta: Cache Direto vs LLM
+    const { data: msgStatus } = await supabase.from('messages').select('is_llm').eq('id', userMessageId).single();
+    const isLlmConfirmed = msgStatus?.is_llm || false;
 
-    // Obter histórico recente e contexto geral
-    const history = await this.getChatHistory(userId, 15);
-
-    const { data: userContext } = await supabase.from('user_contexts').select('general_summary').eq('user_id', userId).single();
-
-    let memoryContext = '';
-    if (userContext?.general_summary) {
-      memoryContext = `\n\nMEMÓRIA/CONTEXTO DO USUÁRIO:\n${userContext.general_summary}`;
-    }
-
-
-    // Bloqueio final de segurança para usuários FREE (garantir que não chamem LLM)
-    if (isFree && !intentContext.includes('CONTEÚDO')) {
-      const response = "Peço desculpas, mas não consegui encontrar essa informação pronta em meus arquivos gratuitos agora. Para que eu possa pesquisar e te dar uma resposta personalizada, considere apoiar nossa missão com um de nossos planos. Posso te ajudar com a Liturgia ou o Santo do Dia?";
-      await this.saveMessage(userId, 'assistant', response);
+    if (!isLlmConfirmed && cachedResponse) {
+      // Conteúdo utilitário e cacheado -> Enviar direto sem gastar quota/LLM
+      this.logger.log(`Servindo cache direto para intent ${intent}.`);
+      const response = `*${intent === 'LITURGY' ? 'Liturgia' : 'Conteúdo'} do Dia (${targetDate})*\n\n${cachedResponse.trim()}`;
+      await this.saveMessage(userId, 'assistant', response, false);
       return response;
     }
 
-    let response: string;
-    if (isFree && cachedResponse && (intent === 'LITURGY' || intent === 'SAINT' || intent === 'SAINT_OF_DAY' || intent === 'ROSARY_MYSTERIES' || intent === 'ROSARY_GUIDE')) {
-      this.logger.log(`Usuário FREE: Enviando cache direto para economizar LLM.`);
-      const header = intent === 'LITURGY' ? `*Liturgia do Dia (${targetDate})*\n\n` : 
-                     intent.includes('SAINT') ? `*Santo do Dia (${targetDate})*\n\n` : '';
-      
-      const finalResponse = `${header}${cachedResponse.trim()}\n\n_Acesse reflexões personalizadas e converse livremente com a MarIA assinando um de nossos planos de apoio._`;
-      await this.saveMessage(userId, 'assistant', finalResponse);
-      return finalResponse;
-    } else {
-      // Se for Free e chegou aqui, algo deu errado na filtragem anterior (segurança extra)
-      if (isFree) {
-        const fallback = "No momento, meu acesso gratuito é limitado a conteúdos prontos. Que tal rezarmos o Terço ou vermos a Liturgia do dia? ❤️";
-        await this.saveMessage(userId, 'assistant', fallback);
-        return fallback;
-      }
+    // Se não serviu cache direto, usa o LLM (Interesses, Resumo, Persona)
+    // Marcar mensagem do usuário como LLM para contagem de quota
+    await supabase.from('messages').update({ is_llm: true }).eq('id', userMessageId);
+    
+    const history = await this.getChatHistory(userId);
+    const summary = user.general_summary || "Sem resumo.";
+    const fullSystemPrompt = `${corePersona}\n\nCONTEXTO:\n${summary}\n\nINTENÇÃO:\n${intentContext}\n\nResponda com amor maternal.`;
 
-      const finalPrompt = `${corePersona}${memoryContext}\n\nCONTEXTO DE INTENÇÃO:\n${intentContext}${strictRules}`;
-      const { content, usage } = await this.callOpenRouter(finalPrompt, message, false, history, mainModel);
-      if (usage) await this.logUsage(userId, usage, mainModel);
-      response = content;
-    }
+    const { content: response, usage } = await this.callOpenRouter(fullSystemPrompt, message, false, history, mainModel);
+    if (usage) await this.logUsage(userId, usage, mainModel);
 
-    // Adicionar aviso de expiração se estiver próximo (3 dias)
-    if (user.subscription_expires_at && user.subscription_tier !== 'free') {
-      const expires = new Date(user.subscription_expires_at);
-      const now = new Date();
-      const diffDays = Math.ceil((expires.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-      
-      if (diffDays > 0 && diffDays <= 3) {
-        const warningTemplate = this.promptService.getPrompt('subscription_expiration_warning');
-        const dayLabel = diffDays === 1 ? 'dia' : 'dias';
-        const warning = warningTemplate
-          .replace('{{days}}', String(diffDays))
-          .replace('{{label}}', dayLabel);
-        response += `\n\n${warning}`;
+    // Verificar se avisamos sobre expiração
+    let finalResponse = response;
+    if (user.subscription_expires_at) {
+      const diff = Math.ceil((new Date(user.subscription_expires_at).getTime() - new Date().getTime()) / 86400000);
+      if (diff > 0 && diff <= 3) {
+        finalResponse += `\n\n_Sua assinatura expira em ${diff} ${diff === 1 ? 'dia' : 'dias'}. Considere renovar para manter seu acesso completo!_`;
       }
     }
 
-    // Salvar resposta
-    const lastMessageId = await this.saveMessage(userId, 'assistant', response);
+    await this.saveMessage(userId, 'assistant', finalResponse, true);
+    this.updateContextIfNeeded(userId, userMessageId).catch(e => this.logger.error(e));
 
-    // Condensar contexto em background se necessário
-    this.updateContextIfNeeded(userId, lastMessageId).catch(err => {
-      this.logger.error('Erro ao atualizar contexto', err);
-    });
+    return finalResponse;
+  }
 
-    return response;
+  private async getDailyCache(type: string, date: string): Promise<string | null> {
+    const { data } = await this.supabaseService.getClient()
+      .from('daily_cache')
+      .select('content')
+      .eq('type', type)
+      .eq('cache_date', date)
+      .maybeSingle();
+    return data?.content;
   }
 
 

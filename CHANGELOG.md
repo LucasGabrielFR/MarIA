@@ -5,11 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.7] - 2026-05-16
+### Added
+- **Controle de Uso e Quotas:** Implementada lógica rigorosa de rastreio de uso de LLM via flag `is_llm`.
+- **Isenção de Cache:** Consultas a conteúdos utilitários (Liturgia, Santo do Dia) servidas via cache não contabilizam mais para a cota de mensagens dos planos Premium e Patrono.
+- **Redesign da Parametrização:** Interface de prompts totalmente reformulada com sidebar vertical, glassmorphism e busca global.
+- **Documentação Contextual:** Adicionadas labels "Onde funciona" e "Impacto no Comportamento" para cada prompt administrativo, facilitando o ajuste fino da IA.
+
+### Changed
+- **Arquitetura de Quotas:** O `AiService` agora centraliza a contagem de mensagens, garantindo justiça no consumo conforme o tier do fiel.
+- **UX Administrativa:** Transição de abas horizontais para navegação lateral persistente na tela de IA.
+
+## [1.9.6] - 2026-05-16
+### Changed
+- **Refinamento de Triagem (Fase 3):** 
+  - O onboarding agora foca estritamente no nome na primeira interação, adiando a captação de intenções.
+  - **Identidade Protegida:** Esclarecimento obrigatório de que a MarIA é uma IA *inspirada* em Nossa Senhora, mas não é ela, e que não substitui um sacerdote católico.
+  - **Transparência de Planos:** Inclusão do Plano Gratuito na apresentação inicial, detalhando o limite de 5 mensagens/dia e acesso a conteúdos de cache.
+  - **Direito ao Esquecimento:** Adicionadas regras de uso de dados e instruções claras sobre como solicitar a exclusão total das informações (via email maria@acutistech.com.br).
+  - **Políticas de Privacidade:** Inclusão de links para Termos de Uso e Políticas de Privacidade durante a apresentação.
+
 ## [1.9.5] - 2026-05-16
-### Fixed
-- **Formatação de Texto (WhatsApp):** Implementado unescape automático de caracteres `\n` no `PromptService`, garantindo que as quebras de linha enviadas via banco de dados sejam renderizadas corretamente no WhatsApp.
-- **Transparência de Identidade:** Ajustada a regra de identidade na `core_persona` para permitir que a IA se identifique como tal durante a triagem, atendendo à solicitação de clareza para o fiel.
-- **Fluxo de Apresentação:** Refatorada a lógica de transição no `AiService` para garantir que a apresentação detalhada e oferta de planos não sejam ignoradas pela IA após a identificação do usuário.
 
 ## [1.9.4] - 2026-05-16
 ### Added

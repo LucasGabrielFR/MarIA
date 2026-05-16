@@ -22,7 +22,9 @@
 - **Inteligência Financeira e Assinaturas**:
   - **Módulo Financeiro**: Dashboard de Margem de Contribuição com cálculo em tempo real de Receita vs. Custos de IA.
   - **Gestão de Checkout**: Sistema modular para registro de pagamentos manuais e alertas automáticos de vencimento via WhatsApp.
+  - **Controle de Quotas Inteligente**: Diferenciação automática entre mensagens gerativas (LLM) e conteúdos utilitários (Cache), garantindo que consultas à Liturgia ou Santo do Dia não consumam a franquia do fiel.
   - **Arquitetura Plugável**: Estrutura preparada para integração futura com gateways (Stripe, Mercado Pago).
+- **Parametrização IA Pro Max**: Interface administrativa totalmente redesenhada com navegação lateral, busca global e labels educativas ("Onde Funciona" e "Impacto") para cada prompt do sistema.
 - **Dashboard Admin:** Painel Vite + React para parametrização de prompts, gestão de fiéis, controle financeiro e curadoria de conteúdos.
 
 ## 🛠 Arquitetura

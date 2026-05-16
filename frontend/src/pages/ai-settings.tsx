@@ -119,38 +119,39 @@ export default function AiSettingsPage() {
 
   const categories = {
     persona: {
-      label: 'Personalidade',
+      label: 'Identidade',
       icon: <Bot className="w-5 h-5" />,
+      description: 'Define quem é a MarIA e como ela se comporta globalmente.',
       keys: ['core_persona', 'intent_router']
     },
+    onboarding: {
+      label: 'Boas-vindas',
+      icon: <ScrollText className="w-5 h-5" />,
+      description: 'O primeiro contato do fiel com a MarIA.',
+      keys: ['triage_intro', 'triage_name', 'detailed_presentation']
+    },
     intentions: {
-      label: 'Intenções',
+      label: 'Especialidades',
       icon: <Zap className="w-5 h-5" />,
-      keys: ['intent_theology', 'intent_prayer', 'intent_bible', 'intent_liturgy', 'intent_saint', 'intent_rosary', 'intent_advice', 'intent_casual', 'intent_sensitive_data', 'intent_human_clarification']
+      description: 'Como a IA responde a temas específicos (Bíblia, Oração, etc).',
+      keys: ['intent_theology', 'intent_prayer', 'intent_bible', 'intent_liturgy', 'intent_saint', 'intent_rosary', 'intent_advice', 'intent_casual']
     },
     rules: {
-      label: 'Regras Estritas',
+      label: 'Segurança',
       icon: <ShieldAlert className="w-5 h-5" />,
-      keys: ['rule_crisis', 'rule_prohibited', 'rule_etiquette', 'rule_data_security']
-    },
-    onboarding: {
-      label: 'Onboarding',
-      icon: <ScrollText className="w-5 h-5" />,
-      keys: ['triage_intro', 'detailed_presentation']
+      description: 'Regras críticas para proteção de dados e comportamento ético.',
+      keys: ['rule_crisis', 'rule_prohibited', 'rule_etiquette', 'rule_data_security', 'intent_sensitive_data']
     },
     extractors: {
-      label: 'Extratores e Memória',
+      label: 'Inteligência',
       icon: <Brain className="w-5 h-5" />,
-      keys: ['memory_summarization', 'extractor_name', 'extractor_date', 'extractor_intentions']
-    },
-    generators: {
-      label: 'Geradores de Conteúdo',
-      icon: <PenTool className="w-5 h-5" />,
-      keys: ['generator_system_prompt', 'generator_prayer_guide', 'generator_liturgy', 'generator_saint', 'generator_rosary']
+      description: 'Prompts de processamento de dados e memória.',
+      keys: ['memory_summarization', 'interest_extractor', 'extractor_name', 'extractor_date']
     },
     system: {
-      label: 'Mensagens do Sistema',
+      label: 'Mensagens',
       icon: <MessageSquare className="w-5 h-5" />,
+      description: 'Respostas automáticas para situações específicas do sistema.',
       keys: ['audio_refusal', 'free_tier_block', 'subscription_expiration_warning', 'usage_limit_reached', 'maintenance_message']
     }
   };
@@ -160,79 +161,99 @@ export default function AiSettingsPage() {
                          p.description.toLowerCase().includes(searchTerm.toLowerCase());
     
     if (searchTerm) return matchesSearch;
-    return categories[activeCategory as keyof typeof categories].keys.includes(p.key);
+    const category = categories[activeCategory as keyof typeof categories];
+    return category?.keys.includes(p.key);
   });
 
   const renderPromptCard = (prompt: AiPrompt) => (
-    <Card key={prompt.id} className="border-none shadow-xl shadow-slate-200/50 rounded-[2.5rem] overflow-hidden bg-white/80 backdrop-blur-sm transition-all hover:shadow-2xl hover:shadow-slate-200/70 border border-white/20">
-      <CardHeader className="bg-gradient-to-r from-slate-50/80 to-white/80 border-b border-slate-100/50 pb-6 px-8 pt-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-white rounded-2xl shadow-sm border border-slate-100/50 flex items-center justify-center">
+    <Card key={prompt.id} className="border-none shadow-2xl shadow-slate-200/40 rounded-[2.5rem] overflow-hidden bg-white/70 backdrop-blur-md transition-all hover:shadow-primary/10 border border-white/40 group">
+      <CardHeader className="bg-gradient-to-br from-slate-50/50 to-white/30 border-b border-slate-100/40 pb-8 px-10 pt-10">
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
+          <div className="flex items-start gap-5">
+            <div className="p-4 bg-white rounded-[1.5rem] shadow-sm border border-slate-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-500">
               {getIconForKey(prompt.key)}
             </div>
             <div>
-              <CardTitle className="text-2xl font-black text-slate-800 tracking-tight flex items-center gap-2">
-                {formatKeyName(prompt.key)}
+              <div className="flex items-center gap-3 flex-wrap">
+                <CardTitle className="text-2xl font-black text-slate-800 tracking-tight">
+                  {formatKeyName(prompt.key)}
+                </CardTitle>
                 {prompt.key === 'core_persona' && (
-                  <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-none px-3 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider">Essencial</Badge>
+                  <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-none px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider">Base Neural</Badge>
                 )}
                 {prompt.key.startsWith('rule') && (
-                  <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100 border-none px-3 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider">Crítico</Badge>
+                  <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100 border-none px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider">Protocolo Crítico</Badge>
                 )}
-              </CardTitle>
-              <CardDescription className="text-slate-500 font-bold mt-1 flex items-center gap-2">
-                <code className="bg-slate-100/80 px-2 py-0.5 rounded-lg text-slate-600 text-xs font-mono">{prompt.key}</code>
+              </div>
+              <CardDescription className="text-slate-400 font-bold mt-2 flex items-center gap-2">
+                <code className="bg-slate-100 px-2 py-1 rounded-lg text-slate-500 text-[11px] font-mono tracking-tighter">IDENTIFICADOR: {prompt.key}</code>
               </CardDescription>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <Button 
               onClick={() => generateAiPrompt(prompt)}
               disabled={generating === prompt.key}
               variant="outline"
-              className="bg-white hover:bg-slate-50 text-indigo-600 border-indigo-100 rounded-2xl shadow-sm font-bold px-6 h-12 transition-all active:scale-95"
+              className="bg-white/80 hover:bg-white text-indigo-600 border-indigo-100/50 rounded-2xl shadow-sm font-bold px-6 h-14 transition-all active:scale-95"
             >
               {generating === prompt.key ? (
-                <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Gerando</>
+                <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Processando</>
               ) : (
-                <><Sparkles className="mr-2 h-5 w-5" /> Gerar com IA</>
+                <><Sparkles className="mr-2 h-5 w-5" /> Refinar com IA</>
               )}
             </Button>
             <Button 
               onClick={() => savePrompt(prompt)}
               disabled={saving === prompt.key}
-              className="bg-primary hover:bg-primary/90 text-white rounded-2xl shadow-xl shadow-blue-100 font-black px-8 h-12 transition-all active:scale-95"
+              className="bg-primary hover:bg-primary/90 text-white rounded-2xl shadow-xl shadow-primary/20 font-black px-10 h-14 transition-all active:scale-95"
             >
               {saving === prompt.key ? (
-                <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Salvando</>
+                <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Sincronizando</>
               ) : (
-                <><Save className="mr-2 h-5 w-5" /> Salvar</>
+                <><Save className="mr-2 h-5 w-5" /> Aplicar Regras</>
               )}
             </Button>
           </div>
         </div>
       </CardHeader>
-      <CardContent className="p-8 space-y-6">
-        <div className="group">
-          <Label className="text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] ml-1 mb-3 block">Objetivo e Contexto</Label>
-          <div className="text-sm text-slate-600 bg-slate-50/50 p-5 rounded-3xl border border-slate-100/50 leading-relaxed font-medium">
-            {prompt.description}
+      <CardContent className="p-10 space-y-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-3">
+            <Label className="text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] ml-1 block">Onde funciona?</Label>
+            <div className="text-sm text-slate-600 bg-slate-50/50 p-4 rounded-2xl border border-slate-100 leading-relaxed font-medium">
+              {prompt.key.startsWith('intent') ? 'Ativado dinamicamente pelo Roteador de Intenções quando o usuário demonstra este interesse.' : 
+               prompt.key.startsWith('triage') ? 'Ativado durante o fluxo inicial de onboarding para novos usuários.' :
+               prompt.key === 'core_persona' ? 'Injetado como base em TODAS as interações da IA.' :
+               'Ativado pelo sistema em situações específicas de processamento.'}
+            </div>
+          </div>
+          <div className="space-y-3">
+            <Label className="text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] ml-1 block">Impacto no Comportamento</Label>
+            <div className="text-sm text-indigo-600/80 bg-indigo-50/30 p-4 rounded-2xl border border-indigo-100/50 leading-relaxed font-bold italic">
+              {prompt.description || 'Define a lógica de resposta e o tom de voz para este contexto específico.'}
+            </div>
           </div>
         </div>
-        <div>
+
+        <div className="relative group">
           <Label className="text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] ml-1 mb-3 block flex justify-between items-center">
-            <span>Conteúdo das Instruções</span>
-            <span className="font-bold opacity-60">
-              Modificado em {new Date(prompt.updated_at).toLocaleDateString('pt-BR')}
+            <span>Conteúdo das Instruções Neural</span>
+            <span className="font-bold opacity-40">
+              Atualizado em {new Date(prompt.updated_at).toLocaleDateString('pt-BR')}
             </span>
           </Label>
-          <Textarea 
-            value={prompt.content}
-            onChange={(e) => handleContentChange(prompt.key, e.target.value)}
-            className="min-h-[200px] resize-y rounded-[2rem] bg-white border-slate-200 focus:border-primary/50 focus:ring-4 focus:ring-primary/5 text-slate-700 leading-relaxed p-6 font-medium shadow-inner transition-all"
-            placeholder="Descreva as instruções que a IA deve seguir para este contexto..."
-          />
+          <div className="relative">
+            <Textarea 
+              value={prompt.content}
+              onChange={(e) => handleContentChange(prompt.key, e.target.value)}
+              className="min-h-[250px] resize-y rounded-[2rem] bg-white border-slate-200 focus:border-primary/50 focus:ring-[12px] focus:ring-primary/5 text-slate-700 leading-relaxed p-8 font-medium shadow-inner transition-all text-base"
+              placeholder="Descreva as instruções que a IA deve seguir..."
+            />
+            <div className="absolute right-4 bottom-4 opacity-0 group-focus-within:opacity-100 transition-opacity">
+              <Badge variant="outline" className="bg-white/80 backdrop-blur-sm text-[10px] font-bold text-slate-400 border-slate-100">Pressione Esc para sair do campo</Badge>
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -240,33 +261,41 @@ export default function AiSettingsPage() {
 
   return (
     <MainLayout 
-      title="Parametrização IA" 
-      subtitle="Refine o coração e a mente da MarIA através de regras e personas dinâmicas."
+      title="Engenharia de Prompt" 
+      subtitle="Refine o coração da MarIA com instruções neurais de alta precisão."
     >
-      <div className="max-w-7xl mx-auto pb-20 px-4">
+      <div className="max-w-[1600px] mx-auto pb-32 px-6">
         {loading ? (
-          <div className="flex flex-col items-center justify-center p-32 text-slate-400">
-            <div className="relative mb-8">
-              <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full animate-pulse"></div>
-              <Loader2 className="h-16 w-16 animate-spin text-primary relative z-10" />
+          <div className="flex flex-col items-center justify-center p-40 text-slate-400">
+            <div className="relative mb-10">
+              <div className="absolute inset-0 bg-primary/20 blur-[100px] rounded-full animate-pulse"></div>
+              <div className="relative bg-white p-8 rounded-[3rem] shadow-2xl border border-slate-100">
+                <Loader2 className="h-16 w-16 animate-spin text-primary" />
+              </div>
             </div>
-            <p className="font-black text-slate-500 uppercase tracking-widest text-sm">Sincronizando Cognição...</p>
+            <p className="font-black text-slate-400 uppercase tracking-[0.4em] text-xs">Sincronizando Cognição Neural</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-12 items-start">
             {/* Sidebar de Navegação */}
-            <aside className="md:col-span-3 space-y-6 sticky top-24">
+            <aside className="xl:col-span-3 space-y-8 sticky top-28">
               <div className="relative group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-primary transition-colors" />
-                <Input 
-                  placeholder="Buscar regra..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-12 h-14 rounded-2xl bg-white/50 backdrop-blur-sm border-white shadow-lg shadow-slate-100 focus:ring-primary/10 transition-all font-bold text-slate-700"
-                />
+                <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-indigo-500/20 blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity rounded-3xl" />
+                <div className="relative">
+                  <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-primary transition-colors" />
+                  <Input 
+                    placeholder="Buscar por tag ou contexto..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-14 h-16 rounded-[1.5rem] bg-white border-slate-100 shadow-xl shadow-slate-200/50 focus:ring-0 focus:border-primary/30 transition-all font-bold text-slate-700"
+                  />
+                </div>
               </div>
 
-              <nav className="bg-white/40 backdrop-blur-xl p-3 rounded-[2.5rem] shadow-xl shadow-slate-100 border border-white/60 space-y-1">
+              <nav className="bg-white/60 backdrop-blur-2xl p-4 rounded-[3rem] shadow-2xl shadow-slate-200/60 border border-white space-y-2">
+                <div className="px-4 py-2 mb-2">
+                  <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Arquitetura</p>
+                </div>
                 {Object.entries(categories).map(([key, cat]) => (
                   <button
                     key={key}
@@ -275,66 +304,84 @@ export default function AiSettingsPage() {
                       setSearchTerm('');
                     }}
                     className={cn(
-                      "w-full flex items-center justify-between p-4 rounded-2xl transition-all duration-300 group",
+                      "w-full flex flex-col p-5 rounded-[1.8rem] transition-all duration-500 group relative overflow-hidden",
                       activeCategory === key && !searchTerm
-                        ? "bg-primary text-white shadow-lg shadow-primary/30"
-                        : "text-slate-500 hover:bg-white/60 hover:text-slate-800"
+                        ? "bg-slate-900 text-white shadow-2xl shadow-slate-900/20"
+                        : "text-slate-500 hover:bg-white hover:text-slate-900 hover:shadow-xl hover:shadow-slate-100"
                     )}
                   >
-                    <div className="flex items-center gap-3">
-                      <div className={cn(
-                        "p-2 rounded-xl transition-colors",
-                        activeCategory === key && !searchTerm ? "bg-white/20" : "bg-slate-100/80 group-hover:bg-white"
-                      )}>
-                        {cat.icon}
+                    <div className="flex items-center justify-between w-full z-10">
+                      <div className="flex items-center gap-4">
+                        <div className={cn(
+                          "p-2.5 rounded-2xl transition-all duration-500",
+                          activeCategory === key && !searchTerm ? "bg-primary text-white" : "bg-slate-100 group-hover:bg-slate-900 group-hover:text-white"
+                        )}>
+                          {cat.icon}
+                        </div>
+                        <span className="font-black text-xs uppercase tracking-[0.15em]">{cat.label}</span>
                       </div>
-                      <span className="font-black text-xs uppercase tracking-widest">{cat.label}</span>
+                      <ChevronRight className={cn(
+                        "h-4 w-4 transition-all duration-500",
+                        activeCategory === key && !searchTerm ? "translate-x-0 opacity-100" : "-translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100"
+                      )} />
                     </div>
-                    <ChevronRight className={cn(
-                      "h-4 w-4 transition-transform",
-                      activeCategory === key && !searchTerm ? "translate-x-0 opacity-100" : "-translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100"
-                    )} />
+                    {activeCategory === key && !searchTerm && (
+                      <p className="text-[10px] text-slate-400 mt-3 font-medium leading-tight text-left pl-1">
+                        {cat.description}
+                      </p>
+                    )}
                   </button>
                 ))}
               </nav>
 
-              <div className="p-6 bg-amber-50/50 border border-amber-100/50 rounded-3xl">
-                <p className="text-[10px] font-black uppercase tracking-wider text-amber-700 mb-2">Dica Pro</p>
-                <p className="text-xs text-amber-600/80 font-medium leading-relaxed">
-                  As regras são aplicadas em tempo real. Use o botão "Gerar com IA" para aprimorar instruções existentes.
+              <div className="p-8 bg-gradient-to-br from-indigo-600 to-blue-700 rounded-[2.5rem] shadow-2xl shadow-indigo-200 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-150 transition-transform duration-700">
+                  <Sparkles className="w-20 h-20 text-white" />
+                </div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/60 mb-3">Conhecimento MarIA</p>
+                <p className="text-sm text-white font-bold leading-relaxed relative z-10">
+                  Os prompts definem a alma da IA. Alterações impactam instantaneamente a experiência de todos os fiéis.
                 </p>
               </div>
             </aside>
 
             {/* Conteúdo Principal */}
-            <main className="md:col-span-9 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 px-4">
+            <main className="xl:col-span-9 space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-4">
                 <div>
-                  <Badge className="bg-primary/10 text-primary hover:bg-primary/10 border-none px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest mb-3">
-                    {searchTerm ? 'Resultados da Busca' : 'Configuração Ativa'}
-                  </Badge>
-                  <h3 className="text-4xl font-black text-slate-800 tracking-tight">
-                    {searchTerm ? `Buscando: "${searchTerm}"` : categories[activeCategory as keyof typeof categories].label}
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="h-1 w-8 bg-primary rounded-full" />
+                    <Badge className="bg-primary/10 text-primary hover:bg-primary/10 border-none px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.2em]">
+                      {searchTerm ? 'Neural Search' : 'Ativo'}
+                    </Badge>
+                  </div>
+                  <h3 className="text-5xl font-black text-slate-900 tracking-tighter">
+                    {searchTerm ? `Resultados: ${searchTerm}` : categories[activeCategory as keyof typeof categories].label}
                   </h3>
                 </div>
-                <p className="text-slate-400 font-bold text-sm">
-                  {filteredPrompts.length} regra{filteredPrompts.length !== 1 && 's'} encontrada{filteredPrompts.length !== 1 && 's'}
-                </p>
+                <div className="bg-white px-6 py-3 rounded-2xl shadow-sm border border-slate-100">
+                  <p className="text-slate-400 font-black text-[10px] uppercase tracking-widest text-center">Dataset</p>
+                  <p className="text-slate-800 font-black text-xl text-center">
+                    {filteredPrompts.length} <span className="text-xs text-slate-400 uppercase">Regras</span>
+                  </p>
+                </div>
               </div>
               
-              <div className="grid grid-cols-1 gap-8 pb-20">
+              <div className="grid grid-cols-1 gap-12 pb-40">
                 {filteredPrompts.length > 0 ? (
                   filteredPrompts.map(renderPromptCard)
                 ) : (
-                  <div className="flex flex-col items-center justify-center p-20 bg-slate-50/50 rounded-[3rem] border-2 border-dashed border-slate-200">
-                    <Search className="h-12 w-12 text-slate-300 mb-4" />
-                    <p className="text-slate-500 font-black uppercase tracking-widest text-sm">Nenhuma regra encontrada</p>
+                  <div className="flex flex-col items-center justify-center p-32 bg-white/40 backdrop-blur-sm rounded-[4rem] border-2 border-dashed border-slate-200/60">
+                    <div className="bg-white p-8 rounded-[2.5rem] shadow-xl mb-8">
+                      <Search className="h-12 w-12 text-slate-200" />
+                    </div>
+                    <p className="text-slate-400 font-black uppercase tracking-[0.3em] text-sm">Nenhum rastro encontrado</p>
                     <Button 
                       variant="link" 
                       onClick={() => setSearchTerm('')}
-                      className="text-primary font-bold mt-2"
+                      className="text-primary font-black mt-4 uppercase tracking-widest text-xs"
                     >
-                      Limpar busca
+                      Resetar Filtros Neural
                     </Button>
                   </div>
                 )}
