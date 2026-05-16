@@ -489,7 +489,6 @@ export class AdminService {
       .from('users')
       .update({ 
         status: 'disabled',
-        name: null,
         expectations: null
       })
       .eq('id', userId);

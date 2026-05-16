@@ -7,13 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.9.4] - 2026-05-16
 ### Added
-- **Gestão Dinâmica de Prompts:** Migração de todas as mensagens hardcoded (bloqueio de plano free, aviso de expiração, recusa de áudio, manutenção) para a tabela `ai_prompts` no banco de dados.
-- **Labels de Impacto:** Adicionadas descrições explicativas e impacto operacional para cada prompt no dashboard administrativo.
-- **Categoria Mensagens do Sistema:** Nova seção no painel de IA para gerenciar respostas não-LLM.
+- **Gestão Dinâmica de Prompts:** Migração de 100% das mensagens do sistema para a tabela `ai_prompts`, permitindo edição via dashboard com labels explicativas de impacto.
+- **Fluxo de Triagem Inteligente:** Implementada transição automática entre `triage_intro` e `triage_name` e seleção dinâmica de prompts baseada no estado da conversa.
 
 ### Fixed
+- **Reset de Triagem (Returning Users):** Corrigida falha onde a IA pulava a introdução para usuários retornantes. Agora o sistema ignora o nome do banco durante a triagem para garantir uma experiência de primeiro contato completa.
+- **Preservação de Nome:** Ajustada a exclusão de dados (`clearUserData`) para manter o nome do fiel no banco de dados, atendendo à necessidade de registro de identidade enquanto se limpa o histórico espiritual.
 - **Injeção de Dependência:** Corrigida falta do `PromptService` no `UazapiController` para suportar recusa dinâmica de áudio.
-- **Limpeza de Dados:** Refinamento do reset de triagem após exclusão de dados do fiel.
 
 ## [1.9.3] - 2026-05-16
 ### Added

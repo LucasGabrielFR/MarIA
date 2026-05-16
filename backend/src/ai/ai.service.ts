@@ -407,8 +407,8 @@ export class AiService implements OnModuleInit {
         updateData.expectations = extractedIntentions.trim();
       }
 
-      // Se já temos o nome, avançamos para a apresentação detalhada
-      if (nameFound || user.name) {
+      // Se o nome foi explicitamente encontrado nesta interação, avançamos
+      if (nameFound) {
         await supabase.from('users').update({ ...updateData, status: 'triage_presentation_subscription' }).eq('id', userId);
         
         // Chamar recursivamente para processar a apresentação detalhada imediatamente
@@ -416,10 +416,17 @@ export class AiService implements OnModuleInit {
       }
 
       // Se ainda não temos o nome, insistir docemente
-      const triagePrompt = this.promptService.getPrompt('triage_intro');
+      const triagePromptKey = userStatus === 'triage_intro' ? 'triage_intro' : 'triage_name';
+      const triagePrompt = this.promptService.getPrompt(triagePromptKey) || this.promptService.getPrompt('triage_intro');
+      
       const fullSystemPrompt = `${corePersona}\n\nREGRAS ATUAIS:\n${triagePrompt}`;
       const { content: response, usage } = await this.callOpenRouter(fullSystemPrompt, message);
       if (usage) await this.logUsage(userId, usage, this.model);
+
+      // Se acabamos de enviar a intro, avançamos o status para triage_name
+      if (userStatus === 'triage_intro') {
+        await supabase.from('users').update({ status: 'triage_name' }).eq('id', userId);
+      }
 
       await this.saveMessage(userId, 'assistant', response);
       return response;
