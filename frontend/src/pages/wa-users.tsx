@@ -54,6 +54,8 @@ interface WaUser {
     interests: string[]
     updated_at: string
   }
+  subscription_tier: string
+  subscription_expires_at: string | null
   metrics: {
     total_tokens: number
     total_cost_usd: number
@@ -187,6 +189,31 @@ const WaUsersPage = () => {
     fetchMessages(user.id)
   }
 
+  const handleUpdateSubscription = async (userId: string, tier: string) => {
+    try {
+      const response = await fetch(`${API_URL}/admin/wa-users/${userId}/subscription`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ tier, expiresAt: null }) // Por enquanto sem data de expiração manual
+      })
+
+      if (!response.ok) throw new Error('Falha ao atualizar assinatura')
+      
+      toast.success(`Assinatura atualizada para ${tier}`)
+      await fetchUsers()
+      
+      // Atualizar o selectedUser localmente para refletir no modal aberto
+      if (selectedUser && selectedUser.id === userId) {
+        setSelectedUser({ ...selectedUser, subscription_tier: tier })
+      }
+    } catch (error) {
+      toast.error('Erro ao atualizar assinatura')
+    }
+  }
+
   return (
     <MainLayout 
       title="Gestão de Fiéis" 
@@ -219,6 +246,7 @@ const WaUsersPage = () => {
                     <TableHead className="font-bold text-slate-800 py-5 pl-8">Usuário</TableHead>
                     <TableHead className="font-bold text-slate-800 py-5">Status</TableHead>
                     <TableHead className="font-bold text-slate-800 py-5">Interesses</TableHead>
+                    <TableHead className="font-bold text-slate-800 py-5">Assinatura</TableHead>
                     <TableHead className="font-bold text-slate-800 py-5">Tokens Totais</TableHead>
                     <TableHead className="font-bold text-slate-800 py-5">Última Atividade</TableHead>
                     <TableHead className="text-right font-bold text-slate-800 py-5 pr-8">Ações</TableHead>
@@ -285,6 +313,20 @@ const WaUsersPage = () => {
                               </Badge>
                             )) || <span className="text-xs text-slate-400 font-medium italic">Nenhum</span>}
                           </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant="outline" 
+                            className={cn(
+                              "px-3 py-1 border-none",
+                              user.subscription_tier === 'premium' ? 'bg-amber-100 text-amber-700' : 
+                              user.subscription_tier === 'patron' ? 'bg-purple-100 text-purple-700' : 
+                              'bg-slate-100 text-slate-500'
+                            )}
+                          >
+                            {user.subscription_tier === 'premium' ? 'Premium' : 
+                             user.subscription_tier === 'patron' ? 'Patrono' : 'Grátis'}
+                          </Badge>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
@@ -370,14 +412,12 @@ const WaUsersPage = () => {
                 </div>
 
                 {/* Quick Metrics */}
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mt-8 px-1">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-8 px-1">
                   {[
+                    { label: 'Assinatura', value: selectedUser.subscription_tier === 'premium' ? 'Premium' : selectedUser.subscription_tier === 'patron' ? 'Patrono' : 'Grátis', unit: 'nível', icon: Heart, color: selectedUser.subscription_tier === 'free' ? 'slate' : 'amber' },
                     { label: 'Consumo Total', value: selectedUser.metrics.total_tokens.toLocaleString(), unit: 'tokens', icon: TrendingUp, color: 'blue' },
                     { label: 'Custo Total (IA)', value: `$${selectedUser.metrics.total_cost_usd?.toFixed(3)}`, unit: 'USD', icon: TrendingUp, color: 'green' },
-                    { label: 'Interação', value: selectedUser.metrics.engagement, unit: 'perfil', icon: Heart, color: 'pink' },
                     { label: 'Total Mensagens', value: selectedUser.metrics.total_messages.toLocaleString(), unit: 'mensagens', icon: MessageSquare, color: 'amber' },
-                    { label: 'Fiel (Usuário)', value: selectedUser.metrics.total_user_messages.toLocaleString(), unit: 'mensagens', icon: User, color: 'amber' },
-                    { label: 'MarIA (Bot)', value: selectedUser.metrics.total_assistant_messages.toLocaleString(), unit: 'mensagens', icon: Bot, color: 'amber' }
                   ].map((stat, i) => (
                     <div key={i} className="bg-slate-50/80 rounded-2xl p-4 border border-slate-100/50 hover:bg-white hover:shadow-lg hover:border-white transition-all duration-300 group">
                       <div className="flex justify-between items-start mb-2">
@@ -387,6 +427,7 @@ const WaUsersPage = () => {
                           'text-green-500': stat.color === 'green',
                           'text-amber-500': stat.color === 'amber',
                           'text-pink-500': stat.color === 'pink',
+                          'text-slate-400': stat.color === 'slate',
                         })} />
                       </div>
                       <div className="flex items-baseline gap-1.5">
@@ -447,6 +488,38 @@ const WaUsersPage = () => {
                             </Badge>
                           ))}
                         </div>
+                      </div>
+
+                      <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100">
+                        <h3 className="text-lg font-black text-slate-800 mb-6">Gestão de Assinatura</h3>
+                        <div className="grid grid-cols-3 gap-3">
+                          {[
+                            { id: 'free', label: 'Grátis', color: 'bg-slate-100 text-slate-600' },
+                            { id: 'premium', label: 'Premium', color: 'bg-amber-100 text-amber-700' },
+                            { id: 'patron', label: 'Patrono', color: 'bg-purple-100 text-purple-700' }
+                          ].map((plan) => (
+                            <button
+                              key={plan.id}
+                              onClick={() => handleUpdateSubscription(selectedUser.id, plan.id)}
+                              className={cn(
+                                "p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2",
+                                selectedUser.subscription_tier === plan.id 
+                                  ? "border-primary bg-primary/5 ring-4 ring-primary/10" 
+                                  : "border-slate-50 hover:border-slate-200 bg-slate-50/50"
+                              )}
+                            >
+                              <span className={cn("px-2 py-0.5 rounded-lg text-[8px] font-black uppercase", plan.color)}>
+                                {plan.label}
+                              </span>
+                              {selectedUser.subscription_tier === plan.id && (
+                                <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                        <p className="mt-4 text-[10px] text-slate-400 font-bold uppercase text-center">
+                          Clique em um plano para alterar o nível de acesso do fiel
+                        </p>
                       </div>
 
                       <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100">

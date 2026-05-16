@@ -138,7 +138,8 @@ export class AiService implements OnModuleInit {
     if (!user) {
       const insertData: any = {
         wa_chatid: waChatId,
-        status: 'triage_name' // Novo usuário sempre começa em triagem
+        status: 'triage_intro', // Novo fluxo começa em triage_intro
+        subscription_tier: 'free'
       };
       if (pushName) insertData.name = pushName;
       if (phone) insertData.phone = phone;
@@ -295,8 +296,8 @@ export class AiService implements OnModuleInit {
     // Se o usuário estava 'disabled' (dados apagados), resetar para triagem ao novo contato
     if (userStatus === 'disabled') {
       this.logger.log(`Usuário ${userId} (disabled) entrou em contato. Resetando para triagem.`);
-      await supabase.from('users').update({ status: 'triage_name' }).eq('id', userId);
-      userStatus = 'triage_name';
+      await supabase.from('users').update({ status: 'triage_intro' }).eq('id', userId);
+      userStatus = 'triage_intro';
     }
 
     // Salvar a mensagem do usuário
@@ -304,43 +305,65 @@ export class AiService implements OnModuleInit {
 
     const corePersona = this.promptService.getCorePersona();
 
-    // Lógica de Triagem de Nome
-    if (userStatus === 'triage_name') {
-      // 1. Tentar extrair o nome da mensagem atual
-      const extractionPrompt = (this.promptService.getPrompt('extractor_name') || '')
-        .replace('{{message}}', message);
+    // --- NOVA LÓGICA DE TRIAGEM ---
 
-      const { content: extractedName, usage } = await this.callOpenRouter(extractionPrompt, "", false);
-      if (usage) await this.logUsage(userId, usage, this.model);
+    // 1. Triagem Inicial (Nome e Intenções)
+    if (userStatus === 'triage_intro' || userStatus === 'triage_name') {
+      // Tentar extrair nome
+      const extractionNamePrompt = (this.promptService.getPrompt('extractor_name') || '').replace('{{message}}', message);
+      const { content: extractedName } = await this.callOpenRouter(extractionNamePrompt, "", false);
+      
+      // Tentar extrair intenções
+      const extractionIntentionsPrompt = (this.promptService.getPrompt('extractor_intentions') || '').replace('{{message}}', message);
+      const { content: extractedIntentions } = await this.callOpenRouter(extractionIntentionsPrompt, "", false);
+
+      const updateData: any = {};
+      let nameFound = false;
 
       if (extractedName && extractedName.toLowerCase() !== 'null') {
-        const cleanName = extractedName.replace(/[".]/g, '').trim();
-        // Atualizar nome e mudar para próximo status
-        await this.supabaseService.getClient()
-          .from('users')
-          .update({ name: cleanName, status: 'active' }) // Você pode mudar para 'triage_expectations' se quiser mais passos
-          .eq('id', userId);
-
-        const welcomeMsg = `Prazer em te conhecer, ${cleanName}! Eu sou a MarIA. Como posso te ajudar hoje?`;
-        await this.saveMessage(userId, 'assistant', welcomeMsg);
-        return welcomeMsg;
+        updateData.name = extractedName.replace(/[".]/g, '').trim();
+        nameFound = true;
       }
 
-      // Se não extraiu o nome, usa o prompt de triagem para perguntar/insistir
-      const triagePrompt = this.promptService.getPrompt('triage_name');
+      if (extractedIntentions && extractedIntentions.toLowerCase() !== 'null') {
+        updateData.expectations = extractedIntentions.trim();
+      }
+
+      // Se já temos o nome, avançamos para a apresentação detalhada
+      if (nameFound || user.name) {
+        await supabase.from('users').update({ ...updateData, status: 'triage_presentation_subscription' }).eq('id', userId);
+        
+        // Chamar recursivamente para processar a apresentação detalhada imediatamente
+        return this.processMessage(waChatId, message, pushName, phone);
+      }
+
+      // Se ainda não temos o nome, insistir docemente
+      const triagePrompt = this.promptService.getPrompt('triage_intro');
       const fullSystemPrompt = `${corePersona}\n\nREGRAS ATUAIS:\n${triagePrompt}`;
-      const { content: response, usage: triageUsage } = await this.callOpenRouter(fullSystemPrompt, message);
-      if (triageUsage) await this.logUsage(userId, triageUsage, this.model);
+      const { content: response, usage } = await this.callOpenRouter(fullSystemPrompt, message);
+      if (usage) await this.logUsage(userId, usage, this.model);
 
       await this.saveMessage(userId, 'assistant', response);
       return response;
     }
 
-    if (userStatus === 'triage_expectations') {
-      const expectationsPrompt = this.promptService.getPrompt('triage_expectations');
-      const fullSystemPrompt = `${corePersona}\n\nREGRAS ATUAIS:\n${expectationsPrompt}`;
+    // 2. Apresentação Detalhada e Oferta de Assinatura
+    if (userStatus === 'triage_presentation_subscription' || userStatus === 'triage_expectations') {
+      const presentationPrompt = this.promptService.getPrompt('detailed_presentation');
+      
+      // Verificar se é assinante para passar no contexto do prompt
+      const isSubscriber = user.subscription_tier && user.subscription_tier !== 'free';
+      const subscriptionContext = isSubscriber 
+        ? "\n\nO usuário JÁ É UM ASSINANTE PREMIUM. Agradeça imensamente pelo apoio e não ofereça planos." 
+        : "\n\nO usuário NÃO é assinante. Ofereça os planos de apoio ao final da sua apresentação.";
+
+      const fullSystemPrompt = `${corePersona}${subscriptionContext}\n\nREGRAS DE APRESENTAÇÃO:\n${presentationPrompt}`;
+      
       const { content: response, usage } = await this.callOpenRouter(fullSystemPrompt, message);
       if (usage) await this.logUsage(userId, usage, this.model);
+
+      // Mudar status para active após a apresentação
+      await supabase.from('users').update({ status: 'active' }).eq('id', userId);
 
       await this.saveMessage(userId, 'assistant', response);
       return response;

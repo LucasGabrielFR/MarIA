@@ -494,4 +494,22 @@ export class AdminService {
 
     return { success: true };
   }
+
+  async updateUserSubscription(userId: string, tier: string, expiresAt: string | null) {
+    const supabase = this.supabaseService.getClient();
+
+    const { data, error } = await supabase
+      .from('users')
+      .update({
+        subscription_tier: tier,
+        subscription_expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
+        updated_at: new Date()
+      })
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return { success: true, data };
+  }
 }

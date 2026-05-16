@@ -74,4 +74,13 @@ export class AdminController {
   async clearUserData(@Param('id') id: string) {
     return this.adminService.clearUserData(id);
   }
+
+  @Post('wa-users/:id/subscription')
+  async updateSubscription(
+    @Param('id') id: string,
+    @Body('tier') tier: string,
+    @Body('expiresAt') expiresAt: string | null
+  ) {
+    return this.adminService.updateUserSubscription(id, tier, expiresAt);
+  }
 }
