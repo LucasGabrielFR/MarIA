@@ -18,8 +18,12 @@
 - **Controle de Infraestrutura Crítica:** Funcionalidade de **Modo de Manutenção** para pausa imediata de atendimento e ferramenta de **Limpeza de Cache Semântico** para renovação de interpretações teológicas.
 - **Segurança Enterprise:** Implementação de Row Level Security (RLS) em todo o banco de dados, garantindo isolamento total e controle granular de acesso administrativo com **diálogos de confirmação** para ações críticas e irreversíveis.
 - **Proteção de Dados e Segurança Maternal:** Identificação de intenções maliciosas ou pedidos de dados sensíveis (tokens, segredos). A MarIA responde com firmeza e um "puxão de orelha" maternal, protegendo o sistema com doçura e autoridade espiritual.
-- **Onboarding Humanizado em 2 Etapas:** Novo fluxo de triagem que separa o acolhimento inicial (missão e persona sutil) da apresentação detalhada de ferramentas e oferta de planos.
-- **Gestão de Assinaturas (MVP):** Sistema administrativo para controle manual de níveis de acesso (Grátis, Premium, Patrono) com oferecimento contextual pela IA durante a triagem.
+- **Onboarding Humanizado em 2 Etapas**: Fluxo de acolhimento que separa a saudação inicial da apresentação detalhada de ferramentas e oferta de planos.
+- **Assinaturas e Monetização**:
+  - **Free**: Acesso a conteúdos estáticos (Liturgia, Santos, Terço) via cache, com zero custo de IA.
+  - **Premium (300 msgs/mês)**: Acesso total à IA e conselhos espirituais.
+  - **Patrono (600 msgs/mês)**: Acesso estendido e suporte à missão.
+  - **Ilimitado**: Gestão manual para benfeitores e administradores com controle de expiração.
 - **Dashboard Admin:** Painel Vite + React para parametrização de prompts, gerenciamento de usuários, gestão de assinaturas e curadoria manual de conteúdos diários.
 
 ## 🛠 Arquitetura

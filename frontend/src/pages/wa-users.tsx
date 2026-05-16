@@ -87,6 +87,7 @@ const WaUsersPage = () => {
   const [loading, setLoading] = useState(true)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [subscriptionExpiresAt, setSubscriptionExpiresAt] = useState<string>('')
 
   useEffect(() => {
     fetchUsers()
@@ -184,6 +185,7 @@ const WaUsersPage = () => {
   const handleUserClick = (user: WaUser) => {
     console.log('Selected User Data:', user);
     setSelectedUser(user)
+    setSubscriptionExpiresAt(user.subscription_expires_at ? user.subscription_expires_at.split('T')[0] : '')
     fetchMessages(user.id)
   }
 
@@ -195,7 +197,7 @@ const WaUsersPage = () => {
           'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ tier, expiresAt: null }) // Por enquanto sem data de expiração manual
+        body: JSON.stringify({ tier, expiresAt: subscriptionExpiresAt || null })
       })
 
       if (!response.ok) throw new Error('Falha ao atualizar assinatura')
@@ -412,7 +414,7 @@ const WaUsersPage = () => {
                 {/* Quick Metrics */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-8 px-1">
                   {[
-                    { label: 'Assinatura', value: selectedUser.subscription_tier === 'premium' ? 'Premium' : selectedUser.subscription_tier === 'patron' ? 'Patrono' : 'Grátis', unit: 'nível', icon: Heart, color: selectedUser.subscription_tier === 'free' ? 'slate' : 'amber' },
+                    { label: 'Assinatura', value: selectedUser.subscription_tier === 'premium' ? 'Premium' : selectedUser.subscription_tier === 'patron' ? 'Patrono' : selectedUser.subscription_tier === 'unlimited' ? 'Ilimitado' : 'Grátis', unit: 'nível', icon: Heart, color: selectedUser.subscription_tier === 'free' ? 'slate' : 'amber' },
                     { label: 'Consumo Total', value: selectedUser.metrics.total_tokens.toLocaleString(), unit: 'tokens', icon: TrendingUp, color: 'blue' },
                     { label: 'Custo Total (IA)', value: `$${selectedUser.metrics.total_cost_usd?.toFixed(3)}`, unit: 'USD', icon: TrendingUp, color: 'green' },
                     { label: 'Total Mensagens', value: selectedUser.metrics.total_messages.toLocaleString(), unit: 'mensagens', icon: MessageSquare, color: 'amber' },
@@ -490,11 +492,23 @@ const WaUsersPage = () => {
 
                       <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100">
                         <h3 className="text-lg font-black text-slate-800 mb-6">Gestão de Assinatura</h3>
-                        <div className="grid grid-cols-3 gap-3">
+                        
+                        <div className="mb-6">
+                          <Label className="text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] mb-2 block">Data de Expiração</Label>
+                          <Input 
+                            type="date" 
+                            value={subscriptionExpiresAt}
+                            onChange={(e) => setSubscriptionExpiresAt(e.target.value)}
+                            className="rounded-2xl border-slate-100 bg-slate-50/50"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
                           {[
                             { id: 'free', label: 'Grátis', color: 'bg-slate-100 text-slate-600' },
-                            { id: 'premium', label: 'Premium', color: 'bg-amber-100 text-amber-700' },
-                            { id: 'patron', label: 'Patrono', color: 'bg-purple-100 text-purple-700' }
+                            { id: 'premium', label: 'Premium (300m)', color: 'bg-amber-100 text-amber-700' },
+                            { id: 'patron', label: 'Patrono (600m)', color: 'bg-purple-100 text-purple-700' },
+                            { id: 'unlimited', label: 'Ilimitado', color: 'bg-blue-100 text-blue-700' }
                           ].map((plan) => (
                             <button
                               key={plan.id}

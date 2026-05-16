@@ -498,13 +498,15 @@ export class AdminService {
   async updateUserSubscription(userId: string, tier: string, expiresAt: string | null) {
     const supabase = this.supabaseService.getClient();
 
+    const updateData: any = {
+      subscription_tier: tier,
+      subscription_expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
+      updated_at: new Date()
+    };
+
     const { data, error } = await supabase
       .from('users')
-      .update({
-        subscription_tier: tier,
-        subscription_expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
-        updated_at: new Date()
-      })
+      .update(updateData)
       .eq('id', userId)
       .select()
       .single();

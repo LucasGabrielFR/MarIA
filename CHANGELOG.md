@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.1] - 2026-05-16
+### Added
+- **Limites de Mensagens por Tier:** Implementação de quotas mensais rigorosas para os planos (300 msgs para Premium, 600 msgs para Patrono).
+- **Processamento Zero-Cost para Plano Free:** Usuários gratuitos agora recebem apenas conteúdos brutos do cache (Liturgia, Santos, Terço), economizando 100% de custos de LLM em interações básicas.
+- **Controle de Expiração e Ilimitado:** Administradores agora podem definir datas de expiração precisas e conceder acesso 'Ilimitado' manualmente.
+- **Reflexões Premium:** Assinantes agora recebem formatação materna e reflexões profundas geradas por IA, mesmo para conteúdos de cache.
+
+### Fixed
+- **Estabilidade de Build e Lógica:** Corrigidos erros de sintaxe e posicionamento de validações de assinatura no `AiService`.
+- **Persistência de Dados:** Garantida a atualização do campo `updated_at` na gestão de fiéis.
+
 ## [1.9.0] - 2026-05-16
 ### Added
 - **Triagem em Duas Etapas:** Implementação de um fluxo de onboarding mais sofisticado. A MarIA agora se apresenta de forma sutil e acolhedora (`triage_intro`) antes de realizar uma apresentação detalhada das ferramentas e funcionalidades (`triage_presentation_subscription`).

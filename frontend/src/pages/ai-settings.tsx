@@ -131,12 +131,12 @@ export default function AiSettingsPage() {
     onboarding: {
       label: 'Onboarding',
       icon: <ScrollText className="w-4 h-4" />,
-      keys: ['triage_name', 'triage_expectations']
+      keys: ['triage_intro', 'detailed_presentation']
     },
     extractors: {
       label: 'Extratores e Memória',
       icon: <Brain className="w-4 h-4" />,
-      keys: ['memory_summarization', 'extractor_name', 'extractor_date']
+      keys: ['memory_summarization', 'extractor_name', 'extractor_date', 'extractor_intentions']
     },
     generators: {
       label: 'Geradores de Conteúdo',

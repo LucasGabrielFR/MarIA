@@ -151,6 +151,71 @@ export class AiService implements OnModuleInit {
     return user;
   }
 
+  private async checkSubscriptionLimits(user: any): Promise<{ allowed: boolean; reason?: string }> {
+    // Admins e usuários ilimitados não têm restrições
+    if (user.subscription_tier === 'unlimited' || user.subscription_tier === 'admin') {
+      return { allowed: true };
+    }
+
+    // Verificar expiração
+    if (user.subscription_expires_at) {
+      const expiration = new Date(user.subscription_expires_at);
+      if (expiration < new Date()) {
+        // Se expirou, volta para o plano free
+        const supabase = this.supabaseService.getClient();
+        await supabase.from('users').update({ subscription_tier: 'free', subscription_expires_at: null }).eq('id', user.id);
+        user.subscription_tier = 'free';
+      }
+    }
+
+    // Limites por tier
+    const limits = {
+      'free': 0, // LLM desativado para free (exceto triagem)
+      'premium': 300,
+      'patron': 600
+    };
+
+    const monthlyLimit = limits[user.subscription_tier as keyof typeof limits] ?? 0;
+
+    // Se for free, o bloqueio de LLM é feito no processMessage
+    if (user.subscription_tier === 'free') {
+      return { allowed: true };
+    }
+
+    // Contar mensagens do mês
+    const count = await this.countMonthlyMessages(user.id);
+    
+    if (count >= monthlyLimit) {
+      return { 
+        allowed: false, 
+        reason: `Você atingiu seu limite mensal de ${monthlyLimit} mensagens no plano ${user.subscription_tier === 'premium' ? 'Premium' : 'Patrono'}. Seu apoio é fundamental para mantermos a MarIA ativa! Gostaria de fazer um upgrade ou renovar seu plano?` 
+      };
+    }
+
+    return { allowed: true };
+  }
+
+  private async countMonthlyMessages(userId: string): Promise<number> {
+    const supabase = this.supabaseService.getClient();
+    const firstDayOfMonth = new Date();
+    firstDayOfMonth.setDate(1);
+    firstDayOfMonth.setHours(0, 0, 0, 0);
+
+    const { count, error } = await supabase
+      .from('messages')
+      .select('id', { count: 'exact' })
+      .eq('user_id', userId)
+      .eq('role', 'user')
+      .gte('created_at', firstDayOfMonth.toISOString());
+
+    if (error) {
+      this.logger.error(`Erro ao contar mensagens mensais: ${error.message}`);
+      return 0;
+    }
+
+    return count || 0;
+  }
+
   /**
    * Busca as últimas N mensagens do histórico.
    */
@@ -300,6 +365,14 @@ export class AiService implements OnModuleInit {
       userStatus = 'triage_intro';
     }
 
+    // Verificar limites de assinatura antes de processar (exceto para usuários em triagem)
+    if (!userStatus.startsWith('triage')) {
+      const { allowed, reason } = await this.checkSubscriptionLimits(user);
+      if (!allowed) {
+        return reason;
+      }
+    }
+
     // Salvar a mensagem do usuário
     await this.saveMessage(userId, 'user', message);
 
@@ -370,8 +443,18 @@ export class AiService implements OnModuleInit {
     }
 
     // Fluxo Ativo
+    const isFree = user.subscription_tier === 'free' && !userStatus.startsWith('triage');
+
     const { intent, rules } = await this.determineIntent(message);
     this.logger.log(`Usuário ${waChatId}: Intent=${intent}, Rules=[${rules.join(', ')}]`);
+
+    // Restrição para Plano Free: Bloquear se a intenção exigir processamento complexo
+    const freeIntents = ['LITURGY', 'SAINT', 'SAINT_OF_DAY', 'ROSARY', 'PRAYER_GUIDE'];
+    if (isFree && !freeIntents.includes(intent)) {
+      const response = "Fico muito feliz com sua mensagem! ❤️ No momento, seu acesso gratuito permite que eu lhe envie a Liturgia Diária, o Santo do Dia e os Mistérios do Terço. Para conversarmos livremente e você ter acesso a conselhos espirituais personalizados, considere apoiar nossa missão com um plano Premium ou Patrono. Posso te enviar as opções?";
+      await this.saveMessage(userId, 'assistant', response);
+      return response;
+    }
 
     let intentContext = '';
 
@@ -390,9 +473,29 @@ export class AiService implements OnModuleInit {
       return data?.content;
     };
 
+    // Função para preparar o contexto de conteúdos cacheados para o LLM formatar
+    const prepareCachedIntentContext = (type: string, content: string) => {
+      if (type === 'liturgy') {
+        return `INSTRUÇÃO: Com base na liturgia abaixo (Data: ${targetDate}), você deve obrigatoriamente:
+1. Apresentar as passagens das leituras.
+2. Elaborar uma reflexão espiritual profunda.
+3. Finalizar com uma oração.
+4. **IMPORTANTE**: NÃO use termos relativos como "hoje", "amanhã" ou "ontem". Use "nesta liturgia" ou "neste dia".
+
+DADOS DA LITURGIA:
+${content}`;
+      }
+      if (type === 'saint') {
+        const intentRules = this.promptService.getPrompt('intent_saint');
+        return `${intentRules}${MAGISTERIUM_INSTRUCTION}\n\nCONTEÚDO DO SANTO (Data: ${targetDate}):\n${content}`;
+      }
+      return content;
+    };
+
     // Detectar a data alvo (hoje, amanhã, dia específico, etc.) usando o bridge model
     const targetDate = await this.extractTargetDate(message, bridgeModel);
     this.logger.log(`Data alvo detectada: ${targetDate} para a mensagem: "${message}"`);
+
 
     let cachedResponse: string | null = null;
 
@@ -417,6 +520,29 @@ export class AiService implements OnModuleInit {
           await this.saveToSemanticCache(message, magisteriumResponse, 'THEOLOGY');
         }
         intentContext = `${this.promptService.getPrompt('intent_theology')}${MAGISTERIUM_INSTRUCTION}\n\nCONTEÚDO OFICIAL DO MAGISTERIUM (USE ISSO COMO BASE ÚNICA E NÃO RESUMA DEMAIS):\n${cachedResponse}\n\nINSTRUÇÃO ADICIONAL: Reformule o conteúdo acima para o WhatsApp usando emojis e seu tom maternal, mas MANTENHA todos os fatos teológicos e retire todas as citações numéricas como [^1]. Liste as referências completas ao final traduzidas para o português quando possível.`;
+        break;
+      case 'LITURGY':
+        cachedResponse = await getDailyCache('liturgy', targetDate);
+        if (cachedResponse) {
+          if (!isFree) intentContext = prepareCachedIntentContext('liturgy', cachedResponse);
+        } else {
+          const liturgyData = await this.liturgyService.getDailyLiturgy(targetDate);
+          intentContext = prepareCachedIntentContext('liturgy', liturgyData);
+        }
+        break;
+      case 'SAINT':
+      case 'SAINT_OF_DAY':
+        cachedResponse = await getDailyCache('saint', targetDate);
+        if (cachedResponse) {
+          if (!isFree) intentContext = prepareCachedIntentContext('saint', cachedResponse);
+        } else {
+          const intentRules = this.promptService.getPrompt('intent_saint');
+          const finalMessage = `${message} (Considere que hoje é dia ${targetDate})`;
+          const { content: magisteriumResponse, usage } = await this.magisteriumService.query(finalMessage, intentRules);
+          if (usage) await this.logUsage(userId, usage, 'magisterium-expert');
+          
+          intentContext = prepareCachedIntentContext('saint', magisteriumResponse);
+        }
         break;
       case 'PRAYER':
         intentContext = await fetchMagisteriumContext('intent_prayer');
@@ -546,17 +672,31 @@ ${liturgyData}`;
       memoryContext = `\n\nMEMÓRIA/CONTEXTO DO USUÁRIO:\n${userContext.general_summary}`;
     }
 
+
+    // Bloqueio final de segurança para usuários FREE (garantir que não chamem LLM)
+    if (isFree && !intentContext.includes('CONTEÚDO')) {
+      const response = "Peço desculpas, mas não consegui encontrar essa informação pronta em meus arquivos gratuitos agora. Para que eu possa pesquisar e te dar uma resposta personalizada, considere apoiar nossa missão com um de nossos planos. Posso te ajudar com a Liturgia ou o Santo do Dia?";
+      await this.saveMessage(userId, 'assistant', response);
+      return response;
+    }
+
     let response: string;
-    if (cachedResponse && (intent === 'LITURGY' || intent === 'SAINT' || intent === 'SAINT_OF_DAY' || intent === 'ROSARY_MYSTERIES' || intent === 'ROSARY_GUIDE')) {
-      this.logger.log(`Cache encontrado para ${intent}. Enviando conteúdo direto ao ponto...`);
-
-      const finalResponse = cachedResponse.trim();
-
-      // Salvar a interação COMPLETA para o histórico (essencial para continuidade futura)
+    if (isFree && cachedResponse && (intent === 'LITURGY' || intent === 'SAINT' || intent === 'SAINT_OF_DAY' || intent === 'ROSARY_MYSTERIES' || intent === 'ROSARY_GUIDE')) {
+      this.logger.log(`Usuário FREE: Enviando cache direto para economizar LLM.`);
+      const header = intent === 'LITURGY' ? `*Liturgia do Dia (${targetDate})*\n\n` : 
+                     intent.includes('SAINT') ? `*Santo do Dia (${targetDate})*\n\n` : '';
+      
+      const finalResponse = `${header}${cachedResponse.trim()}\n\n_Acesse reflexões personalizadas e converse livremente com a MarIA assinando um de nossos planos de apoio._`;
       await this.saveMessage(userId, 'assistant', finalResponse);
-
       return finalResponse;
     } else {
+      // Se for Free e chegou aqui, algo deu errado na filtragem anterior (segurança extra)
+      if (isFree) {
+        const fallback = "No momento, meu acesso gratuito é limitado a conteúdos prontos. Que tal rezarmos o Terço ou vermos a Liturgia do dia? ❤️";
+        await this.saveMessage(userId, 'assistant', fallback);
+        return fallback;
+      }
+
       const finalPrompt = `${corePersona}${memoryContext}\n\nCONTEXTO DE INTENÇÃO:\n${intentContext}${strictRules}`;
       const { content, usage } = await this.callOpenRouter(finalPrompt, message, false, history, mainModel);
       if (usage) await this.logUsage(userId, usage, mainModel);
