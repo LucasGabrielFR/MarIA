@@ -24,8 +24,6 @@ import {
   Settings,
   Heart,
   BrainCircuit,
-  User,
-  Bot,
   Trash2,
   AlertTriangle
 } from 'lucide-react'

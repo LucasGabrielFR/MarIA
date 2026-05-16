@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Gestão Manual de Assinaturas:** Novo módulo no Dashboard Admin que permite aos administradores conceder ou alterar níveis de assinatura para qualquer fiel manualmente.
 - **Oferta Contextual de Planos:** A IA agora verifica o status de assinatura do fiel ao final da triagem e oferece os planos premium apenas para usuários não-assinantes, reforçando o papel de auxílio materno.
 
+### Fixed
+- **Erro de Build (TS6133):** Removidos imports não utilizados (`User`, `Bot`) na página `wa-users.tsx` após refatoração das métricas.
+
 ## [1.8.5] - 2026-05-15
 ### Changed
 - **Preservação de Métricas:** Ao excluir os dados, as métricas de consumo de tokens e custos agora são PRESERVADAS para fins de auditoria e controle administrativo.
