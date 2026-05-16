@@ -440,11 +440,11 @@ export class AiService implements OnModuleInit {
     const isFree = user.subscription_tier === 'free';
     const { intent, rules } = await this.determineIntent(message);
     
-    // Lista de intenções de utilidade (cacheáveis)
-    const utilityIntents = ['LITURGY', 'SAINT', 'SAINT_OF_DAY', 'ROSARY_MYSTERIES', 'ROSARY_GUIDE'];
+    // Lista de intenções de utilidade (cacheáveis e gratuitas)
+    const utilityIntents = ['LITURGY', 'SAINT_OF_DAY', 'ROSARY_MYSTERIES', 'ROSARY_GUIDE'];
     const isUtility = utilityIntents.includes(intent);
 
-    // Bloqueio Free para não-utilitários
+    // Bloqueio Free para não-utilitários (conteúdos que exigem LLM/Processamento caro)
     if (isFree && !isUtility) {
       const response = this.promptService.getPrompt('free_tier_block');
       await this.saveMessage(userId, 'assistant', response, false);
@@ -466,22 +466,16 @@ export class AiService implements OnModuleInit {
         }
         intentContext = `CONTEÚDO DA LITURGIA (${targetDate}):\n${cachedResponse}`;
         break;
-      case 'SAINT':
       case 'SAINT_OF_DAY':
         cachedResponse = await this.getDailyCache('saint', targetDate);
-        if (!cachedResponse) {
-          // Se não está no cache, precisamos consultar o Magistério (que usa LLM)
-          await supabase.from('messages').update({ is_llm: true }).eq('id', userMessageId);
-          const { content, usage } = await this.magisteriumService.query(`${message} (Dia ${targetDate})`, this.promptService.getPrompt('intent_saint'));
-          if (usage) await this.logUsage(userId, usage, this.model);
-          cachedResponse = content;
-        }
-        intentContext = `CONTEÚDO DO SANTO (${targetDate}):\n${cachedResponse}`;
+        intentContext = `CONTEÚDO DO SANTO DO DIA (${targetDate}):\n${cachedResponse || 'Informação sobre o santo do dia.'}`;
         break;
       case 'ROSARY_MYSTERIES':
+      case 'ROSARY_GUIDE':
         cachedResponse = await this.getDailyCache('rosary', targetDate);
-        intentContext = `CONTEÚDO DO TERÇO:\n${cachedResponse || 'Mistérios do dia.'}`;
+        intentContext = `CONTEÚDO DO TERÇO:\n${cachedResponse || 'Roteiro e mistérios do terço.'}`;
         break;
+      case 'SAINT': // Busca por um santo específico (EXIGE LLM/MAGISTERIUM)
       case 'THEOLOGY':
       case 'PRAYER':
       case 'BIBLE':

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Controle de Uso e Quotas:** Implementada lógica rigorosa de rastreio de uso de LLM via flag `is_llm`.
 - **Isenção de Cache:** Consultas a conteúdos utilitários (Liturgia, Santo do Dia) servidas via cache não contabilizam mais para a cota de mensagens dos planos Premium e Patrono.
+- **Roteamento de Intenção Rígido:** Refinado o `intent_router` para exigir pedidos explícitos de conteúdos utilitários, evitando que perguntas genéricas acionem o cache do Santo do Dia indevidamente.
+- **Guia do Terço Gratuito:** Corrigido o mapeamento da intenção `ROSARY_GUIDE` para servir o conteúdo do cache, permitindo que usuários do plano gratuito acessem o roteiro do terço sem bloqueios.
 - **Redesign da Parametrização:** Interface de prompts totalmente reformulada com sidebar vertical, glassmorphism e busca global.
 - **Documentação Contextual:** Adicionadas labels "Onde funciona" e "Impacto no Comportamento" para cada prompt administrativo, facilitando o ajuste fino da IA.
 - **Métricas de Exclusão:** Usuários que solicitam exclusão de dados agora são marcados como `disabled`, permitindo melhor rastreio administrativo. Ao retornarem, o sistema reinicia a triagem automaticamente.
