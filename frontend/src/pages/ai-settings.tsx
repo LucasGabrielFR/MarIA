@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
 import { 
   Save, 
   Loader2, 
@@ -17,10 +17,13 @@ import {
   ScrollText,
   Zap,
   Brain,
-  PenTool
+  PenTool,
+  Search,
+  ChevronRight
 } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 interface AiPrompt {
   id: string;
@@ -36,6 +39,8 @@ export default function AiSettingsPage() {
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState<string | null>(null);
   const [generating, setGenerating] = React.useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = React.useState('persona');
+  const [searchTerm, setSearchTerm] = React.useState('');
 
   React.useEffect(() => {
     fetchPrompts();
@@ -115,40 +120,48 @@ export default function AiSettingsPage() {
   const categories = {
     persona: {
       label: 'Personalidade',
-      icon: <Bot className="w-4 h-4" />,
+      icon: <Bot className="w-5 h-5" />,
       keys: ['core_persona', 'intent_router']
     },
     intentions: {
       label: 'Intenções',
-      icon: <Zap className="w-4 h-4" />,
+      icon: <Zap className="w-5 h-5" />,
       keys: ['intent_theology', 'intent_prayer', 'intent_bible', 'intent_liturgy', 'intent_saint', 'intent_rosary', 'intent_advice', 'intent_casual', 'intent_sensitive_data', 'intent_human_clarification']
     },
     rules: {
       label: 'Regras Estritas',
-      icon: <ShieldAlert className="w-4 h-4" />,
+      icon: <ShieldAlert className="w-5 h-5" />,
       keys: ['rule_crisis', 'rule_prohibited', 'rule_etiquette', 'rule_data_security']
     },
     onboarding: {
       label: 'Onboarding',
-      icon: <ScrollText className="w-4 h-4" />,
+      icon: <ScrollText className="w-5 h-5" />,
       keys: ['triage_intro', 'detailed_presentation']
     },
     extractors: {
       label: 'Extratores e Memória',
-      icon: <Brain className="w-4 h-4" />,
+      icon: <Brain className="w-5 h-5" />,
       keys: ['memory_summarization', 'extractor_name', 'extractor_date', 'extractor_intentions']
     },
     generators: {
       label: 'Geradores de Conteúdo',
-      icon: <PenTool className="w-4 h-4" />,
+      icon: <PenTool className="w-5 h-5" />,
       keys: ['generator_system_prompt', 'generator_prayer_guide', 'generator_liturgy', 'generator_saint', 'generator_rosary']
     },
     system: {
       label: 'Mensagens do Sistema',
-      icon: <MessageSquare className="w-4 h-4" />,
+      icon: <MessageSquare className="w-5 h-5" />,
       keys: ['audio_refusal', 'free_tier_block', 'subscription_expiration_warning', 'usage_limit_reached', 'maintenance_message']
     }
   };
+
+  const filteredPrompts = prompts.filter(p => {
+    const matchesSearch = p.key.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                         p.description.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (searchTerm) return matchesSearch;
+    return categories[activeCategory as keyof typeof categories].keys.includes(p.key);
+  });
 
   const renderPromptCard = (prompt: AiPrompt) => (
     <Card key={prompt.id} className="border-none shadow-xl shadow-slate-200/50 rounded-[2.5rem] overflow-hidden bg-white/80 backdrop-blur-sm transition-all hover:shadow-2xl hover:shadow-slate-200/70 border border-white/20">
@@ -230,7 +243,7 @@ export default function AiSettingsPage() {
       title="Parametrização IA" 
       subtitle="Refine o coração e a mente da MarIA através de regras e personas dinâmicas."
     >
-      <div className="max-w-6xl mx-auto pb-20">
+      <div className="max-w-7xl mx-auto pb-20 px-4">
         {loading ? (
           <div className="flex flex-col items-center justify-center p-32 text-slate-400">
             <div className="relative mb-8">
@@ -240,40 +253,94 @@ export default function AiSettingsPage() {
             <p className="font-black text-slate-500 uppercase tracking-widest text-sm">Sincronizando Cognição...</p>
           </div>
         ) : (
-          <Tabs defaultValue="persona" className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-1000">
-            <div className="flex justify-center items-start sticky top-4 z-50 py-4">
-              <TabsList className="bg-white/90 backdrop-blur-xl p-1.5 rounded-[2rem] shadow-[0_20px_50px_rgba(0,71,171,0.15)] border border-white/60 h-fit flex gap-2">
-                {Object.entries(categories).map(([key, cat]) => (
-                  <TabsTrigger 
-                    key={key} 
-                    value={key}
-                    className="group rounded-full px-8 py-3.5 data-[active]:bg-primary data-[active]:text-white data-[active]:shadow-lg data-[active]:shadow-primary/30 font-black text-xs uppercase tracking-widest flex items-center gap-3 transition-all duration-300 cursor-pointer hover:bg-slate-50 data-[active]:hover:bg-primary"
-                  >
-                    <div className="p-1.5 rounded-lg bg-slate-100/50 group-data-[active]:bg-white/20 transition-colors">
-                      {cat.icon}
-                    </div>
-                    {cat.label}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
+            {/* Sidebar de Navegação */}
+            <aside className="md:col-span-3 space-y-6 sticky top-24">
+              <div className="relative group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-primary transition-colors" />
+                <Input 
+                  placeholder="Buscar regra..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-12 h-14 rounded-2xl bg-white/50 backdrop-blur-sm border-white shadow-lg shadow-slate-100 focus:ring-primary/10 transition-all font-bold text-slate-700"
+                />
+              </div>
 
-            {Object.entries(categories).map(([key, cat]) => (
-              <TabsContent key={key} value={key} className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="text-center mb-10">
-                  <h3 className="text-3xl font-black text-slate-800 tracking-tight mb-2">{cat.label}</h3>
-                  <p className="text-slate-500 font-medium max-w-lg mx-auto">Ajuste as regras fundamentais que regem este módulo de consciência da MarIA.</p>
+              <nav className="bg-white/40 backdrop-blur-xl p-3 rounded-[2.5rem] shadow-xl shadow-slate-100 border border-white/60 space-y-1">
+                {Object.entries(categories).map(([key, cat]) => (
+                  <button
+                    key={key}
+                    onClick={() => {
+                      setActiveCategory(key);
+                      setSearchTerm('');
+                    }}
+                    className={cn(
+                      "w-full flex items-center justify-between p-4 rounded-2xl transition-all duration-300 group",
+                      activeCategory === key && !searchTerm
+                        ? "bg-primary text-white shadow-lg shadow-primary/30"
+                        : "text-slate-500 hover:bg-white/60 hover:text-slate-800"
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={cn(
+                        "p-2 rounded-xl transition-colors",
+                        activeCategory === key && !searchTerm ? "bg-white/20" : "bg-slate-100/80 group-hover:bg-white"
+                      )}>
+                        {cat.icon}
+                      </div>
+                      <span className="font-black text-xs uppercase tracking-widest">{cat.label}</span>
+                    </div>
+                    <ChevronRight className={cn(
+                      "h-4 w-4 transition-transform",
+                      activeCategory === key && !searchTerm ? "translate-x-0 opacity-100" : "-translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100"
+                    )} />
+                  </button>
+                ))}
+              </nav>
+
+              <div className="p-6 bg-amber-50/50 border border-amber-100/50 rounded-3xl">
+                <p className="text-[10px] font-black uppercase tracking-wider text-amber-700 mb-2">Dica Pro</p>
+                <p className="text-xs text-amber-600/80 font-medium leading-relaxed">
+                  As regras são aplicadas em tempo real. Use o botão "Gerar com IA" para aprimorar instruções existentes.
+                </p>
+              </div>
+            </aside>
+
+            {/* Conteúdo Principal */}
+            <main className="md:col-span-9 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 px-4">
+                <div>
+                  <Badge className="bg-primary/10 text-primary hover:bg-primary/10 border-none px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest mb-3">
+                    {searchTerm ? 'Resultados da Busca' : 'Configuração Ativa'}
+                  </Badge>
+                  <h3 className="text-4xl font-black text-slate-800 tracking-tight">
+                    {searchTerm ? `Buscando: "${searchTerm}"` : categories[activeCategory as keyof typeof categories].label}
+                  </h3>
                 </div>
-                
-                <div className="space-y-8">
-                  {prompts
-                    .filter(p => cat.keys.includes(p.key))
-                    .map(renderPromptCard)
-                  }
-                </div>
-              </TabsContent>
-            ))}
-          </Tabs>
+                <p className="text-slate-400 font-bold text-sm">
+                  {filteredPrompts.length} regra{filteredPrompts.length !== 1 && 's'} encontrada{filteredPrompts.length !== 1 && 's'}
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-1 gap-8 pb-20">
+                {filteredPrompts.length > 0 ? (
+                  filteredPrompts.map(renderPromptCard)
+                ) : (
+                  <div className="flex flex-col items-center justify-center p-20 bg-slate-50/50 rounded-[3rem] border-2 border-dashed border-slate-200">
+                    <Search className="h-12 w-12 text-slate-300 mb-4" />
+                    <p className="text-slate-500 font-black uppercase tracking-widest text-sm">Nenhuma regra encontrada</p>
+                    <Button 
+                      variant="link" 
+                      onClick={() => setSearchTerm('')}
+                      className="text-primary font-bold mt-2"
+                    >
+                      Limpar busca
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </main>
+          </div>
         )}
       </div>
     </MainLayout>
