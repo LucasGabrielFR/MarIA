@@ -411,38 +411,42 @@ export class AiService implements OnModuleInit {
       if (nameFound) {
         await supabase.from('users').update({ ...updateData, status: 'triage_presentation_subscription' }).eq('id', userId);
         
-        // Chamar recursivamente para processar a apresentação detalhada imediatamente
-        return this.processMessage(waChatId, message, pushName, phone);
+        // Em vez de recursão pura, vamos forçar o contexto de apresentação
+        // No próximo passo, o AIService usará o prompt detailed_presentation
+        userStatus = 'triage_presentation_subscription';
+      } else {
+        // Se ainda não temos o nome, insistir docemente
+        const triagePromptKey = userStatus === 'triage_intro' ? 'triage_intro' : 'triage_name';
+        const triagePrompt = this.promptService.getPrompt(triagePromptKey) || this.promptService.getPrompt('triage_intro');
+        
+        const fullSystemPrompt = `${corePersona}\n\nREGRAS ATUAIS:\n${triagePrompt}`;
+        const { content: response, usage } = await this.callOpenRouter(fullSystemPrompt, message);
+        if (usage) await this.logUsage(userId, usage, this.model);
+
+        // Se acabamos de enviar a intro, avançamos o status para triage_name
+        if (userStatus === 'triage_intro') {
+          await supabase.from('users').update({ status: 'triage_name' }).eq('id', userId);
+        }
+
+        await this.saveMessage(userId, 'assistant', response);
+        return response;
       }
-
-      // Se ainda não temos o nome, insistir docemente
-      const triagePromptKey = userStatus === 'triage_intro' ? 'triage_intro' : 'triage_name';
-      const triagePrompt = this.promptService.getPrompt(triagePromptKey) || this.promptService.getPrompt('triage_intro');
-      
-      const fullSystemPrompt = `${corePersona}\n\nREGRAS ATUAIS:\n${triagePrompt}`;
-      const { content: response, usage } = await this.callOpenRouter(fullSystemPrompt, message);
-      if (usage) await this.logUsage(userId, usage, this.model);
-
-      // Se acabamos de enviar a intro, avançamos o status para triage_name
-      if (userStatus === 'triage_intro') {
-        await supabase.from('users').update({ status: 'triage_name' }).eq('id', userId);
-      }
-
-      await this.saveMessage(userId, 'assistant', response);
-      return response;
     }
 
     // 2. Apresentação Detalhada e Oferta de Assinatura
-    if (userStatus === 'triage_presentation_subscription' || userStatus === 'triage_expectations') {
+    if (userStatus === 'triage_presentation_subscription') {
       const presentationPrompt = this.promptService.getPrompt('detailed_presentation');
       
       // Verificar se é assinante para passar no contexto do prompt
       const isSubscriber = user.subscription_tier && user.subscription_tier !== 'free';
       const subscriptionContext = isSubscriber 
         ? "\n\nO usuário JÁ É UM ASSINANTE PREMIUM. Agradeça imensamente pelo apoio e não ofereça planos." 
-        : "\n\nO usuário NÃO é assinante. Ofereça os planos de apoio ao final da sua apresentação.";
+        : "\n\nO usuário NÃO é assinante. Você DEVE obrigatoriamente apresentar os planos e o link conforme as regras abaixo.";
 
-      const fullSystemPrompt = `${corePersona}${subscriptionContext}\n\nREGRAS DE APRESENTAÇÃO:\n${presentationPrompt}`;
+      // Forçar o AI a focar na apresentação, mesmo que o input seja apenas o nome
+      const presentationInstruction = "\n\nIMPORTANTE: O usuário acaba de se identificar. Agora é o momento da sua APRESENTAÇÃO DETALHADA. Siga rigorosamente todas as regras de apresentação, explique suas funcionalidades e ofereça os planos (se aplicável).";
+
+      const fullSystemPrompt = `${corePersona}${subscriptionContext}${presentationInstruction}\n\nREGRAS DE APRESENTAÇÃO:\n${presentationPrompt}`;
       
       const { content: response, usage } = await this.callOpenRouter(fullSystemPrompt, message);
       if (usage) await this.logUsage(userId, usage, this.model);

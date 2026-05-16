@@ -36,7 +36,9 @@ export class PromptService implements OnModuleInit {
 
     this.promptCache.clear();
     for (const prompt of data) {
-      this.promptCache.set(prompt.key, prompt.content);
+      // Unescape literal \n if they exist
+      const content = (prompt.content || '').replace(/\\n/g, '\n');
+      this.promptCache.set(prompt.key, content);
     }
 
     this.logger.log(`Carregados ${this.promptCache.size} prompts na memória.`);

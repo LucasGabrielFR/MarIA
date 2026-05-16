@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.5] - 2026-05-16
+### Fixed
+- **Formatação de Texto (WhatsApp):** Implementado unescape automático de caracteres `\n` no `PromptService`, garantindo que as quebras de linha enviadas via banco de dados sejam renderizadas corretamente no WhatsApp.
+- **Transparência de Identidade:** Ajustada a regra de identidade na `core_persona` para permitir que a IA se identifique como tal durante a triagem, atendendo à solicitação de clareza para o fiel.
+- **Fluxo de Apresentação:** Refatorada a lógica de transição no `AiService` para garantir que a apresentação detalhada e oferta de planos não sejam ignoradas pela IA após a identificação do usuário.
+
 ## [1.9.4] - 2026-05-16
 ### Added
 - **Gestão Dinâmica de Prompts:** Migração de 100% das mensagens do sistema para a tabela `ai_prompts`, permitindo edição via dashboard com labels explicativas de impacto.
