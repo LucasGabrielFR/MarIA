@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module';
 import { AdminModule } from './admin/admin.module';
 import { AiModule } from './ai/ai.module';
 import { UazapiModule } from './uazapi/uazapi.module';
+import { FinanceModule } from './finance/finance.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { UazapiModule } from './uazapi/uazapi.module';
     AdminModule,
     AiModule,
     UazapiModule,
+    FinanceModule,
   ],
   controllers: [],
   providers: [],

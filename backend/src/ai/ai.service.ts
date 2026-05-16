@@ -451,7 +451,7 @@ export class AiService implements OnModuleInit {
     // Restrição para Plano Free: Bloquear se a intenção exigir processamento complexo
     const freeIntents = ['LITURGY', 'SAINT', 'SAINT_OF_DAY', 'ROSARY', 'PRAYER_GUIDE'];
     if (isFree && !freeIntents.includes(intent)) {
-      const response = "Fico muito feliz com sua mensagem! ❤️ No momento, seu acesso gratuito permite que eu lhe envie a Liturgia Diária, o Santo do Dia e os Mistérios do Terço. Para conversarmos livremente e você ter acesso a conselhos espirituais personalizados, considere apoiar nossa missão com um plano Premium ou Patrono. Posso te enviar as opções?";
+      const response = "Fico muito feliz com sua mensagem! ❤️ No momento, seu acesso gratuito permite que eu lhe envie a Liturgia Diária, o Santo do Dia e os Mistérios do Terço. \n\nPara conversarmos livremente e você ter acesso a conselhos espirituais personalizados, considere apoiar nossa missão:\n\n🔹 *Plano Premium (300 msgs)*: R$ 14,90\n🔹 *Plano Patrono (600 msgs)*: R$ 29,90\n\nToque no link abaixo para garantir seu acesso e continuar nossa conversa:\nhttps://maria.bot/assinar";
       await this.saveMessage(userId, 'assistant', response);
       return response;
     }
@@ -701,6 +701,17 @@ ${liturgyData}`;
       const { content, usage } = await this.callOpenRouter(finalPrompt, message, false, history, mainModel);
       if (usage) await this.logUsage(userId, usage, mainModel);
       response = content;
+    }
+
+    // Adicionar aviso de expiração se estiver próximo (3 dias)
+    if (user.subscription_expires_at && user.subscription_tier !== 'free') {
+      const expires = new Date(user.subscription_expires_at);
+      const now = new Date();
+      const diffDays = Math.ceil((expires.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (diffDays > 0 && diffDays <= 3) {
+        response += `\n\n⚠️ *Nota:* Sua assinatura expira em ${diffDays} ${diffDays === 1 ? 'dia' : 'dias'}. Para continuar com acesso total, você pode renovar aqui: https://maria.bot/assinar`;
+      }
     }
 
     // Salvar resposta

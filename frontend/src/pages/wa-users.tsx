@@ -215,6 +215,44 @@ const WaUsersPage = () => {
     }
   }
 
+  const handleRecordPayment = async (userId: string, tier: string) => {
+    const amount = tier === 'premium' ? 14.90 : tier === 'patron' ? 29.90 : 0;
+    if (amount === 0) {
+       toast.info('Apenas planos pagos podem ter pagamentos registrados.');
+       return;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/admin/finance/record-manual`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ userId, tier, amount })
+      })
+
+      if (!response.ok) throw new Error('Falha ao registrar pagamento')
+      
+      toast.success(`Pagamento de R$ ${amount.toFixed(2)} registrado com sucesso!`)
+      await fetchUsers()
+      
+      // Atualizar o selectedUser localmente
+      if (selectedUser && selectedUser.id === userId) {
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 30);
+        setSelectedUser({ 
+          ...selectedUser, 
+          subscription_tier: tier, 
+          subscription_expires_at: expiresAt.toISOString() 
+        })
+        setSubscriptionExpiresAt(expiresAt.toISOString().split('T')[0]);
+      }
+    } catch (error) {
+      toast.error('Erro ao registrar pagamento')
+    }
+  }
+
   return (
     <MainLayout 
       title="Gestão de Fiéis" 
@@ -506,28 +544,37 @@ const WaUsersPage = () => {
 
                         <div className="grid grid-cols-2 gap-3">
                           {[
-                            { id: 'free', label: 'Grátis', color: 'bg-slate-100 text-slate-600' },
-                            { id: 'premium', label: 'Premium (300m)', color: 'bg-amber-100 text-amber-700' },
-                            { id: 'patron', label: 'Patrono (600m)', color: 'bg-purple-100 text-purple-700' },
-                            { id: 'unlimited', label: 'Ilimitado', color: 'bg-blue-100 text-blue-700' }
+                            { id: 'free', label: 'Grátis', color: 'bg-slate-100 text-slate-600', price: 0 },
+                            { id: 'premium', label: 'Premium (300m)', color: 'bg-amber-100 text-amber-700', price: 14.90 },
+                            { id: 'patron', label: 'Patrono (600m)', color: 'bg-purple-100 text-purple-700', price: 29.90 },
+                            { id: 'unlimited', label: 'Ilimitado', color: 'bg-blue-100 text-blue-700', price: 0 }
                           ].map((plan) => (
-                            <button
-                              key={plan.id}
-                              onClick={() => handleUpdateSubscription(selectedUser.id, plan.id)}
-                              className={cn(
-                                "p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2",
-                                selectedUser.subscription_tier === plan.id 
-                                  ? "border-primary bg-primary/5 ring-4 ring-primary/10" 
-                                  : "border-slate-50 hover:border-slate-200 bg-slate-50/50"
+                            <div key={plan.id} className="space-y-2">
+                              <button
+                                onClick={() => handleUpdateSubscription(selectedUser.id, plan.id)}
+                                className={cn(
+                                  "w-full p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2",
+                                  selectedUser.subscription_tier === plan.id 
+                                    ? "border-primary bg-primary/5 ring-4 ring-primary/10" 
+                                    : "border-slate-50 hover:border-slate-200 bg-slate-50/50"
+                                )}
+                              >
+                                <span className={cn("px-2 py-0.5 rounded-lg text-[8px] font-black uppercase", plan.color)}>
+                                  {plan.label}
+                                </span>
+                                {selectedUser.subscription_tier === plan.id && (
+                                  <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+                                )}
+                              </button>
+                              {plan.price > 0 && (
+                                <button
+                                  onClick={() => handleRecordPayment(selectedUser.id, plan.id)}
+                                  className="w-full py-2 bg-green-50 text-green-600 text-[9px] font-black uppercase rounded-xl hover:bg-green-100 transition-colors border border-green-100"
+                                >
+                                  Registrar R$ {plan.price.toFixed(2)}
+                                </button>
                               )}
-                            >
-                              <span className={cn("px-2 py-0.5 rounded-lg text-[8px] font-black uppercase", plan.color)}>
-                                {plan.label}
-                              </span>
-                              {selectedUser.subscription_tier === plan.id && (
-                                <div className="h-1.5 w-1.5 rounded-full bg-primary" />
-                              )}
-                            </button>
+                            </div>
                           ))}
                         </div>
                         <p className="mt-4 text-[10px] text-slate-400 font-bold uppercase text-center">

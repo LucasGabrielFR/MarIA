@@ -8,6 +8,7 @@ import WaUsersPage from './pages/wa-users'
 import PrayersPage from './pages/prayers'
 import LogsPage from './pages/logs'
 import SettingsPage from './pages/settings'
+import FinancePage from './pages/finance'
 import { Toaster } from "@/components/ui/sonner"
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
         <Route path="/prayers" element={<PrayersPage />} />
         <Route path="/daily-content" element={<DailyContentPage />} />
         <Route path="/wa-users" element={<WaUsersPage />} />
+        <Route path="/finance" element={<FinancePage />} />
         
         {/* Fallback routes - to be implemented as needed */}
         <Route path="/conversations" element={<DashboardPage />} />

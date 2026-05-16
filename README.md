@@ -19,12 +19,11 @@
 - **Segurança Enterprise:** Implementação de Row Level Security (RLS) em todo o banco de dados, garantindo isolamento total e controle granular de acesso administrativo com **diálogos de confirmação** para ações críticas e irreversíveis.
 - **Proteção de Dados e Segurança Maternal:** Identificação de intenções maliciosas ou pedidos de dados sensíveis (tokens, segredos). A MarIA responde com firmeza e um "puxão de orelha" maternal, protegendo o sistema com doçura e autoridade espiritual.
 - **Onboarding Humanizado em 2 Etapas**: Fluxo de acolhimento que separa a saudação inicial da apresentação detalhada de ferramentas e oferta de planos.
-- **Assinaturas e Monetização**:
-  - **Free**: Acesso a conteúdos estáticos (Liturgia, Santos, Terço) via cache, com zero custo de IA.
-  - **Premium (300 msgs/mês)**: Acesso total à IA e conselhos espirituais.
-  - **Patrono (600 msgs/mês)**: Acesso estendido e suporte à missão.
-  - **Ilimitado**: Gestão manual para benfeitores e administradores com controle de expiração.
-- **Dashboard Admin:** Painel Vite + React para parametrização de prompts, gerenciamento de usuários, gestão de assinaturas e curadoria manual de conteúdos diários.
+- **Inteligência Financeira e Assinaturas**:
+  - **Módulo Financeiro**: Dashboard de Margem de Contribuição com cálculo em tempo real de Receita vs. Custos de IA.
+  - **Gestão de Checkout**: Sistema modular para registro de pagamentos manuais e alertas automáticos de vencimento via WhatsApp.
+  - **Arquitetura Plugável**: Estrutura preparada para integração futura com gateways (Stripe, Mercado Pago).
+- **Dashboard Admin:** Painel Vite + React para parametrização de prompts, gestão de fiéis, controle financeiro e curadoria de conteúdos.
 
 ## 🛠 Arquitetura
 - **Motor Cognitivo & Backend:** NestJS (TypeScript) com arquitetura de **Triagem Híbrida**.
