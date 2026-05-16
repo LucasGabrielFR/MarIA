@@ -56,8 +56,21 @@ export class UazapiController {
         || messageData.message?.extendedTextMessage?.text 
         || '';
 
-      if (!messageContent || !chatId) {
-        return { status: 'missing_content_or_chatid' }; 
+      // Extrair o chatId
+      if (!chatId) return { status: 'missing_chatid' };
+
+      // Detectar se é áudio
+      const isAudio = !!(messageData.message?.audioMessage || messageData.messageType === 'audioMessage' || messageData.mimetype?.includes('audio'));
+      
+      if (isAudio) {
+        this.logger.log(`Mensagem de áudio detectada de ${chatId}. Enviando recusa amigável.`);
+        const audioRefusal = "Louvado seja Nosso Senhor Jesus Cristo! ❤️ Peço sua compreensão, pois, como sua assistente espiritual, eu ainda não consigo ouvir mensagens de áudio. \n\nPor favor, escreva sua mensagem em texto para que eu possa lhe acolher e ajudar da melhor forma. Quem sabe em breve não poderemos até conversar por voz? 😉";
+        await this.uazapiService.sendMessage(chatId, audioRefusal);
+        return { status: 'audio_refused' };
+      }
+
+      if (!messageContent) {
+        return { status: 'missing_content' }; 
       }
 
       this.logger.log(`Processing message from ${chatId}: "${messageContent}"`);

@@ -484,10 +484,14 @@ export class AdminService {
 
     if (ctxError) throw ctxError;
 
-    // 3. Resetar status do usuário para 'disabled' (Dados pessoais apagados, métricas mantidas)
+    // 3. Resetar status do usuário para 'disabled' e APAGAR dados pessoais da tabela users
     const { error: userError } = await supabase
       .from('users')
-      .update({ status: 'disabled' })
+      .update({ 
+        status: 'disabled',
+        name: null,
+        expectations: null
+      })
       .eq('id', userId);
 
     if (userError) throw userError;

@@ -363,6 +363,11 @@ export class AiService implements OnModuleInit {
       this.logger.log(`Usuário ${userId} (disabled) entrou em contato. Resetando para triagem.`);
       await supabase.from('users').update({ status: 'triage_intro' }).eq('id', userId);
       userStatus = 'triage_intro';
+      
+      // Limpar objeto local para garantir que a triagem recomece do zero absoluto
+      user.status = 'triage_intro';
+      user.name = null;
+      user.expectations = null;
     }
 
     // Verificar limites de assinatura antes de processar (exceto para usuários em triagem)

@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Módulo Financeiro:** Nova página de dashboard para acompanhamento de Receita Bruta, Custos de IA (Tokens) e Lucro Líquido.
 - **Gestão de Assinaturas & Checkout:** Sistema para registro manual de pagamentos (R$ 14,90 e R$ 29,90) diretamente no perfil do fiel.
 - **Alertas de Vencimento:** A MarIA agora notifica o fiel nos últimos 3 dias de sua assinatura de forma sutil durante a conversa.
+- **Suporte a Áudio (Aviso):** Implementada detecção de mensagens de voz com resposta automática educativa explicando a limitação atual.
+- **Correção na Exclusão de Dados:** Ao apagar os dados de um fiel, agora o nome e as expectativas também são limpos, garantindo que o retorno do usuário inicie uma triagem completa do zero.
 - **Arquitetura Plugável:** Implementação de `FinanceService` preparada para futuras integrações com gateways de pagamento.
 
 ## [1.9.2] - 2026-05-16
