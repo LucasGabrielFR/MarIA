@@ -369,7 +369,7 @@ export class AiService implements OnModuleInit {
     if (!userStatus.startsWith('triage')) {
       const { allowed, reason } = await this.checkSubscriptionLimits(user);
       if (!allowed) {
-        return reason;
+        return reason || 'Seu limite de mensagens para este mês foi atingido. Considere fazer um upgrade no seu plano para continuar conversando! ❤️';
       }
     }
 

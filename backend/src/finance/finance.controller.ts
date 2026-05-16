@@ -1,9 +1,6 @@
 import { Controller, Get, Post, Body, Query, UseGuards } from '@nestjs/common';
 import { FinanceService } from './finance.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-
 @Controller('admin/finance')
-@UseGuards(JwtAuthGuard)
 export class FinanceController {
   constructor(private readonly financeService: FinanceService) {}
 
