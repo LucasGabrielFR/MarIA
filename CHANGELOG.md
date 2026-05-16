@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.4] - 2026-05-16
+### Added
+- **Gestão Dinâmica de Prompts:** Migração de todas as mensagens hardcoded (bloqueio de plano free, aviso de expiração, recusa de áudio, manutenção) para a tabela `ai_prompts` no banco de dados.
+- **Labels de Impacto:** Adicionadas descrições explicativas e impacto operacional para cada prompt no dashboard administrativo.
+- **Categoria Mensagens do Sistema:** Nova seção no painel de IA para gerenciar respostas não-LLM.
+
+### Fixed
+- **Injeção de Dependência:** Corrigida falta do `PromptService` no `UazapiController` para suportar recusa dinâmica de áudio.
+- **Limpeza de Dados:** Refinamento do reset de triagem após exclusão de dados do fiel.
+
 ## [1.9.3] - 2026-05-16
 ### Added
 - **Módulo Financeiro:** Nova página de dashboard para acompanhamento de Receita Bruta, Custos de IA (Tokens) e Lucro Líquido.

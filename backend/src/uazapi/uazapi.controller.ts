@@ -1,6 +1,7 @@
 import { Controller, Post, Body, Logger } from '@nestjs/common';
 import { AiService } from '../ai/ai.service';
 import { UazapiService } from './uazapi.service';
+import { PromptService } from '../ai/prompt.service';
 import { SupabaseService } from '../supabase/supabase.service';
 
 @Controller('webhook/uazapi')
@@ -11,6 +12,7 @@ export class UazapiController {
     private readonly aiService: AiService,
     private readonly uazapiService: UazapiService,
     private readonly supabaseService: SupabaseService,
+    private readonly promptService: PromptService,
   ) {}
 
   @Post()
@@ -64,7 +66,7 @@ export class UazapiController {
       
       if (isAudio) {
         this.logger.log(`Mensagem de áudio detectada de ${chatId}. Enviando recusa amigável.`);
-        const audioRefusal = "Louvado seja Nosso Senhor Jesus Cristo! ❤️ Peço sua compreensão, pois, como sua assistente espiritual, eu ainda não consigo ouvir mensagens de áudio. \n\nPor favor, escreva sua mensagem em texto para que eu possa lhe acolher e ajudar da melhor forma. Quem sabe em breve não poderemos até conversar por voz? 😉";
+        const audioRefusal = this.promptService.getPrompt('audio_refusal');
         await this.uazapiService.sendMessage(chatId, audioRefusal);
         return { status: 'audio_refused' };
       }

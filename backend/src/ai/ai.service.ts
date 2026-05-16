@@ -351,7 +351,7 @@ export class AiService implements OnModuleInit {
       .single();
 
     if (maintenanceSetting?.value === 'true') {
-      return "Minha querida alma, no momento estou em um breve período de recolhimento e oração para melhor te servir. 🙏✨\n\nLogo estarei de volta com novidades! Que a paz de Cristo esteja com você. Mãe MarIA.";
+      return this.promptService.getPrompt('maintenance_message');
     }
 
     const user = await this.getOrCreateUser(waChatId, pushName, phone);
@@ -374,7 +374,7 @@ export class AiService implements OnModuleInit {
     if (!userStatus.startsWith('triage')) {
       const { allowed, reason } = await this.checkSubscriptionLimits(user);
       if (!allowed) {
-        return reason || 'Seu limite de mensagens para este mês foi atingido. Considere fazer um upgrade no seu plano para continuar conversando! ❤️';
+        return reason || this.promptService.getPrompt('usage_limit_reached');
       }
     }
 
@@ -456,7 +456,7 @@ export class AiService implements OnModuleInit {
     // Restrição para Plano Free: Bloquear se a intenção exigir processamento complexo
     const freeIntents = ['LITURGY', 'SAINT', 'SAINT_OF_DAY', 'ROSARY', 'PRAYER_GUIDE'];
     if (isFree && !freeIntents.includes(intent)) {
-      const response = "Fico muito feliz com sua mensagem! ❤️ No momento, seu acesso gratuito permite que eu lhe envie a Liturgia Diária, o Santo do Dia e os Mistérios do Terço. \n\nPara conversarmos livremente e você ter acesso a conselhos espirituais personalizados, considere apoiar nossa missão:\n\n🔹 *Plano Premium (300 msgs)*: R$ 14,90\n🔹 *Plano Patrono (600 msgs)*: R$ 29,90\n\nToque no link abaixo para garantir seu acesso e continuar nossa conversa:\nhttps://maria.bot/assinar";
+      const response = this.promptService.getPrompt('free_tier_block');
       await this.saveMessage(userId, 'assistant', response);
       return response;
     }
@@ -715,7 +715,12 @@ ${liturgyData}`;
       const diffDays = Math.ceil((expires.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
       
       if (diffDays > 0 && diffDays <= 3) {
-        response += `\n\n⚠️ *Nota:* Sua assinatura expira em ${diffDays} ${diffDays === 1 ? 'dia' : 'dias'}. Para continuar com acesso total, você pode renovar aqui: https://maria.bot/assinar`;
+        const warningTemplate = this.promptService.getPrompt('subscription_expiration_warning');
+        const dayLabel = diffDays === 1 ? 'dia' : 'dias';
+        const warning = warningTemplate
+          .replace('{{days}}', String(diffDays))
+          .replace('{{label}}', dayLabel);
+        response += `\n\n${warning}`;
       }
     }
 

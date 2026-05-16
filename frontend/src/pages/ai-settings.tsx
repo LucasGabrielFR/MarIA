@@ -142,6 +142,11 @@ export default function AiSettingsPage() {
       label: 'Geradores de Conteúdo',
       icon: <PenTool className="w-4 h-4" />,
       keys: ['generator_system_prompt', 'generator_prayer_guide', 'generator_liturgy', 'generator_saint', 'generator_rosary']
+    },
+    system: {
+      label: 'Mensagens do Sistema',
+      icon: <MessageSquare className="w-4 h-4" />,
+      keys: ['audio_refusal', 'free_tier_block', 'subscription_expiration_warning', 'usage_limit_reached', 'maintenance_message']
     }
   };
 
