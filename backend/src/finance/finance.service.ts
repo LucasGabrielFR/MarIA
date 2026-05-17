@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ForbiddenException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 
 @Injectable()
@@ -69,4 +69,107 @@ export class FinanceService {
 
     return data;
   }
+
+  private async validateSuperAdmin(adminEmail: string) {
+    if (!adminEmail) {
+      throw new ForbiddenException('Acesso negado: Administrador não identificado.');
+    }
+
+    // Permitir o e-mail de superadmin padrão diretamente para resiliência extra
+    if (adminEmail === 'lucasgabriel@acutistech.com.br') {
+      return;
+    }
+
+    const { data: admin, error } = await this.supabaseService.getClient()
+      .from('admins')
+      .select('role')
+      .eq('email', adminEmail)
+      .single();
+
+    if (error || !admin || admin.role !== 'superadmin') {
+      this.logger.warn(`Tentativa de acesso não autorizado por ${adminEmail}`);
+      throw new ForbiddenException('Apenas superadministradores podem realizar esta ação.');
+    }
+  }
+
+  async cancelSubscription(subscriptionId: string, adminEmail: string) {
+    await this.validateSuperAdmin(adminEmail);
+
+    const { data: sub, error: subError } = await this.supabaseService.getClient()
+      .from('subscriptions')
+      .update({ status: 'canceled' })
+      .eq('id', subscriptionId)
+      .select('*, user_id')
+      .single();
+
+    if (subError) {
+      this.logger.error(`Erro ao cancelar assinatura ${subscriptionId}: ${subError.message}`);
+      throw subError;
+    }
+
+    if (sub && sub.user_id) {
+      const { error: userError } = await this.supabaseService.getClient()
+        .from('users')
+        .update({
+          subscription_tier: 'free',
+          subscription_expires_at: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', sub.user_id);
+
+      if (userError) {
+        this.logger.error(`Erro ao revogar assinatura do usuário ${sub.user_id}: ${userError.message}`);
+        throw userError;
+      }
+    }
+
+    return sub;
+  }
+
+  async deleteSubscription(subscriptionId: string, adminEmail: string) {
+    await this.validateSuperAdmin(adminEmail);
+
+    // 1. Obter o user_id antes de deletar
+    const { data: sub, error: fetchError } = await this.supabaseService.getClient()
+      .from('subscriptions')
+      .select('user_id')
+      .eq('id', subscriptionId)
+      .single();
+
+    if (fetchError) {
+      this.logger.error(`Erro ao buscar assinatura ${subscriptionId} para deleção: ${fetchError.message}`);
+      throw fetchError;
+    }
+
+    // 2. Deletar a assinatura
+    const { error: deleteError } = await this.supabaseService.getClient()
+      .from('subscriptions')
+      .delete()
+      .eq('id', subscriptionId);
+
+    if (deleteError) {
+      this.logger.error(`Erro ao deletar assinatura ${subscriptionId}: ${deleteError.message}`);
+      throw deleteError;
+    }
+
+    // 3. Atualizar o usuário
+    if (sub && sub.user_id) {
+      const { error: userError } = await this.supabaseService.getClient()
+        .from('users')
+        .update({
+          subscription_tier: 'free',
+          subscription_expires_at: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', sub.user_id);
+
+      if (userError) {
+        this.logger.error(`Erro ao revogar assinatura do usuário ${sub.user_id} após deleção: ${userError.message}`);
+        throw userError;
+      }
+    }
+
+    return { success: true };
+  }
 }
+

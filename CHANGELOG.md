@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.8] - 2026-05-17
+### Added
+- **Cancelamento de Pagamento:** Possibilidade de superadministradores cancelarem assinaturas diretamente pelo painel financeiro, alterando o status para `canceled` no banco e revogando imediatamente as permissões premium do fiel (tier volta para `free` e expiração limpa).
+- **Exclusão de Pagamento:** Possibilidade de superadministradores excluírem permanentemente registros de pagamento na tabela `subscriptions` com revogação imediata dos benefícios premium correspondentes.
+- **Segurança de Acesso Estrita:** Validação de papéis no backend contra a tabela `admins` (ou e-mail principal) exigindo a role `superadmin` para execução de operações financeiras destrutivas/administrativas.
+- **Modais de Confirmação Premium:** Diálogos dinâmicos e elegantes de confirmação no painel financeiro com micro-animações, estados de carregamento (loading spinner) e alertas visuais adequados.
+
+### Changed
+- **Badges Financeiras:** Adaptação da badge de status da assinatura para diferenciar visualmente `canceled` (tom de âmbar/laranja) e `paid` (tom de verde) no painel financeiro.
+- **Ações Restritas a Superadmin:** Exibição condicional da coluna de ações e dos botões de gerência na tabela financeira, restrita estritamente a contas autenticadas como Superadministrador.
+
 ## [1.9.7] - 2026-05-16
 ### Added
 - **Controle de Uso e Quotas:** Implementada lógica rigorosa de rastreio de uso de LLM via flag `is_llm`.

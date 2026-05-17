@@ -1,16 +1,43 @@
 import { useState, useEffect } from 'react'
-import { API_URL } from '../lib/api'
+import { API_URL, apiRequest } from '../lib/api'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { MainLayout } from '../components/layout/main-layout'
-import { DollarSign, TrendingUp, CreditCard, AlertCircle, Calendar } from 'lucide-react'
+import { DollarSign, TrendingUp, CreditCard, AlertCircle, Calendar, Ban, Trash2, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
 
 export default function FinancePage() {
   const [summary, setSummary] = useState<any>(null);
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  // Estados para ação de cancelar/excluir
+  const [selectedSub, setSelectedSub] = useState<any>(null);
+  const [actionType, setActionType] = useState<'cancel' | 'delete' | null>(null);
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
+    // Carrega o usuário atual do localStorage
+    try {
+      const storedUser = localStorage.getItem('maria_user');
+      if (storedUser) {
+        setCurrentUser(JSON.parse(storedUser));
+      }
+    } catch (e) {
+      console.error('Erro ao ler usuário do localStorage:', e);
+    }
+
     const fetchFinanceData = async () => {
       try {
         const [sumRes, subRes] = await Promise.all([
@@ -34,6 +61,63 @@ export default function FinancePage() {
 
   const formatCurrency = (val: number) => {
     return (val || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  };
+
+  const isSuperAdmin = currentUser?.email === 'lucasgabriel@acutistech.com.br' || currentUser?.role === 'superadmin';
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'paid':
+        return <Badge className="bg-green-50 text-green-700 hover:bg-green-50 border border-green-200 px-3 py-1 capitalize">pago</Badge>;
+      case 'canceled':
+        return <Badge className="bg-amber-50 text-amber-700 hover:bg-amber-50 border border-amber-200 px-3 py-1 capitalize">cancelado</Badge>;
+      default:
+        return <Badge className="bg-slate-50 text-slate-700 hover:bg-slate-50 border border-slate-200 px-3 py-1 capitalize">{status}</Badge>;
+    }
+  };
+
+  const handleConfirmAction = async () => {
+    if (!selectedSub || !actionType) return;
+    setActionLoading(true);
+    try {
+      if (actionType === 'cancel') {
+        await apiRequest(`/admin/finance/subscriptions/${selectedSub.id}/cancel`, {
+          method: 'POST',
+          headers: {
+            'x-admin-email': currentUser?.email || '',
+          }
+        });
+        toast.success('Assinatura cancelada com sucesso!');
+      } else if (actionType === 'delete') {
+        await apiRequest(`/admin/finance/subscriptions/${selectedSub.id}`, {
+          method: 'DELETE',
+          headers: {
+            'x-admin-email': currentUser?.email || '',
+          }
+        });
+        toast.success('Pagamento apagado com sucesso!');
+      }
+      
+      // Recarregar os dados
+      const [sumRes, subRes] = await Promise.all([
+        fetch(`${API_URL}/admin/finance/summary`),
+        fetch(`${API_URL}/admin/finance/subscriptions?limit=20`)
+      ]);
+      
+      if (sumRes.ok) setSummary(await sumRes.json());
+      if (subRes.ok) {
+        const subData = await subRes.json();
+        setSubscriptions(subData.data || []);
+      }
+      setIsConfirmDialogOpen(false);
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || 'Erro ao realizar ação');
+    } finally {
+      setActionLoading(false);
+      setSelectedSub(null);
+      setActionType(null);
+    }
   };
 
   return (
@@ -88,16 +172,17 @@ export default function FinancePage() {
                 <TableHead className="font-bold">Data Pagto</TableHead>
                 <TableHead className="font-bold">Expiração</TableHead>
                 <TableHead className="font-bold">Status</TableHead>
+                {isSuperAdmin && <TableHead className="font-bold text-right pr-6">Ações</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-10 text-slate-400">Carregando dados...</TableCell>
+                  <TableCell colSpan={isSuperAdmin ? 7 : 6} className="text-center py-10 text-slate-400">Carregando dados...</TableCell>
                 </TableRow>
               ) : subscriptions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-10 text-slate-400">Nenhuma assinatura registrada ainda.</TableCell>
+                  <TableCell colSpan={isSuperAdmin ? 7 : 6} className="text-center py-10 text-slate-400">Nenhuma assinatura registrada ainda.</TableCell>
                 </TableRow>
               ) : subscriptions.map((sub: any) => (
                 <TableRow key={sub.id} className="border-slate-50 hover:bg-slate-50/50 transition-all">
@@ -122,16 +207,112 @@ export default function FinancePage() {
                     {sub.expires_at ? new Date(sub.expires_at).toLocaleDateString('pt-BR') : '-'}
                   </TableCell>
                   <TableCell>
-                    <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-none px-3 py-1 capitalize">
-                      {sub.status}
-                    </Badge>
+                    {getStatusBadge(sub.status)}
                   </TableCell>
+                  {isSuperAdmin && (
+                    <TableCell className="text-right pr-4 py-4">
+                      <div className="flex gap-2 justify-end">
+                        <button 
+                          onClick={() => {
+                            setSelectedSub(sub);
+                            setActionType('cancel');
+                            setIsConfirmDialogOpen(true);
+                          }}
+                          disabled={sub.status === 'canceled'}
+                          className={`p-2 rounded-xl transition-all ${
+                            sub.status === 'canceled' 
+                              ? 'opacity-40 cursor-not-allowed text-slate-300 bg-slate-50' 
+                              : 'text-amber-600 bg-amber-50 hover:bg-amber-100 hover:scale-105 active:scale-95'
+                          }`}
+                          title="Cancelar assinatura"
+                        >
+                          <Ban className="h-4 w-4" />
+                        </button>
+                        <button 
+                          onClick={() => {
+                            setSelectedSub(sub);
+                            setActionType('delete');
+                            setIsConfirmDialogOpen(true);
+                          }}
+                          className="p-2 rounded-xl text-red-600 bg-red-50 hover:bg-red-100 hover:scale-105 active:scale-95 transition-all"
+                          title="Excluir pagamento"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
       </div>
+
+      {isConfirmDialogOpen && (
+        <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
+          <DialogContent className="sm:max-w-[420px] rounded-3xl border border-slate-100 shadow-2xl p-6 bg-white">
+            <DialogHeader className="space-y-3">
+              <DialogTitle className="text-xl font-extrabold text-slate-800 flex items-center gap-2">
+                {actionType === 'cancel' ? (
+                  <>
+                    <Ban className="h-5 w-5 text-amber-600" />
+                    Cancelar Assinatura
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-5 w-5 text-red-600" />
+                    Apagar Pagamento
+                  </>
+                )}
+              </DialogTitle>
+              <DialogDescription className="text-sm font-medium text-slate-500 leading-relaxed">
+                {actionType === 'cancel' ? (
+                  <>
+                    Tem certeza de que deseja cancelar a assinatura de <strong>{selectedSub?.users?.name || 'Sem nome'}</strong>? 
+                    Isso atualizará o status do pagamento para <span className="text-amber-600 font-bold">cancelado</span> e revogará os benefícios premium do fiel imediatamente.
+                  </>
+                ) : (
+                  <>
+                    Tem certeza de que deseja apagar permanentemente o pagamento de <strong>{selectedSub?.users?.name || 'Sem nome'}</strong>?
+                    Esta ação excluirá o registro de pagamento e revogará os benefícios premium do fiel imediatamente. <span className="text-red-600 font-bold">Esta ação não pode ser desfeita.</span>
+                  </>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="mt-6 flex flex-row gap-3 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => setIsConfirmDialogOpen(false)}
+                disabled={actionLoading}
+                className="flex-1 sm:flex-none h-11 rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50 font-bold transition-all"
+              >
+                Voltar
+              </Button>
+              <Button
+                onClick={handleConfirmAction}
+                disabled={actionLoading}
+                className={`flex-1 sm:flex-none h-11 rounded-xl text-white font-bold transition-all flex items-center justify-center gap-2 ${
+                  actionType === 'cancel' 
+                    ? 'bg-amber-600 hover:bg-amber-700 shadow-lg shadow-amber-100' 
+                    : 'bg-red-600 hover:bg-red-700 shadow-lg shadow-red-100'
+                }`}
+              >
+                {actionLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Processando...
+                  </>
+                ) : actionType === 'cancel' ? (
+                  'Confirmar Cancelamento'
+                ) : (
+                  'Confirmar Exclusão'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </MainLayout>
   )
 }
@@ -152,3 +333,4 @@ function FinanceCard({ title, value, icon, color, description }: any) {
     </div>
   )
 }
+
