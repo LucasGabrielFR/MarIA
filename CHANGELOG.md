@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.9] - 2026-05-17
+### Added
+- **UI de Assinatura Premium:** Redesenho completo do painel de "Gestão de Assinatura" com um grid de cards totalmente interativos para cada nível de plano (Grátis, Premium, Patrono, Ilimitado), contendo ícones exclusivos, design de bordas vibrantes com active state, e glows de fundo sutis.
+- **Shortcuts de Expiração:** Introdução de botões de atalho rápido (+30 dias, +90 dias, Limpar) para o controle da data de expiração da assinatura, otimizando o fluxo de trabalho do administrador.
+- **Módulo de Comprovação de Pagamento:** Nova seção dedicada e isolada com fundo em degradê verde (Emerald theme), ícone animado e seletor segmentado de planos pagos para registrar com facilidade e segurança os recebimentos manuais (Pix/Dinheiro).
+
 ## [1.9.8] - 2026-05-17
 ### Added
 - **Cancelamento de Pagamento:** Possibilidade de superadministradores cancelarem assinaturas diretamente pelo painel financeiro, alterando o status para `canceled` no banco e revogando imediatamente as permissões premium do fiel (tier volta para `free` e expiração limpa).

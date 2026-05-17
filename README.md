@@ -21,7 +21,9 @@
 - **Onboarding Humanizado em 2 Etapas**: Fluxo de acolhimento que separa a saudação inicial da apresentação detalhada de ferramentas e oferta de planos.
 - **Inteligência Financeira e Assinaturas**:
   - **Módulo Financeiro**: Dashboard de Margem de Contribuição com cálculo em tempo real de Receita vs. Custos de IA.
-  - **Gestão de Checkout**: Sistema modular para registro de pagamentos manuais e alertas automáticos de vencimento via WhatsApp.
+  - **Gestão de Assinatura Premium**: Painel de visualização moderno em grid de cards interativos, com atalhos inteligentes de prorrogação de prazo (+30, +90 dias, Limpar) e controles estritos de validade.
+  - **Comprovação de Pagamento (Emerald Panel)**: Seção dedicada com degradê elegante, seletor segmentado e registro ágil de pagamentos em Pix/Dinheiro com emissão automática de 30 dias de acesso premium.
+  - **Cancelamento e Exclusão Segura**: Operações destrutivas no financeiro com validação de perfil de `superadmin` no banco de dados e modais de confirmação dinâmicos.
   - **Controle de Quotas Inteligente**: Diferenciação automática entre mensagens gerativas (LLM) e conteúdos utilitários (Cache), garantindo que consultas à Liturgia ou Santo do Dia não consumam a franquia do fiel.
   - **Recuperação e Métricas**: Usuários com dados excluídos são mantidos como `disabled` para métricas; ao enviar nova mensagem, a triagem é reiniciada automaticamente.
   - **Arquitetura Plugável**: Estrutura preparada para integração futura com gateways (Stripe, Mercado Pago).

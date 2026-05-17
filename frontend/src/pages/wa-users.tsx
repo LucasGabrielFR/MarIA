@@ -13,21 +13,28 @@ import {
   Search, 
   MessageSquare, 
   TrendingUp, 
-  Filter
+  Filter,
+  Activity, 
+  Settings,
+  Heart,
+  BrainCircuit,
+  Trash2,
+  AlertTriangle,
+  Calendar,
+  CreditCard,
+  Check,
+  Zap,
+  Sparkles,
+  Clock,
+  Coins,
+  Award,
+  ShieldCheck
 } from 'lucide-react'
 import { 
   Dialog, 
   DialogContent, 
   DialogTitle,
 } from "@/components/ui/dialog"
-import { 
-  Activity, 
-  Settings,
-  Heart,
-  BrainCircuit,
-  Trash2,
-  AlertTriangle
-} from 'lucide-react'
 import { 
   AreaChart, 
   Area, 
@@ -89,6 +96,7 @@ const WaUsersPage = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [subscriptionExpiresAt, setSubscriptionExpiresAt] = useState<string>('')
+  const [paymentTier, setPaymentTier] = useState<'premium' | 'patron'>('premium')
 
   useEffect(() => {
     fetchUsers()
@@ -529,57 +537,230 @@ const WaUsersPage = () => {
                         </div>
                       </div>
 
-                      <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100">
-                        <h3 className="text-lg font-black text-slate-800 mb-6">Gestão de Assinatura</h3>
-                        
-                        <div className="mb-6">
-                          <Label className="text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] mb-2 block">Data de Expiração</Label>
-                          <Input 
-                            type="date" 
-                            value={subscriptionExpiresAt}
-                            onChange={(e) => setSubscriptionExpiresAt(e.target.value)}
-                            className="rounded-2xl border-slate-100 bg-slate-50/50"
-                          />
+                      <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100 space-y-8">
+                        {/* Section Header */}
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-5">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2.5 bg-blue-50/80 text-primary rounded-2xl">
+                              <Award className="h-6 w-6" />
+                            </div>
+                            <div>
+                              <h3 className="text-xl font-black text-slate-800 tracking-tight">Gestão de Assinatura</h3>
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Nível de acesso e validade</p>
+                            </div>
+                          </div>
+                          <Badge variant="outline" className={cn(
+                            "px-3 py-1 font-extrabold text-xs uppercase border-none rounded-xl shadow-sm",
+                            selectedUser.subscription_tier === 'premium' ? 'bg-amber-100 text-amber-700' : 
+                            selectedUser.subscription_tier === 'patron' ? 'bg-purple-100 text-purple-700' : 
+                            selectedUser.subscription_tier === 'unlimited' ? 'bg-blue-100 text-blue-700' : 
+                            'bg-slate-100 text-slate-500'
+                          )}>
+                            Plano Ativo: {selectedUser.subscription_tier === 'premium' ? 'Premium' : 
+                                         selectedUser.subscription_tier === 'patron' ? 'Patrono' : 
+                                         selectedUser.subscription_tier === 'unlimited' ? 'Ilimitado' : 'Grátis'}
+                          </Badge>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
-                          {[
-                            { id: 'free', label: 'Grátis', color: 'bg-slate-100 text-slate-600', price: 0 },
-                            { id: 'premium', label: 'Premium (300m)', color: 'bg-amber-100 text-amber-700', price: 14.90 },
-                            { id: 'patron', label: 'Patrono (600m)', color: 'bg-purple-100 text-purple-700', price: 29.90 },
-                            { id: 'unlimited', label: 'Ilimitado', color: 'bg-blue-100 text-blue-700', price: 0 }
-                          ].map((plan) => (
-                            <div key={plan.id} className="space-y-2">
+                        {/* Expiration Date Section */}
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-slate-400 font-black text-[10px] uppercase tracking-[0.2em]">Data de Expiração da Assinatura</Label>
+                            <span className="text-xs text-slate-400 font-bold flex items-center gap-1">
+                              <Clock className="h-3.5 w-3.5 text-slate-400" />
+                              {selectedUser.subscription_expires_at 
+                                ? `Expira em: ${new Date(selectedUser.subscription_expires_at).toLocaleDateString('pt-BR')}`
+                                : 'Sem expiração definida'}
+                            </span>
+                          </div>
+                          
+                          <div className="flex flex-col sm:flex-row gap-3">
+                            <div className="relative flex-1">
+                              <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                              <Input 
+                                type="date" 
+                                value={subscriptionExpiresAt}
+                                onChange={(e) => setSubscriptionExpiresAt(e.target.value)}
+                                className="pl-11 rounded-2xl border-slate-200 bg-slate-50/50 hover:bg-slate-50 focus-visible:ring-primary h-12 text-slate-700 font-medium transition-colors"
+                              />
+                            </div>
+                            <div className="flex gap-2">
                               <button
-                                onClick={() => handleUpdateSubscription(selectedUser.id, plan.id)}
+                                type="button"
+                                onClick={() => {
+                                  const date = new Date();
+                                  date.setDate(date.getDate() + 30);
+                                  setSubscriptionExpiresAt(date.toISOString().split('T')[0]);
+                                  toast.info('Data definida para +30 dias.');
+                                }}
+                                className="px-4 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 text-xs font-bold rounded-2xl transition-all h-12 shadow-sm"
+                              >
+                                +30 dias
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const date = new Date();
+                                  date.setDate(date.getDate() + 90);
+                                  setSubscriptionExpiresAt(date.toISOString().split('T')[0]);
+                                  toast.info('Data definida para +90 dias.');
+                                }}
+                                className="px-4 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 text-xs font-bold rounded-2xl transition-all h-12 shadow-sm"
+                              >
+                                +90 dias
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSubscriptionExpiresAt('');
+                                  toast.info('Data de expiração removida.');
+                                }}
+                                className="px-4 bg-red-50 hover:bg-red-100 active:scale-95 text-red-600 text-xs font-bold rounded-2xl transition-all h-12 shadow-sm border border-red-100/50"
+                              >
+                                Limpar
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Subscription Tier Cards Grid */}
+                        <div className="space-y-3">
+                          <Label className="text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] block">Níveis de Acesso (Clique para Alterar)</Label>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                            {[
+                              { id: 'free', label: 'Grátis', limit: 'Básico sem IA', price: 'R$ 0,00', color: 'slate', icon: Heart },
+                              { id: 'premium', label: 'Premium', limit: '300 msg/mês', price: 'R$ 14,90', color: 'amber', icon: Zap },
+                              { id: 'patron', label: 'Patrono', limit: '600 msg/mês', price: 'R$ 29,90', color: 'purple', icon: Sparkles },
+                              { id: 'unlimited', label: 'Ilimitado', limit: 'Tokens ilimitados', price: 'Cortesia', color: 'blue', icon: ShieldCheck }
+                            ].map((plan) => {
+                              const isActive = selectedUser.subscription_tier === plan.id;
+                              const PlanIcon = plan.icon;
+                              
+                              return (
+                                <button
+                                  key={plan.id}
+                                  type="button"
+                                  onClick={() => handleUpdateSubscription(selectedUser.id, plan.id)}
+                                  className={cn(
+                                    "p-5 rounded-[1.75rem] border-2 transition-all flex flex-col items-start text-left relative overflow-hidden group hover:-translate-y-1 hover:shadow-lg active:scale-95",
+                                    isActive ? {
+                                      'border-slate-500 bg-slate-50/50 ring-4 ring-slate-100': plan.color === 'slate',
+                                      'border-amber-500 bg-amber-50/40 ring-4 ring-amber-100/50': plan.color === 'amber',
+                                      'border-purple-500 bg-purple-50/40 ring-4 ring-purple-100/50': plan.color === 'purple',
+                                      'border-blue-500 bg-blue-50/40 ring-4 ring-blue-100/50': plan.color === 'blue',
+                                    } : "border-slate-100 hover:border-slate-300 bg-white"
+                                  )}
+                                >
+                                  {/* Background Glow */}
+                                  <div className={cn(
+                                    "absolute -right-6 -bottom-6 w-16 h-16 rounded-full opacity-10 blur-xl group-hover:scale-150 transition-transform duration-500",
+                                    plan.color === 'slate' && 'bg-slate-500',
+                                    plan.color === 'amber' && 'bg-amber-500',
+                                    plan.color === 'purple' && 'bg-purple-500',
+                                    plan.color === 'blue' && 'bg-blue-500'
+                                  )} />
+
+                                  <div className="flex justify-between items-center w-full mb-3">
+                                    <div className={cn(
+                                      "p-2 rounded-xl transition-colors",
+                                      isActive ? {
+                                        'bg-slate-200 text-slate-700': plan.color === 'slate',
+                                        'bg-amber-100 text-amber-600': plan.color === 'amber',
+                                        'bg-purple-100 text-purple-600': plan.color === 'purple',
+                                        'bg-blue-100 text-blue-600': plan.color === 'blue',
+                                      } : "bg-slate-50 text-slate-400 group-hover:bg-slate-100"
+                                    )}>
+                                      <PlanIcon className="h-4 w-4" />
+                                    </div>
+                                    {isActive && (
+                                      <div className={cn(
+                                        "h-5 w-5 rounded-full flex items-center justify-center text-white scale-100 animate-in zoom-in-50 duration-300",
+                                        plan.color === 'slate' && 'bg-slate-500',
+                                        plan.color === 'amber' && 'bg-amber-500',
+                                        plan.color === 'purple' && 'bg-purple-500',
+                                        plan.color === 'blue' && 'bg-blue-500'
+                                      )}>
+                                        <Check className="h-3 w-3 stroke-[3]" />
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <p className="font-extrabold text-sm text-slate-800 leading-tight mb-0.5">{plan.label}</p>
+                                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight mb-2">{plan.limit}</p>
+                                  
+                                  <p className={cn(
+                                    "text-xs font-black",
+                                    isActive ? {
+                                      'text-slate-700': plan.color === 'slate',
+                                      'text-amber-700': plan.color === 'amber',
+                                      'text-purple-700': plan.color === 'purple',
+                                      'text-blue-700': plan.color === 'blue',
+                                    } : "text-slate-500"
+                                  )}>
+                                    {plan.price}
+                                  </p>
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Record Payment (Manual Comprovação) Section */}
+                        <div className="bg-gradient-to-r from-emerald-50/50 to-teal-50/50 border border-emerald-100/50 rounded-[2rem] p-6 space-y-4 shadow-inner">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-emerald-100 text-emerald-600 rounded-xl">
+                              <CreditCard className="h-5 w-5 animate-pulse" />
+                            </div>
+                            <div>
+                              <h4 className="font-black text-sm text-emerald-900">Registrar Recebimento (Manual)</h4>
+                              <p className="text-[10px] font-bold text-emerald-600/80 uppercase tracking-wider">Lançamento direto de Pix / Dinheiro</p>
+                            </div>
+                          </div>
+                          
+                          <p className="text-xs text-emerald-800 font-semibold leading-relaxed">
+                            Selecione o plano pago adquirido pelo fiel fora da plataforma e confirme para estender sua assinatura por 30 dias automaticamente com lançamento no financeiro.
+                          </p>
+
+                          <div className="flex flex-col sm:flex-row gap-4 items-center justify-between pt-2">
+                            {/* Paid Tier Selector */}
+                            <div className="flex bg-white p-1 rounded-2xl border border-emerald-100/80 w-full sm:w-auto shadow-sm">
+                              <button
+                                type="button"
+                                onClick={() => setPaymentTier('premium')}
                                 className={cn(
-                                  "w-full p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2",
-                                  selectedUser.subscription_tier === plan.id 
-                                    ? "border-primary bg-primary/5 ring-4 ring-primary/10" 
-                                    : "border-slate-50 hover:border-slate-200 bg-slate-50/50"
+                                  "flex-1 sm:flex-none px-4 py-2 text-xs font-black rounded-xl transition-all",
+                                  paymentTier === 'premium' 
+                                    ? "bg-amber-100 text-amber-800 shadow-sm" 
+                                    : "text-slate-400 hover:text-slate-600"
                                 )}
                               >
-                                <span className={cn("px-2 py-0.5 rounded-lg text-[8px] font-black uppercase", plan.color)}>
-                                  {plan.label}
-                                </span>
-                                {selectedUser.subscription_tier === plan.id && (
-                                  <div className="h-1.5 w-1.5 rounded-full bg-primary" />
-                                )}
+                                Premium (R$ 14,90)
                               </button>
-                              {plan.price > 0 && (
-                                <button
-                                  onClick={() => handleRecordPayment(selectedUser.id, plan.id)}
-                                  className="w-full py-2 bg-green-50 text-green-600 text-[9px] font-black uppercase rounded-xl hover:bg-green-100 transition-colors border border-green-100"
-                                >
-                                  Registrar R$ {plan.price.toFixed(2)}
-                                </button>
-                              )}
+                              <button
+                                type="button"
+                                onClick={() => setPaymentTier('patron')}
+                                className={cn(
+                                  "flex-1 sm:flex-none px-4 py-2 text-xs font-black rounded-xl transition-all",
+                                  paymentTier === 'patron' 
+                                    ? "bg-purple-100 text-purple-800 shadow-sm" 
+                                    : "text-slate-400 hover:text-slate-600"
+                                )}
+                              >
+                                Patrono (R$ 29,90)
+                              </button>
                             </div>
-                          ))}
+
+                            {/* Confirm Button */}
+                            <Button
+                              type="button"
+                              onClick={() => handleRecordPayment(selectedUser.id, paymentTier)}
+                              className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-600 text-white font-black px-6 h-12 rounded-2xl shadow-lg shadow-emerald-100 hover:shadow-emerald-200 transition-all flex items-center gap-2 hover:scale-[1.02] active:scale-95 border-none"
+                            >
+                              <Coins className="h-4 w-4" />
+                              Confirmar e Registrar R$ {paymentTier === 'premium' ? '14,90' : '29,90'}
+                            </Button>
+                          </div>
                         </div>
-                        <p className="mt-4 text-[10px] text-slate-400 font-bold uppercase text-center">
-                          Clique em um plano para alterar o nível de acesso do fiel
-                        </p>
                       </div>
 
                       <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100">
