@@ -96,7 +96,7 @@ const WaUsersPage = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [subscriptionExpiresAt, setSubscriptionExpiresAt] = useState<string>('')
-  const [paymentTier, setPaymentTier] = useState<'premium' | 'patron'>('premium')
+  const [paymentTier, setPaymentTier] = useState<'basic' | 'premium'>('basic')
 
   useEffect(() => {
     fetchUsers()
@@ -211,7 +211,13 @@ const WaUsersPage = () => {
 
       if (!response.ok) throw new Error('Falha ao atualizar assinatura')
       
-      toast.success(`Assinatura atualizada para ${tier}`)
+      const friendlyTiers: Record<string, string> = {
+        free: 'Gratuito',
+        basic: 'Básico',
+        premium: 'Premium',
+        unlimited: 'Ilimitado'
+      }
+      toast.success(`Assinatura atualizada para ${friendlyTiers[tier] || tier}`)
       await fetchUsers()
       
       // Atualizar o selectedUser localmente para refletir no modal aberto
@@ -224,7 +230,7 @@ const WaUsersPage = () => {
   }
 
   const handleRecordPayment = async (userId: string, tier: string) => {
-    const amount = tier === 'premium' ? 14.90 : tier === 'patron' ? 29.90 : 0;
+    const amount = tier === 'basic' ? 14.90 : tier === 'premium' ? 29.90 : 0;
     if (amount === 0) {
        toast.info('Apenas planos pagos podem ter pagamentos registrados.');
        return;
@@ -365,14 +371,16 @@ const WaUsersPage = () => {
                           <Badge 
                             variant="outline" 
                             className={cn(
-                              "px-3 py-1 border-none",
-                              user.subscription_tier === 'premium' ? 'bg-amber-100 text-amber-700' : 
-                              user.subscription_tier === 'patron' ? 'bg-purple-100 text-purple-700' : 
+                              "px-3 py-1 border-none font-bold text-xs shadow-sm",
+                              user.subscription_tier === 'basic' ? 'bg-amber-100 text-amber-700' : 
+                              user.subscription_tier === 'premium' ? 'bg-purple-100 text-purple-700' : 
+                              user.subscription_tier === 'unlimited' ? 'bg-blue-100 text-blue-700' :
                               'bg-slate-100 text-slate-500'
                             )}
                           >
-                            {user.subscription_tier === 'premium' ? 'Premium' : 
-                             user.subscription_tier === 'patron' ? 'Patrono' : 'Grátis'}
+                            {user.subscription_tier === 'basic' ? 'Básico' : 
+                             user.subscription_tier === 'premium' ? 'Premium' : 
+                             user.subscription_tier === 'unlimited' ? 'Ilimitado' : 'Gratuito'}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -461,7 +469,7 @@ const WaUsersPage = () => {
                 {/* Quick Metrics */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-8 px-1">
                   {[
-                    { label: 'Assinatura', value: selectedUser.subscription_tier === 'premium' ? 'Premium' : selectedUser.subscription_tier === 'patron' ? 'Patrono' : selectedUser.subscription_tier === 'unlimited' ? 'Ilimitado' : 'Grátis', unit: 'nível', icon: Heart, color: selectedUser.subscription_tier === 'free' ? 'slate' : 'amber' },
+                    { label: 'Assinatura', value: selectedUser.subscription_tier === 'basic' ? 'Básico' : selectedUser.subscription_tier === 'premium' ? 'Premium' : selectedUser.subscription_tier === 'unlimited' ? 'Ilimitado' : 'Gratuito', unit: 'nível', icon: Heart, color: selectedUser.subscription_tier === 'free' ? 'slate' : 'amber' },
                     { label: 'Consumo Total', value: selectedUser.metrics.total_tokens.toLocaleString(), unit: 'tokens', icon: TrendingUp, color: 'blue' },
                     { label: 'Custo Total (IA)', value: `$${selectedUser.metrics.total_cost_usd?.toFixed(3)}`, unit: 'USD', icon: TrendingUp, color: 'green' },
                     { label: 'Total Mensagens', value: selectedUser.metrics.total_messages.toLocaleString(), unit: 'mensagens', icon: MessageSquare, color: 'amber' },
@@ -551,14 +559,14 @@ const WaUsersPage = () => {
                           </div>
                           <Badge variant="outline" className={cn(
                             "px-3 py-1 font-extrabold text-xs uppercase border-none rounded-xl shadow-sm",
-                            selectedUser.subscription_tier === 'premium' ? 'bg-amber-100 text-amber-700' : 
-                            selectedUser.subscription_tier === 'patron' ? 'bg-purple-100 text-purple-700' : 
+                            selectedUser.subscription_tier === 'basic' ? 'bg-amber-100 text-amber-700' : 
+                            selectedUser.subscription_tier === 'premium' ? 'bg-purple-100 text-purple-700' : 
                             selectedUser.subscription_tier === 'unlimited' ? 'bg-blue-100 text-blue-700' : 
                             'bg-slate-100 text-slate-500'
                           )}>
-                            Plano Ativo: {selectedUser.subscription_tier === 'premium' ? 'Premium' : 
-                                         selectedUser.subscription_tier === 'patron' ? 'Patrono' : 
-                                         selectedUser.subscription_tier === 'unlimited' ? 'Ilimitado' : 'Grátis'}
+                            Plano Ativo: {selectedUser.subscription_tier === 'basic' ? 'Básico' : 
+                                         selectedUser.subscription_tier === 'premium' ? 'Premium' : 
+                                         selectedUser.subscription_tier === 'unlimited' ? 'Ilimitado' : 'Gratuito'}
                           </Badge>
                         </div>
 
@@ -628,9 +636,9 @@ const WaUsersPage = () => {
                           <Label className="text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] block">Níveis de Acesso (Clique para Alterar)</Label>
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                             {[
-                              { id: 'free', label: 'Grátis', limit: 'Básico sem IA', price: 'R$ 0,00', color: 'slate', icon: Heart },
-                              { id: 'premium', label: 'Premium', limit: '300 msg/mês', price: 'R$ 14,90', color: 'amber', icon: Zap },
-                              { id: 'patron', label: 'Patrono', limit: '600 msg/mês', price: 'R$ 29,90', color: 'purple', icon: Sparkles },
+                              { id: 'free', label: 'Gratuito', limit: 'Básico sem IA', price: 'R$ 0,00', color: 'slate', icon: Heart },
+                              { id: 'basic', label: 'Básico', limit: '300 msg/mês', price: 'R$ 14,90', color: 'amber', icon: Zap },
+                              { id: 'premium', label: 'Premium', limit: '600 msg/mês', price: 'R$ 29,90', color: 'purple', icon: Sparkles },
                               { id: 'unlimited', label: 'Ilimitado', limit: 'Tokens ilimitados', price: 'Cortesia', color: 'blue', icon: ShieldCheck }
                             ].map((plan) => {
                               const isActive = selectedUser.subscription_tier === plan.id;
@@ -726,27 +734,27 @@ const WaUsersPage = () => {
                             <div className="flex bg-white p-1 rounded-2xl border border-emerald-100/80 w-full sm:w-auto shadow-sm">
                               <button
                                 type="button"
-                                onClick={() => setPaymentTier('premium')}
+                                onClick={() => setPaymentTier('basic')}
                                 className={cn(
                                   "flex-1 sm:flex-none px-4 py-2 text-xs font-black rounded-xl transition-all",
-                                  paymentTier === 'premium' 
+                                  paymentTier === 'basic' 
                                     ? "bg-amber-100 text-amber-800 shadow-sm" 
                                     : "text-slate-400 hover:text-slate-600"
                                 )}
                               >
-                                Premium (R$ 14,90)
+                                Básico (R$ 14,90)
                               </button>
                               <button
                                 type="button"
-                                onClick={() => setPaymentTier('patron')}
+                                onClick={() => setPaymentTier('premium')}
                                 className={cn(
                                   "flex-1 sm:flex-none px-4 py-2 text-xs font-black rounded-xl transition-all",
-                                  paymentTier === 'patron' 
+                                  paymentTier === 'premium' 
                                     ? "bg-purple-100 text-purple-800 shadow-sm" 
                                     : "text-slate-400 hover:text-slate-600"
                                 )}
                               >
-                                Patrono (R$ 29,90)
+                                Premium (R$ 29,90)
                               </button>
                             </div>
 

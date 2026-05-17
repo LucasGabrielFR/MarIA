@@ -7,9 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.9.9] - 2026-05-17
 ### Added
-- **UI de Assinatura Premium:** Redesenho completo do painel de "Gestão de Assinatura" com um grid de cards totalmente interativos para cada nível de plano (Grátis, Premium, Patrono, Ilimitado), contendo ícones exclusivos, design de bordas vibrantes com active state, e glows de fundo sutis.
+- **UI de Assinatura Premium:** Redesenho completo do painel de "Gestão de Assinatura" com um grid de cards totalmente interativos para cada nível de plano (Gratuito, Básico, Premium, Ilimitado), contendo ícones exclusivos, design de bordas vibrantes com active state, e glows de fundo sutis.
 - **Shortcuts de Expiração:** Introdução de botões de atalho rápido (+30 dias, +90 dias, Limpar) para o controle da data de expiração da assinatura, otimizando o fluxo de trabalho do administrador.
 - **Módulo de Comprovação de Pagamento:** Nova seção dedicada e isolada com fundo em degradê verde (Emerald theme), ícone animado e seletor segmentado de planos pagos para registrar com facilidade e segurança os recebimentos manuais (Pix/Dinheiro).
+
+### Changed
+- **Renomeação Estrutural de IDs de Planos:** Refatoração de todos os identificadores de planos (IDs do banco de dados e tipos do frontend/backend) para que coincidam exatamente com a nomenclatura dos novos planos (`free`, `basic`, `premium`, `unlimited`), eliminando qualquer discrepância entre IDs internos e rótulos exibidos.
+- **Migração do Banco de Dados:** Execução de migração direta no Supabase para atualizar a coluna `subscription_tier` na tabela `users` e `tier` na tabela `subscriptions` de `premium` para `basic` e de `patron` para `premium`.
 
 ## [1.9.8] - 2026-05-17
 ### Added

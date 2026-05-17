@@ -175,8 +175,8 @@ export class AiService implements OnModuleInit {
 
     // Limites por tier
     const limits = {
-      'premium': 300,
-      'patron': 600
+      'basic': 300,
+      'premium': 600
     };
 
     const monthlyLimit = limits[user.subscription_tier as keyof typeof limits] ?? 0;
@@ -187,7 +187,7 @@ export class AiService implements OnModuleInit {
     if (count >= monthlyLimit) {
       return { 
         allowed: false, 
-        reason: `Você atingiu seu limite mensal de ${monthlyLimit} mensagens no plano ${user.subscription_tier === 'premium' ? 'Premium' : 'Patrono'}. Seu apoio é fundamental para mantermos a MarIA ativa! Gostaria de fazer um upgrade ou renovar seu plano?` 
+        reason: `Você atingiu seu limite mensal de ${monthlyLimit} mensagens no plano ${user.subscription_tier === 'basic' ? 'Básico' : 'Premium'}. Seu apoio é fundamental para mantermos a MarIA ativa! Gostaria de fazer um upgrade ou renovar seu plano?` 
       };
     }
 
