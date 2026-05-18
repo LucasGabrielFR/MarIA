@@ -163,13 +163,13 @@ export class AiService implements OnModuleInit {
       }
     }
 
-    // 2. Verificar limite personalizado de consumo em reais (BRL)
+    // 2. Verificar limite personalizado de bônus em reais (BRL)
     if (user.monthly_limit_brl !== null && user.monthly_limit_brl !== undefined) {
       const brlCost = await this.calculateMonthlyBrlCost(user.id);
       if (brlCost >= Number(user.monthly_limit_brl)) {
         return {
           allowed: false,
-          reason: `Você atingiu seu limite personalizado de consumo mensal de R$ ${Number(user.monthly_limit_brl).toFixed(2)}. Entre em contato com o administrador para mais informações.`
+          reason: `Você atingiu seu limite de bônus de R$ ${Number(user.monthly_limit_brl).toFixed(2)}. Entre em contato com o administrador para mais informações.`
         };
       }
     }

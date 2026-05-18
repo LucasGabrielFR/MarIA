@@ -10,4 +10,10 @@ export class AuthController {
   async login(@Body() body: { email: string; pass: string }) {
     return this.authService.login(body.email, body.pass);
   }
+
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  async changePassword(@Body() body: { email: string; pass: string; newPass: string }) {
+    return this.authService.changePassword(body.email, body.pass, body.newPass);
+  }
 }

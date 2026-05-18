@@ -723,10 +723,10 @@ const WaUsersPage = () => {
                       <div className="bg-white rounded-2xl p-6 border border-slate-100/50 shadow-sm flex flex-col justify-between">
                         <div className="space-y-1.5 mb-4">
                           <label className="text-xs font-black text-slate-700 uppercase tracking-wider">
-                            Limite Mensal de Consumo (R$)
+                            Limite de Bônus (R$)
                           </label>
                           <p className="text-xs text-slate-400 leading-relaxed">
-                            Define o limite máximo estimado em Reais (R$) para o consumo de tokens da IA deste fiel neste mês. Se o consumo atingir o limite, a IA responderá explicando amigavelmente que o limite foi atingido.
+                            Define um limite mensal de bônus em Reais (R$) para o envio de mensagens extras fora da franquia padrão de mensagens do plano do fiel.
                           </p>
                         </div>
                         <div className="space-y-4 pt-2 border-t border-slate-50">

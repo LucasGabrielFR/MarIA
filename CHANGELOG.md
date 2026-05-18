@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.10.0] - 2026-05-18
+### Added
+- **Gestão de Administradores no Frontend:** Desenvolvimento da tela de gestão (`users.tsx`) com interface rica, permitindo que superadministradores convidem novos admins, editem dados cadastrais (nome, cargo) e forcem a alteração de senhas.
+- **Redefinição de Senha Obrigatória no Primeiro Login:** Integração do fluxo de primeiro acesso na tela de login (`login.tsx`). Caso a flag `requires_password_change` esteja ativada, a interface bloqueia a navegação e exige que o administrador defina uma nova senha forte, salvando-a de forma criptografada no Supabase.
+- **Timeline de Auditoria Interativo (Drawer):** Criação de um painel lateral deslizante premium (drawer) para visualização das atividades individuais de auditoria de cada administrador, exibindo logs estruturados (ações como logins, cadastros, alterações de planos/configurações, limpezas de cache) com formatação de data/hora e visualizador de detalhes (JSON).
+- **Controle de Acesso por Cargo (Role-based Authorization):** Bloqueio estrito no frontend contra acessos indevidos à rota `/users` por administradores não autorizados, redirecionando-os de volta ao dashboard. Exibição condicional da aba no menu lateral (`sidebar.tsx`) somente para a role `superadmin`.
+
+## [1.9.13] - 2026-05-18
+### Changed
+- **Nomenclatura do Limite de Bônus (R$):** Refatoração visual na tela de Gestão de Fiéis (`wa-users.tsx`) alterando o rótulo de `"Limite Mensal de Consumo (R$)"` para `"Limite de Bônus (R$)"`. A descrição explicativa foi reescrita para deixar claro que se trata de uma franquia extra de tokens gerativos em reais (R$) para uso fora da franquia padrão de mensagens do plano do fiel.
+- **Mensagem Educada no Backend:** Ajustada a string de feedback do motor cognitivo no `ai.service.ts` do NestJS quando o limite em BRL é atingido, substituindo o termo de "consumo mensal" por "limite de bônus", mantendo a comunicação perfeitamente consistente com a área administrativa.
+
 ## [1.9.12] - 2026-05-18
 ### Added
 - **Filtro de Período Dinâmico no Financeiro:** Implementação do filtro de data dinâmico e interativo no painel do Financeiro. Agora o botão "Filtrar Período" abre um Popover premium que permite selecionar presets rápidos ("Mês Atual", "Última Semana", "Últimos 15 Dias", "Últimos 30 Dias", "Últimos 3 Meses", "Últimos 6 Meses", "Último Ano", "Todo o Período") ou especificar um intervalo de datas personalizado por meio de seletores de calendário.

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { ConfigService } from '@nestjs/config';
 
@@ -8,6 +8,37 @@ export class AdminService {
     private readonly supabaseService: SupabaseService,
     private readonly configService: ConfigService,
   ) { }
+
+  async getRequesterAdmin(adminId: string) {
+    if (!adminId) {
+      throw new UnauthorizedException('Identificação do administrador ausente nas requisições.');
+    }
+    const supabase = this.supabaseService.getClient();
+    const { data, error } = await supabase
+      .from('admins')
+      .select('id, name, email, role')
+      .eq('id', adminId)
+      .single();
+    if (error || !data) {
+      throw new UnauthorizedException('Administrador não autenticado ou inexistente.');
+    }
+    return data;
+  }
+
+  async logActivity(adminId: string, email: string, name: string, action: string, details: any = {}) {
+    const supabase = this.supabaseService.getClient();
+    const { error } = await supabase.from('activity_logs').insert({
+      admin_id: adminId,
+      admin_email: email,
+      admin_name: name,
+      action,
+      details,
+      created_at: new Date().toISOString(),
+    });
+    if (error) {
+      console.error('Erro ao salvar log de atividade:', error);
+    }
+  }
 
   async findAll() {
     const supabase = this.supabaseService.getClient();
@@ -354,7 +385,8 @@ export class AdminService {
     return data;
   }
 
-  async updateSystemSetting(key: string, value: string) {
+  async updateSystemSetting(adminId: string, key: string, value: string) {
+    const requester = await this.getRequesterAdmin(adminId);
     const supabase = this.supabaseService.getClient();
     const { data, error } = await supabase
       .from('system_settings')
@@ -364,10 +396,19 @@ export class AdminService {
       .single();
 
     if (error) throw error;
+
+    await this.logActivity(
+      requester.id,
+      requester.email,
+      requester.name,
+      'update_setting',
+      { key, value, description: `Alterou a configuração do sistema "${key}" para "${value}".` }
+    );
+
     return data;
   }
 
-  async syncExchangeRate() {
+  async syncExchangeRate(adminId?: string) {
     try {
       const token = this.configService.get<string>('AWESOME_API_TOKEN');
       const url = `https://economia.awesomeapi.com.br/json/last/USD-BRL${token ? `?token=${token}` : ''}`;
@@ -387,10 +428,30 @@ export class AdminService {
       }
 
       const bid = data.USDBRL.bid;
-      await this.updateSystemSetting('brl_rate', bid);
+      const supabase = this.supabaseService.getClient();
+      
+      const { data: updateData, error } = await supabase
+        .from('system_settings')
+        .update({ value: bid, updated_at: new Date() })
+        .eq('key', 'brl_rate')
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      if (adminId) {
+        const requester = await this.getRequesterAdmin(adminId);
+        await this.logActivity(
+          requester.id,
+          requester.email,
+          requester.name,
+          'sync_exchange',
+          { rate: bid, description: `Sincronizou a taxa de câmbio USD-BRL manualmente para R$ ${bid}.` }
+        );
+      }
+
       return { success: true, rate: bid };
     } catch (error) {
-      console.error('Erro ao sincronizar taxa de câmbio:', error.message);
       console.error('Erro ao sincronizar taxa de câmbio:', error.message);
       return { success: false, error: error.message };
     }
@@ -430,7 +491,8 @@ export class AdminService {
     }
   }
 
-  async clearSemanticCache() {
+  async clearSemanticCache(adminId: string) {
+    const requester = await this.getRequesterAdmin(adminId);
     const supabase = this.supabaseService.getClient();
     const { error } = await supabase
       .from('magisterium_cache')
@@ -438,10 +500,20 @@ export class AdminService {
       .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
 
     if (error) throw error;
+
+    await this.logActivity(
+      requester.id,
+      requester.email,
+      requester.name,
+      'clear_cache',
+      { description: 'Limpou o cache semântico de respostas de IA (Magistério).' }
+    );
+
     return { success: true };
   }
 
-  async toggleMaintenanceMode() {
+  async toggleMaintenanceMode(adminId: string) {
+    const requester = await this.getRequesterAdmin(adminId);
     const supabase = this.supabaseService.getClient();
 
     // Get current status
@@ -463,11 +535,31 @@ export class AdminService {
       }, { onConflict: 'key' });
 
     if (error) throw error;
+
+    await this.logActivity(
+      requester.id,
+      requester.email,
+      requester.name,
+      'toggle_maintenance',
+      { 
+        enabled: newValue, 
+        description: `${newValue ? 'Ativou' : 'Desativou'} o Modo de Manutenção do sistema.` 
+      }
+    );
+
     return { success: true, enabled: newValue };
   }
 
-  async clearUserData(userId: string) {
+  async clearUserData(adminId: string, userId: string) {
+    const requester = await this.getRequesterAdmin(adminId);
     const supabase = this.supabaseService.getClient();
+
+    // Busca usuário alvo
+    const { data: targetUser } = await supabase
+      .from('users')
+      .select('phone, name')
+      .eq('id', userId)
+      .single();
 
     // 1. Deletar mensagens (Histórico)
     const { error: msgError } = await supabase
@@ -485,7 +577,7 @@ export class AdminService {
 
     if (ctxError) throw ctxError;
 
-    // 3. Resetar status do usuário para 'disabled' (para identificar exclusão e metrificar)
+    // 3. Resetar status do usuário para 'disabled'
     const { error: userError } = await supabase
       .from('users')
       .update({ 
@@ -496,11 +588,32 @@ export class AdminService {
 
     if (userError) throw userError;
 
+    await this.logActivity(
+      requester.id,
+      requester.email,
+      requester.name,
+      'clear_user_data',
+      { 
+        target_user_id: userId,
+        target_user_name: targetUser?.name || 'Desconhecido',
+        target_user_phone: targetUser?.phone || 'Desconhecido',
+        description: `Excluiu permanentemente o histórico e análise pastoral do fiel ${targetUser?.name || 'Desconhecido'} (${targetUser?.phone || 'Desconhecido'}).` 
+      }
+    );
+
     return { success: true };
   }
 
-  async updateUserSubscription(userId: string, tier: string, expiresAt: string | null) {
+  async updateUserSubscription(adminId: string, userId: string, tier: string, expiresAt: string | null) {
+    const requester = await this.getRequesterAdmin(adminId);
     const supabase = this.supabaseService.getClient();
+
+    // Busca usuário alvo
+    const { data: targetUser } = await supabase
+      .from('users')
+      .select('name, phone, subscription_tier')
+      .eq('id', userId)
+      .single();
 
     const updateData: any = {
       subscription_tier: tier,
@@ -516,11 +629,35 @@ export class AdminService {
       .single();
 
     if (error) throw error;
+
+    await this.logActivity(
+      requester.id,
+      requester.email,
+      requester.name,
+      'update_subscription',
+      { 
+        target_user_id: userId,
+        target_user_name: targetUser?.name || 'Desconhecido',
+        old_tier: targetUser?.subscription_tier,
+        new_tier: tier,
+        expires_at: expiresAt,
+        description: `Alterou a assinatura do fiel ${targetUser?.name || 'Desconhecido'} para o plano ${tier.toUpperCase()}${expiresAt ? ` (Expira em: ${new Date(expiresAt).toLocaleDateString('pt-BR')})` : ''}.` 
+      }
+    );
+
     return { success: true, data };
   }
 
-  async updateUserSettings(userId: string, isPaused: boolean, monthlyLimitBrl: number | null) {
+  async updateUserSettings(adminId: string, userId: string, isPaused: boolean, monthlyLimitBrl: number | null) {
+    const requester = await this.getRequesterAdmin(adminId);
     const supabase = this.supabaseService.getClient();
+
+    // Busca usuário alvo
+    const { data: targetUser } = await supabase
+      .from('users')
+      .select('name, phone, is_paused, monthly_limit_brl')
+      .eq('id', userId)
+      .single();
 
     const updateData: any = {
       is_paused: isPaused,
@@ -536,6 +673,214 @@ export class AdminService {
       .single();
 
     if (error) throw error;
+
+    await this.logActivity(
+      requester.id,
+      requester.email,
+      requester.name,
+      'update_user_settings',
+      { 
+        target_user_id: userId,
+        target_user_name: targetUser?.name || 'Desconhecido',
+        is_paused: isPaused,
+        monthly_limit_brl: monthlyLimitBrl,
+        description: `Atualizou configurações do fiel ${targetUser?.name || 'Desconhecido'}: ${isPaused ? 'Pausou o bot' : 'Ativou o bot'}, Limite de Bônus: ${monthlyLimitBrl !== null ? `R$ ${monthlyLimitBrl}` : 'Sem limite'}.` 
+      }
+    );
+
     return { success: true, data };
+  }
+
+  async createAdmin(requesterId: string, email: string, name: string, role: string) {
+    const requester = await this.getRequesterAdmin(requesterId);
+    if (requester.role !== 'superadmin') {
+      throw new UnauthorizedException('Apenas superadministradores podem convidar novos administradores.');
+    }
+
+    const supabase = this.supabaseService.getClient();
+
+    // 1. Cria usuário no Supabase Auth
+    const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+      email,
+      password: 'MarIA123',
+      email_confirm: true,
+    });
+
+    if (authError) {
+      throw new BadRequestException(`Erro ao criar usuário no Supabase Auth: ${authError.message}`);
+    }
+
+    // 2. Insere na tabela public.admins
+    const { error: dbError } = await supabase.from('admins').insert({
+      id: authUser.user.id,
+      email,
+      name,
+      role,
+      requires_password_change: true,
+    });
+
+    if (dbError) {
+      // Rollback se falhar
+      await supabase.auth.admin.deleteUser(authUser.user.id);
+      throw new BadRequestException(`Erro ao salvar perfil do administrador no banco: ${dbError.message}`);
+    }
+
+    // 3. Grava log de atividade
+    await this.logActivity(
+      requester.id,
+      requester.email,
+      requester.name,
+      'create_admin',
+      {
+        target_email: email,
+        target_name: name,
+        target_role: role,
+        description: `Convidou o administrador ${name} (${email}) com o cargo ${role}.`
+      }
+    );
+
+    return { success: true, user: { id: authUser.user.id, email, name, role } };
+  }
+
+  async updateAdmin(requesterId: string, targetId: string, name: string, role: string, password?: string) {
+    const requester = await this.getRequesterAdmin(requesterId);
+    if (requester.role !== 'superadmin') {
+      throw new UnauthorizedException('Apenas superadministradores podem editar administradores.');
+    }
+
+    const supabase = this.supabaseService.getClient();
+
+    // 1. Busca admin alvo
+    const { data: targetAdmin, error: targetError } = await supabase
+      .from('admins')
+      .select('email, name, role')
+      .eq('id', targetId)
+      .single();
+
+    if (targetError || !targetAdmin) {
+      throw new BadRequestException('Administrador alvo não encontrado.');
+    }
+
+    // 2. Atualiza no Supabase Auth (se senha informada)
+    if (password && password.trim() !== '') {
+      const { error: authError } = await supabase.auth.admin.updateUserById(targetId, {
+        password: password,
+      });
+      if (authError) {
+        throw new BadRequestException(`Erro ao redefinir senha no Supabase Auth: ${authError.message}`);
+      }
+    }
+
+    // 3. Atualiza na tabela public.admins
+    const { error: dbError } = await supabase
+      .from('admins')
+      .update({
+        name,
+        role,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', targetId);
+
+    if (dbError) {
+      throw new BadRequestException(`Erro ao atualizar perfil do administrador: ${dbError.message}`);
+    }
+
+    // 4. Grava log de auditoria
+    const changes: any = {
+      target_email: targetAdmin.email,
+      target_name: name,
+      target_role: role,
+      description: `Editou o administrador ${name} (${targetAdmin.email}).`
+    };
+    if (password) {
+      changes.password_changed = true;
+      changes.description += ' (Senha alterada)';
+    }
+
+    await this.logActivity(
+      requester.id,
+      requester.email,
+      requester.name,
+      'edit_admin',
+      changes
+    );
+
+    return { success: true };
+  }
+
+  async deleteAdmin(requesterId: string, targetId: string) {
+    const requester = await this.getRequesterAdmin(requesterId);
+    if (requester.role !== 'superadmin') {
+      throw new UnauthorizedException('Apenas superadministradores podem excluir administradores.');
+    }
+
+    if (requester.id === targetId) {
+      throw new BadRequestException('Você não pode excluir o seu próprio usuário administrador.');
+    }
+
+    const supabase = this.supabaseService.getClient();
+
+    // 1. Busca admin alvo para logs
+    const { data: targetAdmin, error: targetError } = await supabase
+      .from('admins')
+      .select('email, name')
+      .eq('id', targetId)
+      .single();
+
+    if (targetError || !targetAdmin) {
+      throw new BadRequestException('Administrador alvo não encontrado.');
+    }
+
+    // 2. Exclui no Supabase Auth
+    const { error: authError } = await supabase.auth.admin.deleteUser(targetId);
+    if (authError) {
+      throw new BadRequestException(`Erro ao remover do Supabase Auth: ${authError.message}`);
+    }
+
+    // 3. Exclui da tabela public.admins
+    const { error: dbError } = await supabase
+      .from('admins')
+      .delete()
+      .eq('id', targetId);
+
+    if (dbError) {
+      throw new BadRequestException(`Erro ao excluir perfil do banco de dados: ${dbError.message}`);
+    }
+
+    // 4. Grava log
+    await this.logActivity(
+      requester.id,
+      requester.email,
+      requester.name,
+      'delete_admin',
+      {
+        target_email: targetAdmin.email,
+        target_name: targetAdmin.name,
+        description: `Excluiu permanentemente o acesso do administrador ${targetAdmin.name} (${targetAdmin.email}).`
+      }
+    );
+
+    return { success: true };
+  }
+
+  async getAdminActivities(requesterId: string, targetId?: string) {
+    const requester = await this.getRequesterAdmin(requesterId);
+    if (requester.role !== 'superadmin') {
+      throw new UnauthorizedException('Apenas superadministradores podem visualizar logs de auditoria.');
+    }
+
+    const supabase = this.supabaseService.getClient();
+    let query = supabase
+      .from('activity_logs')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (targetId) {
+      query = query.eq('admin_id', targetId);
+    }
+
+    const { data, error } = await query.limit(200);
+    if (error) throw error;
+    return data;
   }
 }

@@ -71,6 +71,10 @@ export function Sidebar() {
     localStorage.removeItem('maria_user');
   };
 
+  const userStr = localStorage.getItem('maria_user');
+  const user = userStr ? JSON.parse(userStr) : null;
+  const isSuperAdmin = user?.role === 'superadmin';
+
   return (
     <SidebarContainer>
       <LogoSection>
@@ -91,10 +95,12 @@ export function Sidebar() {
           <DollarSign size={20} />
           <span className="font-medium">Financeiro</span>
         </NavItemLink>
-        <NavItemLink to="/users" $active={isActive('/users')}>
-          <Users size={20} />
-          <span className="font-medium">Administradores</span>
-        </NavItemLink>
+        {isSuperAdmin && (
+          <NavItemLink to="/users" $active={isActive('/users')}>
+            <Users size={20} />
+            <span className="font-medium">Administradores</span>
+          </NavItemLink>
+        )}
         <NavItemLink to="/logs" $active={isActive('/logs')}>
           <Database size={20} />
           <span className="font-medium">Dados e Logs</span>

@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, Patch, Body, Post } from '@nestjs/common';
+import { Controller, Get, Param, Query, Patch, Body, Post, Headers, Delete } from '@nestjs/common';
 import { AdminService } from './admin.service';
 
 @Controller('admin')
@@ -46,13 +46,17 @@ export class AdminController {
   }
 
   @Patch('settings/:key')
-  async updateSystemSetting(@Param('key') key: string, @Body('value') value: string) {
-    return this.adminService.updateSystemSetting(key, value);
+  async updateSystemSetting(
+    @Param('key') key: string, 
+    @Body('value') value: string,
+    @Headers('x-admin-id') adminId: string
+  ) {
+    return this.adminService.updateSystemSetting(adminId, key, value);
   }
 
   @Post('settings/sync-exchange')
-  async syncExchange() {
-    return this.adminService.syncExchangeRate();
+  async syncExchange(@Headers('x-admin-id') adminId: string) {
+    return this.adminService.syncExchangeRate(adminId);
   }
 
   @Get('ai-models')
@@ -61,35 +65,74 @@ export class AdminController {
   }
 
   @Post('settings/clear-cache')
-  async clearCache() {
-    return this.adminService.clearSemanticCache();
+  async clearCache(@Headers('x-admin-id') adminId: string) {
+    return this.adminService.clearSemanticCache(adminId);
   }
 
   @Post('settings/toggle-maintenance')
-  async toggleMaintenance() {
-    return this.adminService.toggleMaintenanceMode();
+  async toggleMaintenance(@Headers('x-admin-id') adminId: string) {
+    return this.adminService.toggleMaintenanceMode(adminId);
   }
 
   @Post('wa-users/:id/clear-data')
-  async clearUserData(@Param('id') id: string) {
-    return this.adminService.clearUserData(id);
+  async clearUserData(
+    @Param('id') id: string,
+    @Headers('x-admin-id') adminId: string
+  ) {
+    return this.adminService.clearUserData(adminId, id);
   }
 
   @Post('wa-users/:id/subscription')
   async updateSubscription(
     @Param('id') id: string,
     @Body('tier') tier: string,
-    @Body('expiresAt') expiresAt: string | null
+    @Body('expiresAt') expiresAt: string | null,
+    @Headers('x-admin-id') adminId: string
   ) {
-    return this.adminService.updateUserSubscription(id, tier, expiresAt);
+    return this.adminService.updateUserSubscription(adminId, id, tier, expiresAt);
   }
 
   @Post('wa-users/:id/settings')
   async updateSettings(
     @Param('id') id: string,
     @Body('isPaused') isPaused: boolean,
-    @Body('monthlyLimitBrl') monthlyLimitBrl: number | null
+    @Body('monthlyLimitBrl') monthlyLimitBrl: number | null,
+    @Headers('x-admin-id') adminId: string
   ) {
-    return this.adminService.updateUserSettings(id, isPaused, monthlyLimitBrl);
+    return this.adminService.updateUserSettings(adminId, id, isPaused, monthlyLimitBrl);
+  }
+
+  // Admins CRUD & Activity logs
+  @Post('admins')
+  async createAdmin(
+    @Headers('x-admin-id') adminId: string,
+    @Body() body: { email: string; name: string; role: string }
+  ) {
+    return this.adminService.createAdmin(adminId, body.email, body.name, body.role);
+  }
+
+  @Patch('admins/:id')
+  async updateAdmin(
+    @Headers('x-admin-id') adminId: string,
+    @Param('id') id: string,
+    @Body() body: { name: string; role: string; password?: string }
+  ) {
+    return this.adminService.updateAdmin(adminId, id, body.name, body.role, body.password);
+  }
+
+  @Delete('admins/:id')
+  async deleteAdmin(
+    @Headers('x-admin-id') adminId: string,
+    @Param('id') id: string
+  ) {
+    return this.adminService.deleteAdmin(adminId, id);
+  }
+
+  @Get('activities')
+  async getAdminActivities(
+    @Headers('x-admin-id') adminId: string,
+    @Query('targetId') targetId?: string
+  ) {
+    return this.adminService.getAdminActivities(adminId, targetId);
   }
 }

@@ -82,6 +82,9 @@ const FormSection = styled.div`
 export default function LoginPage() {
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
+  const [showChangePassword, setShowChangePassword] = React.useState(false);
+  const [newPassword, setNewPassword] = React.useState('');
+  const [confirmPassword, setConfirmPassword] = React.useState('');
   const [isLoading, setIsLoading] = React.useState(false);
   const navigate = useNavigate();
 
@@ -100,7 +103,13 @@ export default function LoginPage() {
         body: JSON.stringify({ email, pass: password }),
       });
 
-      toast.success(`Bem-vindo, ${data.user.email}!`);
+      if (data.user.requires_password_change) {
+        toast.info('Primeiro login detectado! Por favor, altere sua senha.');
+        setShowChangePassword(true);
+        return;
+      }
+
+      toast.success(`Bem-vindo, ${data.user.name || data.user.email}!`);
       
       // Armazena a sessão
       localStorage.setItem('maria_session', JSON.stringify(data.session));
@@ -109,6 +118,45 @@ export default function LoginPage() {
       navigate('/dashboard');
     } catch (error: any) {
       toast.error(error.message || 'Erro ao realizar login');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!newPassword || !confirmPassword) {
+      toast.error('Preencha todos os campos de senha.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error('As senhas digitadas não coincidem.');
+      return;
+    }
+
+    if (newPassword === 'MarIA123') {
+      toast.error('Por segurança, escolha uma senha diferente da padrão.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const data = await apiRequest('/auth/change-password', {
+        method: 'POST',
+        body: JSON.stringify({ email, pass: password, newPass: newPassword }),
+      });
+
+      toast.success('Senha atualizada com sucesso! Bem-vindo.');
+
+      // Armazena a sessão
+      localStorage.setItem('maria_session', JSON.stringify(data.session));
+      localStorage.setItem('maria_user', JSON.stringify(data.user));
+
+      navigate('/dashboard');
+    } catch (error: any) {
+      toast.error(error.message || 'Erro ao redefinir a senha');
     } finally {
       setIsLoading(false);
     }
@@ -135,48 +183,99 @@ export default function LoginPage() {
                 <LucideShieldCheck className="text-white h-8 w-8" />
               </div>
             </div>
-            <h2 className="text-4xl font-extrabold text-slate-900 tracking-tight mb-2">Painel de Acesso</h2>
-            <p className="text-slate-500 font-medium">Insira suas credenciais para gerenciar a MarIA.</p>
+            <h2 className="text-4xl font-extrabold text-slate-900 tracking-tight mb-2">
+              {showChangePassword ? 'Nova Senha' : 'Painel de Acesso'}
+            </h2>
+            <p className="text-slate-500 font-medium">
+              {showChangePassword 
+                ? 'Sua conta requer a alteração da senha padrão para continuar.' 
+                : 'Insira suas credenciais para gerenciar a MarIA.'}
+            </p>
           </div>
 
           <Card className="p-8 border-none shadow-2xl shadow-slate-200 rounded-[2.5rem] bg-white">
-            <form className="space-y-6" onSubmit={handleLogin}>
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-slate-700 font-bold ml-1">E-mail</Label>
-                <Input 
-                  id="email" 
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="seu@email.com" 
-                  className="h-14 rounded-2xl border-slate-100 bg-slate-50 focus:bg-white transition-all text-lg"
-                />
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between items-center ml-1">
-                  <Label htmlFor="password" title="password" className="text-slate-700 font-bold">Senha</Label>
-                  <a href="#" className="text-sm font-bold text-primary hover:underline">Esqueceu?</a>
+            {!showChangePassword ? (
+              <form className="space-y-6" onSubmit={handleLogin}>
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-slate-700 font-bold ml-1">E-mail</Label>
+                  <Input 
+                    id="email" 
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="seu@email.com" 
+                    className="h-14 rounded-2xl border-slate-100 bg-slate-50 focus:bg-white transition-all text-lg"
+                  />
                 </div>
-                <Input 
-                  id="password" 
-                  type="password" 
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••" 
-                  className="h-14 rounded-2xl border-slate-100 bg-slate-50 focus:bg-white transition-all text-lg"
-                />
-              </div>
-              
-              <div className="pt-2">
-                <Button 
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full h-14 bg-primary hover:bg-primary/90 text-white rounded-2xl text-lg font-bold shadow-xl shadow-blue-100 hover:shadow-2xl hover:scale-[1.01] active:scale-[0.99] transition-all duration-300"
-                >
-                  {isLoading ? 'Autenticando...' : 'Entrar no Sistema'}
-                </Button>
-              </div>
-            </form>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center ml-1">
+                    <Label htmlFor="password" title="password" className="text-slate-700 font-bold">Senha</Label>
+                    <a href="#" className="text-sm font-bold text-primary hover:underline">Esqueceu?</a>
+                  </div>
+                  <Input 
+                    id="password" 
+                    type="password" 
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••" 
+                    className="h-14 rounded-2xl border-slate-100 bg-slate-50 focus:bg-white transition-all text-lg"
+                  />
+                </div>
+                
+                <div className="pt-2">
+                  <Button 
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full h-14 bg-primary hover:bg-primary/90 text-white rounded-2xl text-lg font-bold shadow-xl shadow-blue-100 hover:shadow-2xl hover:scale-[1.01] active:scale-[0.99] transition-all duration-300"
+                  >
+                    {isLoading ? 'Autenticando...' : 'Entrar no Sistema'}
+                  </Button>
+                </div>
+              </form>
+            ) : (
+              <form className="space-y-6" onSubmit={handleChangePassword}>
+                <div className="space-y-2">
+                  <Label htmlFor="newPassword" className="text-slate-700 font-bold ml-1">Nova Senha</Label>
+                  <Input 
+                    id="newPassword" 
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Digite sua nova senha" 
+                    className="h-14 rounded-2xl border-slate-100 bg-slate-50 focus:bg-white transition-all text-lg"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword" className="text-slate-700 font-bold ml-1">Confirmar Nova Senha</Label>
+                  <Input 
+                    id="confirmPassword" 
+                    type="password" 
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirme sua nova senha" 
+                    className="h-14 rounded-2xl border-slate-100 bg-slate-50 focus:bg-white transition-all text-lg"
+                  />
+                </div>
+                
+                <div className="pt-2 flex gap-4">
+                  <Button 
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowChangePassword(false)}
+                    className="flex-1 h-14 rounded-2xl text-lg font-bold transition-all duration-300"
+                  >
+                    Voltar
+                  </Button>
+                  <Button 
+                    type="submit"
+                    disabled={isLoading}
+                    className="flex-[2] h-14 bg-primary hover:bg-primary/90 text-white rounded-2xl text-lg font-bold shadow-xl shadow-blue-100 hover:shadow-2xl hover:scale-[1.01] active:scale-[0.99] transition-all duration-300"
+                  >
+                    {isLoading ? 'Redefinindo...' : 'Salvar e Entrar'}
+                  </Button>
+                </div>
+              </form>
+            )}
           </Card>
         </div>
       </FormSection>

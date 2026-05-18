@@ -26,10 +26,12 @@
   - **Cancelamento e Exclusão Segura**: Operações destrutivas no financeiro com validação de perfil de `superadmin` no banco de dados e modais de confirmação dinâmicos.
   - **Controle de Quotas Inteligente**: Diferenciação automática entre mensagens gerativas (LLM) e conteúdos utilitários (Cache), garantindo que consultas à Liturgia ou Santo do Dia não consumam a franquia do fiel.
   - **Pausa Pastoral (Silenciamento do Bot)**: Permite pausar individualmente o envio de respostas automáticas da IA para um fiel específico através do dashboard, mantendo o recebimento de mensagens e o histórico íntegros.
-  - **Limite de Consumo Personalizado (BRL)**: Define um limite mensal máximo estimado em Reais (R$) para o custo de tokens consumidos por fiel, com bloqueio automático inteligente de novas respostas e aviso amigável quando atingido.
+  - **Limite de Bônus (R$)**: Define um limite mensal de bônus em Reais (R$) para o consumo de mensagens extras fora da franquia padrão de mensagens do plano do fiel, com bloqueio automático inteligente e aviso amigável quando atingido.
   - **Recuperação e Métricas**: Usuários com dados excluídos são mantidos como `disabled` para métricas; ao enviar nova mensagem, a triagem é reiniciada automaticamente.
   - **Arquitetura Plugável**: Estrutura preparada para integração futura com gateways (Stripe, Mercado Pago).
 - **Parametrização IA Pro Max**: Interface administrativa totalmente redesenhada com navegação lateral, busca global e labels educativas ("Onde Funciona" e "Impacto") para cada prompt do sistema.
+- **Gestão de Administradores e Controle de Acesso (RBAC)**: Tela de gerenciamento dedicada permitindo que superadministradores convidem administradores (com senha padrão `MarIA123` e primeiro login com alteração de senha obrigatória), redefinam senhas a quente, alterem cargos e excluam contas de acesso.
+- **Auditoria Operacional Completa (Timeline)**: Registro detalhado em tempo real de todas as ações administrativas críticas na tabela `activity_logs`. Ações como logins, alterações de planos/bônus de fiéis, edições de prompts e resets de cache são exibidos individualmente em uma timeline de auditoria elegante e interativa (Drawer).
 - **Dashboard Admin:** Painel Vite + React para parametrização de prompts, gestão de fiéis, controle financeiro e curadoria de conteúdos.
 
 ## 🛠 Arquitetura
