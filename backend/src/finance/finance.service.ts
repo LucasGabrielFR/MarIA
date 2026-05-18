@@ -7,26 +7,78 @@ export class FinanceService {
 
   constructor(private readonly supabaseService: SupabaseService) {}
 
-  async getFinanceSummary() {
-    const { data, error } = await this.supabaseService.getClient()
-      .from('finance_summary')
-      .select('*')
-      .single();
+  async getFinanceSummary(startDate?: string, endDate?: string) {
+    const client = this.supabaseService.getClient();
 
-    if (error) {
-      this.logger.error(`Erro ao buscar sumário financeiro: ${error.message}`);
-      return { total_revenue: 0, total_cost: 0, net_profit: 0, margin_percentage: 0 };
+    if (!startDate && !endDate) {
+      const { data, error } = await client
+        .from('finance_summary')
+        .select('*')
+        .single();
+
+      if (error) {
+        this.logger.error(`Erro ao buscar sumário financeiro: ${error.message}`);
+        return { total_revenue: 0, total_cost: 0, net_profit: 0, margin_percentage: 0 };
+      }
+
+      return data;
     }
 
-    return data;
+    // Agregação dinâmica sob demanda para períodos selecionados
+    let querySub = client
+      .from('subscriptions')
+      .select('amount')
+      .eq('status', 'paid');
+
+    let queryLogs = client
+      .from('usage_logs')
+      .select('cost');
+
+    if (startDate) {
+      querySub = querySub.gte('created_at', startDate);
+      queryLogs = queryLogs.gte('created_at', startDate);
+    }
+    if (endDate) {
+      querySub = querySub.lte('created_at', endDate);
+      queryLogs = queryLogs.lte('created_at', endDate);
+    }
+
+    const [subRes, logsRes] = await Promise.all([querySub, queryLogs]);
+
+    if (subRes.error) {
+      this.logger.error(`Erro ao agregar faturamento no período: ${subRes.error.message}`);
+    }
+    if (logsRes.error) {
+      this.logger.error(`Erro ao agregar custos de IA no período: ${logsRes.error.message}`);
+    }
+
+    const total_revenue = (subRes.data || []).reduce((acc, sub) => acc + Number(sub.amount), 0);
+    const total_cost = (logsRes.data || []).reduce((acc, log) => acc + Number(log.cost), 0);
+    const net_profit = total_revenue - total_cost;
+    const margin_percentage = total_revenue > 0 ? (net_profit / total_revenue) * 100 : 0;
+
+    return {
+      total_revenue,
+      total_cost,
+      net_profit,
+      margin_percentage,
+    };
   }
 
-  async getSubscriptions(limit = 20, offset = 0) {
-    const { data, error, count } = await this.supabaseService.getClient()
+  async getSubscriptions(limit = 20, offset = 0, startDate?: string, endDate?: string) {
+    let query = this.supabaseService.getClient()
       .from('subscriptions')
       .select('*, users(name, phone)', { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+      .order('created_at', { ascending: false });
+
+    if (startDate) {
+      query = query.gte('created_at', startDate);
+    }
+    if (endDate) {
+      query = query.lte('created_at', endDate);
+    }
+
+    const { data, error, count } = await query.range(offset, offset + limit - 1);
 
     if (error) {
       this.logger.error(`Erro ao buscar assinaturas: ${error.message}`);

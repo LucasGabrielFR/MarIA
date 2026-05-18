@@ -27,8 +27,95 @@ export default function FinancePage() {
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
+  // Estados para Filtro de Período
+  const [activeFilter, setActiveFilter] = useState<'mes_atual' | 'ultima_semana' | '15_dias' | '30_dias' | '3_meses' | '6_meses' | 'ultimo_ano' | 'todo_periodo' | 'custom'>('mes_atual');
+  const [activeFilterLabel, setActiveFilterLabel] = useState('Mês Atual');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
+
+  // Datas temporárias para o formulário customizado
+  const [tempStart, setTempStart] = useState<string>('');
+  const [tempEnd, setTempEnd] = useState<string>('');
+
+  const computeDateRange = (type: string) => {
+    const today = new Date();
+    const end = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+    let start = new Date();
+
+    switch (type) {
+      case 'mes_atual':
+        start = new Date(today.getFullYear(), today.getMonth(), 1, 0, 0, 0, 0);
+        break;
+      case 'ultima_semana':
+        start = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+        start.setHours(0, 0, 0, 0);
+        break;
+      case '15_dias':
+        start = new Date(today.getTime() - 15 * 24 * 60 * 60 * 1000);
+        start.setHours(0, 0, 0, 0);
+        break;
+      case '30_dias':
+        start = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+        start.setHours(0, 0, 0, 0);
+        break;
+      case '3_meses':
+        start = new Date(today.getFullYear(), today.getMonth() - 3, today.getDate(), 0, 0, 0, 0);
+        break;
+      case '6_meses':
+        start = new Date(today.getFullYear(), today.getMonth() - 6, today.getDate(), 0, 0, 0, 0);
+        break;
+      case 'ultimo_ano':
+        start = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate(), 0, 0, 0, 0);
+        break;
+      case 'todo_periodo':
+        return { start: '', end: '' };
+      default:
+        return { start: '', end: '' };
+    }
+
+    return {
+      start: start.toISOString(),
+      end: end.toISOString()
+    };
+  };
+
+  const fetchFinanceData = async () => {
+    setLoading(true);
+    try {
+      let summaryUrl = `${API_URL}/admin/finance/summary`;
+      let subsUrl = `${API_URL}/admin/finance/subscriptions?limit=20`;
+
+      const params = [];
+      if (startDate) params.push(`startDate=${encodeURIComponent(startDate)}`);
+      if (endDate) params.push(`endDate=${encodeURIComponent(endDate)}`);
+
+      if (params.length > 0) {
+        const queryStr = params.join('&');
+        summaryUrl += `?${queryStr}`;
+        subsUrl += `&${queryStr}`;
+      }
+
+      const [sumRes, subRes] = await Promise.all([
+        fetch(summaryUrl),
+        fetch(subsUrl)
+      ]);
+      
+      if (sumRes.ok) setSummary(await sumRes.json());
+      if (subRes.ok) {
+        const subData = await subRes.json();
+        setSubscriptions(subData.data || []);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar dados financeiros:', error);
+      toast.error('Erro ao carregar dados financeiros');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Inicializa dados e usuário
   useEffect(() => {
-    // Carrega o usuário atual do localStorage
     try {
       const storedUser = localStorage.getItem('maria_user');
       if (storedUser) {
@@ -38,26 +125,22 @@ export default function FinancePage() {
       console.error('Erro ao ler usuário do localStorage:', e);
     }
 
-    const fetchFinanceData = async () => {
-      try {
-        const [sumRes, subRes] = await Promise.all([
-          fetch(`${API_URL}/admin/finance/summary`),
-          fetch(`${API_URL}/admin/finance/subscriptions?limit=20`)
-        ]);
-        
-        if (sumRes.ok) setSummary(await sumRes.json());
-        if (subRes.ok) {
-          const subData = await subRes.json();
-          setSubscriptions(subData.data || []);
-        }
-      } catch (error) {
-        console.error('Erro ao buscar dados financeiros:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchFinanceData();
+    const range = computeDateRange('mes_atual');
+    setStartDate(range.start);
+    setEndDate(range.end);
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const firstDayStr = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+    setTempStart(firstDayStr);
+    setTempEnd(todayStr);
   }, []);
+
+  // Recarrega sempre que as datas de filtro mudam
+  useEffect(() => {
+    if (startDate !== '' || endDate !== '' || activeFilter === 'todo_periodo') {
+      fetchFinanceData();
+    }
+  }, [startDate, endDate]);
 
   const formatCurrency = (val: number) => {
     return (val || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -98,17 +181,8 @@ export default function FinancePage() {
         toast.success('Pagamento apagado com sucesso!');
       }
       
-      // Recarregar os dados
-      const [sumRes, subRes] = await Promise.all([
-        fetch(`${API_URL}/admin/finance/summary`),
-        fetch(`${API_URL}/admin/finance/subscriptions?limit=20`)
-      ]);
-      
-      if (sumRes.ok) setSummary(await sumRes.json());
-      if (subRes.ok) {
-        const subData = await subRes.json();
-        setSubscriptions(subData.data || []);
-      }
+      // Recarregar os dados respeitando o período filtrado
+      await fetchFinanceData();
       setIsConfirmDialogOpen(false);
     } catch (error: any) {
       console.error(error);
@@ -118,6 +192,37 @@ export default function FinancePage() {
       setSelectedSub(null);
       setActionType(null);
     }
+  };
+
+  const handlePresetSelect = (preset: typeof activeFilter, label: string) => {
+    setActiveFilter(preset);
+    setActiveFilterLabel(label);
+    const range = computeDateRange(preset);
+    setStartDate(range.start);
+    setEndDate(range.end);
+    setIsFilterDialogOpen(false);
+    toast.success(`Filtro "${label}" aplicado!`);
+  };
+
+  const handleApplyCustom = () => {
+    if (!tempStart || !tempEnd) {
+      toast.error('Preencha ambas as datas!');
+      return;
+    }
+    const startDateTime = new Date(tempStart + 'T00:00:00.000Z').toISOString();
+    const endDateTime = new Date(tempEnd + 'T23:59:59.999Z').toISOString();
+    
+    setStartDate(startDateTime);
+    setEndDate(endDateTime);
+    setActiveFilter('custom');
+    
+    const formatLocal = (dStr: string) => {
+      const parts = dStr.split('-');
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    };
+    setActiveFilterLabel(`Personalizado: ${formatLocal(tempStart)} a ${formatLocal(tempEnd)}`);
+    setIsFilterDialogOpen(false);
+    toast.success('Filtro de período personalizado aplicado!');
   };
 
   return (
@@ -156,10 +261,19 @@ export default function FinancePage() {
       <div className="mt-10 bg-white rounded-3xl shadow-sm p-8 border border-slate-100">
         <div className="flex justify-between items-center mb-8">
           <h3 className="text-xl font-bold text-slate-800">Últimas Assinaturas</h3>
-          <button className="flex items-center gap-2 text-primary text-sm font-bold hover:underline bg-blue-50 px-4 py-2 rounded-full transition-colors">
-            <Calendar className="h-4 w-4" />
-            Filtrar Período
-          </button>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="text-left sm:text-right">
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Período Ativo</span>
+              <span className="text-xs font-extrabold text-blue-700 bg-blue-50/70 border border-blue-100 px-3 py-1 rounded-full">{activeFilterLabel}</span>
+            </div>
+            <button 
+              onClick={() => setIsFilterDialogOpen(true)}
+              className="flex items-center gap-2 text-primary text-sm font-bold bg-blue-50 hover:bg-blue-100/80 px-4 py-2 rounded-full transition-all border border-blue-100 hover:scale-105 active:scale-95"
+            >
+              <Calendar className="h-4 w-4" />
+              Filtrar Período
+            </button>
+          </div>
         </div>
 
         <div className="overflow-hidden rounded-xl border border-slate-50">
@@ -313,6 +427,69 @@ export default function FinancePage() {
           </DialogContent>
         </Dialog>
       )}
+
+      {isFilterDialogOpen && (
+        <Dialog open={isFilterDialogOpen} onOpenChange={setIsFilterDialogOpen}>
+          <DialogContent className="sm:max-w-[460px] rounded-3xl border border-slate-100 shadow-2xl p-6 bg-white">
+            <DialogHeader className="space-y-3">
+              <DialogTitle className="text-xl font-extrabold text-slate-800 flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-primary" />
+                Filtrar Período
+              </DialogTitle>
+              <DialogDescription className="text-sm font-medium text-slate-500 leading-relaxed">
+                Selecione um dos atalhos rápidos ou defina um intervalo de datas personalizado para recalcular os dados financeiros.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-6 my-4">
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Atalhos Rápidos</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <PresetButton preset="mes_atual" label="Mês Atual" current={activeFilter} onClick={() => handlePresetSelect('mes_atual', 'Mês Atual')} />
+                  <PresetButton preset="ultima_semana" label="Última Semana" current={activeFilter} onClick={() => handlePresetSelect('ultima_semana', 'Última Semana')} />
+                  <PresetButton preset="15_dias" label="Últimos 15 Dias" current={activeFilter} onClick={() => handlePresetSelect('15_dias', 'Últimos 15 Dias')} />
+                  <PresetButton preset="30_dias" label="Últimos 30 Dias" current={activeFilter} onClick={() => handlePresetSelect('30_dias', 'Últimos 30 Dias')} />
+                  <PresetButton preset="3_meses" label="Últimos 3 Meses" current={activeFilter} onClick={() => handlePresetSelect('3_meses', 'Últimos 3 Meses')} />
+                  <PresetButton preset="6_meses" label="Últimos 6 Meses" current={activeFilter} onClick={() => handlePresetSelect('6_meses', 'Últimos 6 Meses')} />
+                  <PresetButton preset="ultimo_ano" label="Último Ano" current={activeFilter} onClick={() => handlePresetSelect('ultimo_ano', 'Último Ano')} />
+                  <PresetButton preset="todo_periodo" label="Todo o Período" current={activeFilter} onClick={() => handlePresetSelect('todo_periodo', 'Todo o Período')} />
+                </div>
+              </div>
+
+              <div className="border-t border-slate-100 pt-4">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Período Personalizado</p>
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase">Início</label>
+                    <input 
+                      type="date" 
+                      value={tempStart}
+                      onChange={(e) => setTempStart(e.target.value)}
+                      className="h-10 px-3 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary font-medium"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase">Fim</label>
+                    <input 
+                      type="date" 
+                      value={tempEnd}
+                      onChange={(e) => setTempEnd(e.target.value)}
+                      className="h-10 px-3 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary font-medium"
+                    />
+                  </div>
+                </div>
+                <Button 
+                  onClick={handleApplyCustom}
+                  className="w-full h-11 rounded-xl bg-primary hover:bg-primary/95 text-white font-bold transition-all shadow-md shadow-primary/10 flex items-center justify-center gap-2"
+                >
+                  <Calendar className="h-4 w-4" />
+                  Aplicar Período Customizado
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </MainLayout>
   )
 }
@@ -332,5 +509,22 @@ function FinanceCard({ title, value, icon, color, description }: any) {
       <p className="text-[10px] text-slate-400 font-bold">{description}</p>
     </div>
   )
+}
+
+function PresetButton({ preset, label, current, onClick }: { preset: string, label: string, current: string, onClick: () => void }) {
+  const active = current === preset;
+  return (
+    <button
+      onClick={onClick}
+      className={`h-10 px-3 rounded-xl text-[11px] font-bold border transition-all text-left flex items-center justify-between ${
+        active 
+          ? 'bg-blue-50 text-primary border-primary/30 shadow-sm' 
+          : 'bg-slate-50/50 text-slate-600 border-slate-100 hover:bg-slate-50 hover:border-slate-200 hover:scale-[1.02] active:scale-[0.98]'
+      }`}
+    >
+      <span>{label}</span>
+      {active && <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />}
+    </button>
+  );
 }
 

@@ -6,16 +6,21 @@ export class FinanceController {
   constructor(private readonly financeService: FinanceService) {}
 
   @Get('summary')
-  getSummary() {
-    return this.financeService.getFinanceSummary();
+  getSummary(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.financeService.getFinanceSummary(startDate, endDate);
   }
 
   @Get('subscriptions')
   getSubscriptions(
     @Query('limit') limit?: number,
     @Query('offset') offset?: number,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
   ) {
-    return this.financeService.getSubscriptions(limit, offset);
+    return this.financeService.getSubscriptions(limit, offset, startDate, endDate);
   }
 
   @Post('record-manual')

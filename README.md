@@ -20,7 +20,7 @@
 - **Proteção de Dados e Segurança Maternal:** Identificação de intenções maliciosas ou pedidos de dados sensíveis (tokens, segredos). A MarIA responde com firmeza e um "puxão de orelha" maternal, protegendo o sistema com doçura e autoridade espiritual.
 - **Onboarding Humanizado em 2 Etapas**: Fluxo de acolhimento que separa a saudação inicial da apresentação detalhada de ferramentas e oferta de planos.
 - **Inteligência Financeira e Assinaturas**:
-  - **Módulo Financeiro**: Dashboard de Margem de Contribuição com cálculo em tempo real de Receita vs. Custos de IA.
+  - **Módulo Financeiro**: Dashboard de Margem de Contribuição com cálculo em tempo real de Receita vs. Custos de IA, agora equipado com **Filtro de Período dinâmico** por presets rápidos (Mês Atual, Semana, 15/30 Dias, 3/6 Meses, Ano, Todo o Período) ou datas personalizadas via calendário.
   - **Gestão de Assinatura Premium**: Painel de visualização moderno em grid de cards interativos, com atalhos inteligentes de prorrogação de prazo (+30, +90 dias, Limpar) e controles estritos de validade.
   - **Comprovação de Pagamento (Emerald Panel)**: Seção dedicada com degradê elegante, seletor segmentado e registro ágil de pagamentos em Pix/Dinheiro com emissão automática de 30 dias de acesso premium.
   - **Cancelamento e Exclusão Segura**: Operações destrutivas no financeiro com validação de perfil de `superadmin` no banco de dados e modais de confirmação dinâmicos.

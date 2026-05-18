@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [1.9.12] - 2026-05-18
+### Added
+- **Filtro de Período Dinâmico no Financeiro:** Implementação do filtro de data dinâmico e interativo no painel do Financeiro. Agora o botão "Filtrar Período" abre um Popover premium que permite selecionar presets rápidos ("Mês Atual", "Última Semana", "Últimos 15 Dias", "Últimos 30 Dias", "Últimos 3 Meses", "Últimos 6 Meses", "Último Ano", "Todo o Período") ou especificar um intervalo de datas personalizado por meio de seletores de calendário.
+- **Consultas Agregadas e Parâmetros de Data no Backend:** Ajuste no `FinanceService` e `FinanceController` do NestJS para aceitar query parameters de `startDate` e `endDate`. Caso datas sejam informadas, o sistema realiza agregações e filtros em tempo real nas tabelas `subscriptions` e `usage_logs` em vez de carregar a view estática de resumo global `finance_summary`.
+- **Indicador Visual Ativo:** Exibição clara e elegante na barra superior de cabeçalho da tabela contendo a identificação do período e preset atualmente ativos (ex: "Mês Atual" ou intervalo personalizado).
+
+### Changed
+- **Sincronização de Recarga Pós-Ação:** Ajuste no fluxo de cancelamento e exclusão de assinaturas no frontend para invocar a função `fetchFinanceData` preservando de forma contínua o filtro de datas configurado no momento da ação.
+
 ## [1.9.11] - 2026-05-18
 ### Added
 - **Pausa Pastoral (Silenciamento do Bot):** Implementação da funcionalidade que silencia as respostas automáticas da IA para um fiel específico quando ativada pelo painel administrativo, mantendo o recebimento e armazenamento histórico de mensagens intacto.
