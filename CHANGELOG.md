@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.0] - 2026-05-18
+### Added
+- **Correção nos Custos de IA & Tabela de Logs de Uso:** Solucionada a falha na agregação de custos de IA e logs de uso que vinham zerados. Agora a contagem de tokens de prompt/completion é calculada e convertida em reais em tempo real, populando corretamente os gráficos e tabelas da tela de Dados e Logs.
+- **Filtro de Período Dinâmico em Dados e Logs:** Implementação do Popover de período com presets avançados (ex: Mês Atual, Última Semana, Último Ano) e seletores de data personalizados no cabeçalho das tabelas e estatísticas de uso.
+- **Visualizador de JSON para Webhooks:** Nova ação funcional de "Ver JSON" em diálogo estilizado, que exibe de maneira interativa e com realce visual os payloads de envio e retorno das integrações de webhooks.
+- **Auditoria Geral de Administradores:** Implementação de logs automáticos e rastreáveis na tabela `audit_logs` registrando detalhadamente as atividades executadas por cada administrador no painel da plataforma.
+
+### Removed
+- **Botão de Exportação CSV:** Removido o botão de exportar arquivos em formato CSV das abas de logs e webhooks conforme orientações do usuário.
+
 ## [1.10.0] - 2026-05-18
 ### Added
 - **Gestão de Administradores no Frontend:** Desenvolvimento da tela de gestão (`users.tsx`) com interface rica, permitindo que superadministradores convidem novos admins, editem dados cadastrais (nome, cargo) e forcem a alteração de senhas.

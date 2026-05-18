@@ -687,13 +687,29 @@ export class AiService implements OnModuleInit {
    */
   async logUsage(userId: string | null, usage: any, model: string) {
     try {
+      const promptTokens = usage.prompt_tokens || 0;
+      const completionTokens = usage.completion_tokens || 0;
+      const totalTokens = usage.total_tokens || 0;
+
+      // Preços por 1M tokens (USD)
+      const modelPrices: Record<string, { input: number; output: number }> = {
+        'openai/gpt-4o-mini': { input: 0.15, output: 0.60 },
+        'openai/gpt-4o': { input: 2.50, output: 10.00 },
+        'google/gemini-2.5-flash-lite': { input: 0.10, output: 0.40 },
+        'magisterium-expert': { input: 1.00, output: 1.00 },
+      };
+
+      const prices = modelPrices[model] || modelPrices['openai/gpt-4o-mini'];
+      const cost = (promptTokens * (prices.input / 1000000)) + (completionTokens * (prices.output / 1000000));
+
       const supabase = this.supabaseService.getClient();
       await supabase.from('usage_logs').insert({
         user_id: userId,
-        prompt_tokens: usage.prompt_tokens || 0,
-        completion_tokens: usage.completion_tokens || 0,
-        total_tokens: usage.total_tokens || 0,
+        prompt_tokens: promptTokens,
+        completion_tokens: completionTokens,
+        total_tokens: totalTokens,
         model: model,
+        cost: Number(cost.toFixed(6)),
       });
     } catch (error) {
       this.logger.warn(`Falha ao salvar usage log para ${userId || 'SYSTEM/CRON'}`, error);

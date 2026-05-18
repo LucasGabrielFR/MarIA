@@ -306,16 +306,26 @@ export class AdminService {
     };
   }
 
-  async getDailyStats() {
+  async getDailyStats(startDate?: string, endDate?: string) {
     const supabase = this.supabaseService.getClient();
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    const { data, error } = await supabase
+    
+    let query = supabase
       .from('usage_logs')
-      .select('created_at, total_tokens, cost, model')
-      .gte('created_at', thirtyDaysAgo.toISOString())
-      .order('created_at', { ascending: true });
+      .select('created_at, total_tokens, cost, model');
+
+    if (startDate) {
+      query = query.gte('created_at', startDate);
+    } else {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      query = query.gte('created_at', thirtyDaysAgo.toISOString());
+    }
+
+    if (endDate) {
+      query = query.lte('created_at', endDate);
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: true });
 
     if (error) throw error;
 
@@ -341,17 +351,26 @@ export class AdminService {
     return Object.values(dailyStats);
   }
 
-  async getUsageLogs(page: number = 1, limit: number = 50) {
+  async getUsageLogs(page: number = 1, limit: number = 50, startDate?: string, endDate?: string) {
     const supabase = this.supabaseService.getClient();
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
-    const { data, error, count } = await supabase
+    let query = supabase
       .from('usage_logs')
       .select(`
         *,
         users (name, wa_chatid)
-      `, { count: 'exact' })
+      `, { count: 'exact' });
+
+    if (startDate) {
+      query = query.gte('created_at', startDate);
+    }
+    if (endDate) {
+      query = query.lte('created_at', endDate);
+    }
+
+    const { data, error, count } = await query
       .order('created_at', { ascending: false })
       .range(from, to);
 
@@ -359,14 +378,23 @@ export class AdminService {
     return { data, count, page, limit };
   }
 
-  async getWebhookLogs(page: number = 1, limit: number = 50) {
+  async getWebhookLogs(page: number = 1, limit: number = 50, startDate?: string, endDate?: string) {
     const supabase = this.supabaseService.getClient();
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
-    const { data, error, count } = await supabase
+    let query = supabase
       .from('webhook_logs')
-      .select('*', { count: 'exact' })
+      .select('*', { count: 'exact' });
+
+    if (startDate) {
+      query = query.gte('created_at', startDate);
+    }
+    if (endDate) {
+      query = query.lte('created_at', endDate);
+    }
+
+    const { data, error, count } = await query
       .order('created_at', { ascending: false })
       .range(from, to);
 

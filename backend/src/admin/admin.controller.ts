@@ -26,18 +26,41 @@ export class AdminController {
   }
 
   @Get('stats/daily')
-  async getDailyStats() {
-    return this.adminService.getDailyStats();
+  async getDailyStats(
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string
+  ) {
+    return this.adminService.getDailyStats(startDate, endDate);
   }
 
   @Get('logs/usage')
-  async getUsageLogs(@Query('page') page: number, @Query('limit') limit: number) {
-    return this.adminService.getUsageLogs(Number(page) || 1, Number(limit) || 50);
+  async getUsageLogs(
+    @Query('page') page: number,
+    @Query('limit') limit: number,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string
+  ) {
+    return this.adminService.getUsageLogs(
+      Number(page) || 1,
+      Number(limit) || 50,
+      startDate,
+      endDate
+    );
   }
 
   @Get('logs/webhooks')
-  async getWebhookLogs(@Query('page') page: number, @Query('limit') limit: number) {
-    return this.adminService.getWebhookLogs(Number(page) || 1, Number(limit) || 50);
+  async getWebhookLogs(
+    @Query('page') page: number,
+    @Query('limit') limit: number,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string
+  ) {
+    return this.adminService.getWebhookLogs(
+      Number(page) || 1,
+      Number(limit) || 50,
+      startDate,
+      endDate
+    );
   }
 
   @Get('settings')
