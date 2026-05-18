@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [1.9.11] - 2026-05-18
+### Added
+- **Pausa Pastoral (Silenciamento do Bot):** Implementação da funcionalidade que silencia as respostas automáticas da IA para um fiel específico quando ativada pelo painel administrativo, mantendo o recebimento e armazenamento histórico de mensagens intacto.
+- **Limite Mensal de Consumo Personalizado (BRL):** Introdução de um limitador individual de consumo em reais para cada fiel. A IA calcula dinamicamente o custo acumulado no mês atual baseado no consumo de tokens de cada modelo de IA utilizado (USD) e a taxa de câmbio atual (BRL), bloqueando novos envios e exibindo um aviso educado ao atingir o limite configurado.
+- **Painel Expansível de Configurações:** Novo collapsible ("Configurações Operacionais") no drawer de detalhes de fiéis na tela de Gestão de Fiéis (`wa-users.tsx`), permitindo ativar/desativar a Pausa Pastoral e ajustar/limpar o limite financeiro com botões de atalho rápido e input numérico estilizado.
+
+### Changed
+- **Lógica e Fluxo de Entrada no Backend:** Ajuste na tipagem do método `processMessage` no `AiService` do NestJS para permitir o retorno de `null` de forma segura e elegante quando a Pausa Pastoral do usuário estiver ativa, em total sintonia com o controller de webhook.
+
+## [1.9.10] - 2026-05-17
+### Added
+- **Navegação Integrada do Dashboard:** Vínculo funcional do botão "Ver todas" e clique nas linhas de conversa recente do Dashboard para redirecionar para a tela de Gestão de Fiéis (`/wa-users`).
+- **Navegação de Configurações:** Vínculo funcional do botão "Ir para Configurações" no card de Saúde do Sistema para redirecionar para a tela de Configurações (`/settings`).
+- **Auto-Seleção de Fiéis em Transição:** Rastreamento inteligente de `userId` passado via estado da rota no redirecionamento das conversas recentes, permitindo que a tela de Gestão de Fiéis carregue e abra o modal de conversa correspondente de forma totalmente automatizada.
+- **Relação de ID de Usuário no Backend:** Inclusão do campo `userId` no retorno da listagem de conversas recentes da rota `/admin/stats` no backend.
 
 ## [1.9.9] - 2026-05-17
 ### Added

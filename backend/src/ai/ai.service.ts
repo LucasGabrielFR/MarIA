@@ -152,12 +152,7 @@ export class AiService implements OnModuleInit {
   }
 
   private async checkSubscriptionLimits(user: any): Promise<{ allowed: boolean; reason?: string }> {
-    // Admins e usuários ilimitados não têm restrições
-    if (user.subscription_tier === 'unlimited' || user.subscription_tier === 'admin') {
-      return { allowed: true };
-    }
-
-    // Verificar expiração
+    // 1. Verificar expiração
     if (user.subscription_expires_at) {
       const expiration = new Date(user.subscription_expires_at);
       if (expiration < new Date()) {
@@ -166,6 +161,22 @@ export class AiService implements OnModuleInit {
         await supabase.from('users').update({ subscription_tier: 'free', subscription_expires_at: null }).eq('id', user.id);
         user.subscription_tier = 'free';
       }
+    }
+
+    // 2. Verificar limite personalizado de consumo em reais (BRL)
+    if (user.monthly_limit_brl !== null && user.monthly_limit_brl !== undefined) {
+      const brlCost = await this.calculateMonthlyBrlCost(user.id);
+      if (brlCost >= Number(user.monthly_limit_brl)) {
+        return {
+          allowed: false,
+          reason: `Você atingiu seu limite personalizado de consumo mensal de R$ ${Number(user.monthly_limit_brl).toFixed(2)}. Entre em contato com o administrador para mais informações.`
+        };
+      }
+    }
+
+    // Admins e usuários ilimitados não têm restrições de tier
+    if (user.subscription_tier === 'unlimited' || user.subscription_tier === 'admin') {
+      return { allowed: true };
     }
 
     // Se for free, não há limite de mensagens (apenas restrição de funcionalidades no processMessage)
@@ -214,6 +225,54 @@ export class AiService implements OnModuleInit {
     }
 
     return count || 0;
+  }
+
+  private async calculateMonthlyBrlCost(userId: string): Promise<number> {
+    const supabase = this.supabaseService.getClient();
+    const firstDayOfMonth = new Date();
+    firstDayOfMonth.setDate(1);
+    firstDayOfMonth.setHours(0, 0, 0, 0);
+
+    const { data: usageLogs, error } = await supabase
+      .from('usage_logs')
+      .select('model, prompt_tokens, completion_tokens, total_tokens')
+      .eq('user_id', userId)
+      .gte('created_at', firstDayOfMonth.toISOString());
+
+    if (error || !usageLogs) {
+      this.logger.error(`Erro ao buscar usage logs para custo BRL: ${error?.message}`);
+      return 0;
+    }
+
+    const { data: brlRateSetting } = await supabase
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'brl_rate')
+      .single();
+
+    const brlRate = parseFloat(brlRateSetting?.value || '5.50');
+
+    // Preços por token (USD)
+    const modelPrices: Record<string, { input: number, output: number }> = {
+      'openai/gpt-4o-mini': { input: 0.15 / 1000000, output: 0.60 / 1000000 },
+      'openai/gpt-4o': { input: 2.50 / 1000000, output: 10.00 / 1000000 },
+      'google/gemini-2.5-flash-lite': { input: 0.10 / 1000000, output: 0.40 / 1000000 },
+      'magisterium-expert': { input: 1.00 / 1000000, output: 1.00 / 1000000 },
+    };
+
+    let totalCostUsd = 0;
+    for (const log of usageLogs) {
+      const modelKey = log.model || 'openai/gpt-4o-mini';
+      const prices = modelPrices[modelKey] || modelPrices['openai/gpt-4o-mini'];
+      
+      const cost = (
+        (log.prompt_tokens || 0) * prices.input +
+        (log.completion_tokens || 0) * prices.output
+      );
+      totalCostUsd += cost;
+    }
+
+    return totalCostUsd * brlRate;
   }
 
   /**
@@ -340,7 +399,7 @@ export class AiService implements OnModuleInit {
    * Processa a mensagem do usuário baseada no seu status atual.
    * Representa a Máquina de Estados da Conversa.
    */
-  async processMessage(waChatId: string, message: string, pushName?: string, phone?: string): Promise<string | string[]> {
+  async processMessage(waChatId: string, message: string, pushName?: string, phone?: string): Promise<string | string[] | null> {
     const supabase = this.supabaseService.getClient();
 
     // 1. Verificar Modo de Manutenção
@@ -356,6 +415,14 @@ export class AiService implements OnModuleInit {
 
     const user = await this.getOrCreateUser(waChatId, pushName, phone);
     const userId = user.id;
+
+    // 2. Verificar se o bot está pausado para este fiel (Pausa Pastoral)
+    if (user.is_paused) {
+      this.logger.log(`Pausa Pastoral ativa para o usuário ${userId}. Nenhuma resposta da IA será gerada.`);
+      await this.saveMessage(userId, 'user', message, false);
+      return null;
+    }
+
     let userStatus = user.status || 'active';
 
     // Se o usuário estava 'disabled', resetar para triagem

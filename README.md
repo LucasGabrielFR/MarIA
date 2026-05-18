@@ -25,6 +25,8 @@
   - **Comprovação de Pagamento (Emerald Panel)**: Seção dedicada com degradê elegante, seletor segmentado e registro ágil de pagamentos em Pix/Dinheiro com emissão automática de 30 dias de acesso premium.
   - **Cancelamento e Exclusão Segura**: Operações destrutivas no financeiro com validação de perfil de `superadmin` no banco de dados e modais de confirmação dinâmicos.
   - **Controle de Quotas Inteligente**: Diferenciação automática entre mensagens gerativas (LLM) e conteúdos utilitários (Cache), garantindo que consultas à Liturgia ou Santo do Dia não consumam a franquia do fiel.
+  - **Pausa Pastoral (Silenciamento do Bot)**: Permite pausar individualmente o envio de respostas automáticas da IA para um fiel específico através do dashboard, mantendo o recebimento de mensagens e o histórico íntegros.
+  - **Limite de Consumo Personalizado (BRL)**: Define um limite mensal máximo estimado em Reais (R$) para o custo de tokens consumidos por fiel, com bloqueio automático inteligente de novas respostas e aviso amigável quando atingido.
   - **Recuperação e Métricas**: Usuários com dados excluídos são mantidos como `disabled` para métricas; ao enviar nova mensagem, a triagem é reiniciada automaticamente.
   - **Arquitetura Plugável**: Estrutura preparada para integração futura com gateways (Stripe, Mercado Pago).
 - **Parametrização IA Pro Max**: Interface administrativa totalmente redesenhada com navegação lateral, busca global e labels educativas ("Onde Funciona" e "Impacto") para cada prompt do sistema.

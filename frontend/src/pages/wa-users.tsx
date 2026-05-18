@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import { API_URL } from '../lib/api'
 
 import { MainLayout } from '../components/layout/main-layout'
@@ -55,6 +56,8 @@ interface WaUser {
   status: string
   created_at: string
   credits: number
+  is_paused?: boolean
+  monthly_limit_brl?: number | null
   context?: {
     general_summary: string
     interests: string[]
@@ -87,6 +90,7 @@ interface Message {
 }
 
 const WaUsersPage = () => {
+  const location = useLocation()
   const [users, setUsers] = useState<WaUser[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedUser, setSelectedUser] = useState<WaUser | null>(null)
@@ -97,6 +101,15 @@ const WaUsersPage = () => {
   const [deleting, setDeleting] = useState(false)
   const [subscriptionExpiresAt, setSubscriptionExpiresAt] = useState<string>('')
   const [paymentTier, setPaymentTier] = useState<'basic' | 'premium'>('basic')
+  const [showSettings, setShowSettings] = useState(false)
+  const [isPaused, setIsPaused] = useState(false)
+  const [monthlyLimitBrl, setMonthlyLimitBrl] = useState<string>('')
+  const [savingSettings, setSavingSettings] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
+  const [filterTier, setFilterTier] = useState<string>('all')
+  const [filterStatus, setFilterStatus] = useState<string>('all')
+  const [filterPause, setFilterPause] = useState<string>('all')
+  const [filterEngagement, setFilterEngagement] = useState<string>('all')
 
   useEffect(() => {
     fetchUsers()
@@ -185,18 +198,54 @@ const WaUsersPage = () => {
     return last30Days
   }
 
-  const filteredUsers = users.filter(user => 
-    user.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    user.phone?.includes(searchTerm) ||
-    user.wa_chatid?.includes(searchTerm)
-  )
+  const filteredUsers = users.filter(user => {
+    // Busca por termo
+    const matchesSearch = 
+      user.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      user.phone?.includes(searchTerm) ||
+      user.wa_chatid?.includes(searchTerm);
+      
+    if (!matchesSearch) return false;
+    
+    // Filtro por assinatura
+    if (filterTier !== 'all' && user.subscription_tier !== filterTier) return false;
+    
+    // Filtro por status
+    if (filterStatus !== 'all' && user.status !== filterStatus) return false;
+    
+    // Filtro por pausa pastoral
+    if (filterPause !== 'all') {
+      const isUserPaused = user.is_paused || false;
+      if (filterPause === 'paused' && !isUserPaused) return false;
+      if (filterPause === 'active' && isUserPaused) return false;
+    }
+    
+    // Filtro por engajamento
+    if (filterEngagement !== 'all' && user.metrics?.engagement !== filterEngagement) return false;
+    
+    return true;
+  })
 
   const handleUserClick = (user: WaUser) => {
     console.log('Selected User Data:', user);
     setSelectedUser(user)
     setSubscriptionExpiresAt(user.subscription_expires_at ? user.subscription_expires_at.split('T')[0] : '')
+    setIsPaused(user.is_paused || false)
+    setMonthlyLimitBrl(user.monthly_limit_brl !== null && user.monthly_limit_brl !== undefined ? String(user.monthly_limit_brl) : '')
+    setShowSettings(false)
     fetchMessages(user.id)
   }
+
+  useEffect(() => {
+    if (users.length > 0 && location.state?.userId) {
+      const user = users.find(u => u.id === location.state.userId)
+      if (user) {
+        handleUserClick(user)
+        // Limpa o estado da rota para evitar auto-seleção em re-renders ou navegação manual posterior
+        window.history.replaceState({}, document.title)
+      }
+    }
+  }, [users, location.state])
 
   const handleUpdateSubscription = async (userId: string, tier: string) => {
     try {
@@ -267,27 +316,164 @@ const WaUsersPage = () => {
     }
   }
 
+  const handleSaveSettings = async (userId: string) => {
+    setSavingSettings(true)
+    try {
+      const parsedLimit = monthlyLimitBrl.trim() === '' ? null : parseFloat(monthlyLimitBrl)
+      
+      const response = await fetch(`${API_URL}/admin/wa-users/${userId}/settings`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          isPaused, 
+          monthlyLimitBrl: parsedLimit 
+        })
+      })
+
+      if (!response.ok) throw new Error('Falha ao atualizar configurações')
+      
+      toast.success('Configurações atualizadas com sucesso!')
+      await fetchUsers()
+      
+      // Atualizar o selectedUser localmente para refletir no modal aberto
+      if (selectedUser && selectedUser.id === userId) {
+        setSelectedUser({ 
+          ...selectedUser, 
+          is_paused: isPaused,
+          monthly_limit_brl: parsedLimit
+        })
+      }
+      setShowSettings(false)
+    } catch (error) {
+      toast.error('Erro ao atualizar configurações')
+    } finally {
+      setSavingSettings(false)
+    }
+  }
+
   return (
     <MainLayout 
       title="Gestão de Fiéis" 
       subtitle="Monitore as interações, interesses e consumo de tokens dos usuários."
     >
       <div className="space-y-8">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="relative w-full sm:w-96">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <Input 
-              placeholder="Buscar por nome ou telefone..." 
-              className="pl-10 bg-white border-slate-200 rounded-2xl focus-visible:ring-primary h-12 shadow-sm"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="relative w-full sm:w-96">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input 
+                placeholder="Buscar por nome ou telefone..." 
+                className="pl-10 bg-white border-slate-200 rounded-2xl focus-visible:ring-primary h-12 shadow-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            
+            <Button 
+              variant="outline" 
+              onClick={() => setShowFilters(!showFilters)}
+              className={cn(
+                "rounded-2xl border-slate-200 bg-white shadow-sm h-12 px-6 font-bold transition-all hover:scale-105 active:scale-95",
+                showFilters ? "bg-slate-100 border-slate-300 text-slate-900" : "hover:bg-slate-50 text-slate-600"
+              )}
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              Filtros Avançados
+              {(filterTier !== 'all' || filterStatus !== 'all' || filterPause !== 'all' || filterEngagement !== 'all') && (
+                <Badge className="ml-2 bg-primary text-white h-5 w-5 rounded-full p-0 flex items-center justify-center text-[10px] font-black">
+                  {[filterTier, filterStatus, filterPause, filterEngagement].filter(v => v !== 'all').length}
+                </Badge>
+              )}
+            </Button>
           </div>
-          
-          <Button variant="outline" className="rounded-2xl border-slate-200 bg-white shadow-sm hover:bg-slate-50 h-12 px-6 font-bold text-slate-600">
-            <Filter className="h-4 w-4 mr-2" />
-            Filtros Avançados
-          </Button>
+
+          {/* Advanced Filters Panel */}
+          {showFilters && (
+            <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-in slide-in-from-top-2 duration-200">
+              {/* Filter by Subscription Tier */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Plano de Assinatura</label>
+                <select
+                  value={filterTier}
+                  onChange={(e) => setFilterTier(e.target.value)}
+                  className="w-full rounded-xl border-slate-200 text-xs font-bold text-slate-700 bg-slate-50/50 focus:border-primary focus:ring-primary focus:ring-1 h-10"
+                >
+                  <option value="all">Todos os Planos</option>
+                  <option value="free">Gratuito</option>
+                  <option value="basic">Básico</option>
+                  <option value="premium">Premium</option>
+                  <option value="unlimited">Ilimitado</option>
+                </select>
+              </div>
+
+              {/* Filter by Status */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Status da Triagem</label>
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="w-full rounded-xl border-slate-200 text-xs font-bold text-slate-700 bg-slate-50/50 focus:border-primary focus:ring-primary focus:ring-1 h-10"
+                >
+                  <option value="all">Todos os Status</option>
+                  <option value="active">Ativo</option>
+                  <option value="disabled">Desativado</option>
+                  <option value="triage_intro">Triagem - Introdução</option>
+                  <option value="triage_presentation_subscription">Triagem - Apresentação</option>
+                </select>
+              </div>
+
+              {/* Filter by Pastoral Pause */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pausa Pastoral</label>
+                <select
+                  value={filterPause}
+                  onChange={(e) => setFilterPause(e.target.value)}
+                  className="w-full rounded-xl border-slate-200 text-xs font-bold text-slate-700 bg-slate-50/50 focus:border-primary focus:ring-primary focus:ring-1 h-10"
+                >
+                  <option value="all">Todos os Atendimentos</option>
+                  <option value="paused">Pausa Pastoral Ativa</option>
+                  <option value="active">Bot Respondendo (Ativo)</option>
+                </select>
+              </div>
+
+              {/* Filter by Engagement */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Engajamento (30 dias)</label>
+                <select
+                  value={filterEngagement}
+                  onChange={(e) => setFilterEngagement(e.target.value)}
+                  className="w-full rounded-xl border-slate-200 text-xs font-bold text-slate-700 bg-slate-50/50 focus:border-primary focus:ring-primary focus:ring-1 h-10"
+                >
+                  <option value="all">Qualquer Engajamento</option>
+                  <option value="Super Engajado">Super Engajado</option>
+                  <option value="Engajado">Engajado</option>
+                  <option value="Ocasional">Ocasional</option>
+                  <option value="Inativo">Inativo</option>
+                </select>
+              </div>
+
+              {/* Clear filters helper */}
+              {(filterTier !== 'all' || filterStatus !== 'all' || filterPause !== 'all' || filterEngagement !== 'all') && (
+                <div className="col-span-1 sm:col-span-2 lg:col-span-4 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilterTier('all');
+                      setFilterStatus('all');
+                      setFilterPause('all');
+                      setFilterEngagement('all');
+                    }}
+                    className="text-[10px] font-black text-red-500 hover:text-red-600 transition-colors uppercase tracking-widest cursor-pointer"
+                  >
+                    Limpar Filtros
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <Card className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
@@ -333,8 +519,13 @@ const WaUsersPage = () => {
                               </AvatarFallback>
                             </Avatar>
                             <div>
-                              <p className="font-bold text-slate-800 group-hover:text-primary transition-colors">
+                              <p className="font-bold text-slate-800 group-hover:text-primary transition-colors flex items-center gap-1.5">
                                 {user.name || 'Sem nome'}
+                                {user.is_paused && (
+                                  <Badge className="px-1.5 py-0.5 border-none bg-amber-100 text-amber-800 text-[8px] font-black tracking-tight scale-90">
+                                    PAUSADO
+                                  </Badge>
+                                )}
                               </p>
                               <p className="text-xs text-slate-500 font-medium">{user.phone || user.wa_chatid}</p>
                             </div>
@@ -429,8 +620,14 @@ const WaUsersPage = () => {
                     </div>
                     <div className="space-y-1">
                       <div className="flex items-center gap-3">
-                        <DialogTitle className="text-3xl font-black text-slate-900 tracking-tight leading-none">
+                        <DialogTitle className="text-3xl font-black text-slate-900 tracking-tight leading-none flex items-center gap-3">
                           {selectedUser.name || 'Fiel sem nome'}
+                          {selectedUser.is_paused && (
+                            <Badge className="rounded-full px-2.5 py-0.5 border-none bg-amber-100 text-amber-800 font-black text-[9px] uppercase tracking-tighter shadow-sm animate-pulse flex items-center gap-1">
+                              <span className="h-1.5 w-1.5 rounded-full bg-amber-600" />
+                              Pausa Pastoral
+                            </Badge>
+                          )}
                         </DialogTitle>
                         <Badge variant="outline" className={cn(
                           "rounded-full px-3 py-1 border-none font-black text-[10px] uppercase tracking-tighter shadow-sm",
@@ -459,12 +656,159 @@ const WaUsersPage = () => {
                         <Trash2 className="h-4 w-4 mr-2" />
                         Excluir dados
                       </Button>
-                      <Button variant="outline" className="rounded-xl border-slate-200 font-black h-11 px-6 text-xs hover:bg-slate-50 shadow-sm transition-all hover:scale-105 active:scale-95">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setShowSettings(!showSettings)}
+                        className={cn(
+                          "rounded-xl border-slate-200 font-black h-11 px-6 text-xs shadow-sm transition-all hover:scale-105 active:scale-95",
+                          showSettings ? "bg-slate-100 border-slate-300 text-slate-900" : "hover:bg-slate-50 text-slate-600"
+                        )}
+                      >
                         <Settings className="h-4 w-4 mr-2" />
                         Configurações
                       </Button>
                     </div>
                 </div>
+
+                {/* Collapsible Settings Panel */}
+                {showSettings && (
+                  <div className="mt-6 bg-slate-50/80 rounded-[2rem] p-6 border border-slate-100/80 shadow-inner animate-in slide-in-from-top-4 duration-300">
+                    <div className="flex items-center gap-2 mb-6">
+                      <Settings className="h-5 w-5 text-primary animate-spin" />
+                      <div>
+                        <h4 className="text-base font-black text-slate-800 tracking-tight">Configurações Operacionais</h4>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Ajustes individuais para o fiel</p>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      {/* Left: Pausa Pastoral Toggle */}
+                      <div className="bg-white rounded-2xl p-6 border border-slate-100/50 shadow-sm flex flex-col justify-between">
+                        <div className="space-y-1.5 mb-4">
+                          <label className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                            <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                            Pausa Pastoral
+                          </label>
+                          <p className="text-xs text-slate-400 leading-relaxed">
+                            Pausa o atendimento automático por IA para este fiel. O histórico de mensagens continuará sendo salvo, mas a IA não enviará respostas automáticas. Útil para acompanhamento pastoral individualizado ou interrupção temporária.
+                          </p>
+                        </div>
+                        <div className="flex items-center justify-between pt-2 border-t border-slate-50">
+                          <span className={cn(
+                            "text-xs font-black uppercase tracking-tight",
+                            isPaused ? "text-amber-600 animate-pulse" : "text-slate-400"
+                          )}>
+                            {isPaused ? "Silenciado (Pausado)" : "IA Ativa (Normal)"}
+                          </span>
+                          {/* Modern Custom Toggle Switch */}
+                          <button
+                            type="button"
+                            onClick={() => setIsPaused(!isPaused)}
+                            className={cn(
+                              "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                              isPaused ? "bg-amber-500" : "bg-slate-200"
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+                                isPaused ? "translate-x-5" : "translate-x-0"
+                              )}
+                            />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Right: Custom Spending Limit BRL */}
+                      <div className="bg-white rounded-2xl p-6 border border-slate-100/50 shadow-sm flex flex-col justify-between">
+                        <div className="space-y-1.5 mb-4">
+                          <label className="text-xs font-black text-slate-700 uppercase tracking-wider">
+                            Limite Mensal de Consumo (R$)
+                          </label>
+                          <p className="text-xs text-slate-400 leading-relaxed">
+                            Define o limite máximo estimado em Reais (R$) para o consumo de tokens da IA deste fiel neste mês. Se o consumo atingir o limite, a IA responderá explicando amigavelmente que o limite foi atingido.
+                          </p>
+                        </div>
+                        <div className="space-y-4 pt-2 border-t border-slate-50">
+                          {/* Quick selection buttons */}
+                          <div className="flex flex-wrap gap-1.5">
+                            {[
+                              { label: 'Sem limite', value: '' },
+                              { label: 'R$ 5', value: '5' },
+                              { label: 'R$ 10', value: '10' },
+                              { label: 'R$ 20', value: '20' },
+                              { label: 'R$ 50', value: '50' }
+                            ].map((btn) => (
+                              <button
+                                key={btn.label}
+                                type="button"
+                                onClick={() => setMonthlyLimitBrl(btn.value)}
+                                className={cn(
+                                  "px-2.5 py-1 text-[10px] font-black rounded-lg border uppercase tracking-tighter transition-all hover:scale-105 active:scale-95",
+                                  monthlyLimitBrl === btn.value
+                                    ? "bg-primary border-primary text-white shadow-sm"
+                                    : "bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100"
+                                )}
+                              >
+                                {btn.label}
+                              </button>
+                            ))}
+                          </div>
+                          
+                          {/* Stylized input */}
+                          <div className="relative rounded-xl shadow-sm">
+                            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                              <span className="text-slate-400 text-xs font-black">R$</span>
+                            </div>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              placeholder="0.00 (Sem limite)"
+                              value={monthlyLimitBrl}
+                              onChange={(e) => setMonthlyLimitBrl(e.target.value)}
+                              className="block w-full rounded-xl border-slate-200 pl-8 pr-12 text-xs font-black text-slate-800 placeholder-slate-400 focus:border-primary focus:ring-primary focus:ring-1 bg-slate-50/50"
+                            />
+                            <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                              <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider" id="price-currency">
+                                BRL
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Action buttons */}
+                    <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-200/50">
+                      <Button
+                        variant="ghost"
+                        onClick={() => setShowSettings(false)}
+                        className="rounded-xl font-bold h-10 px-5 text-xs text-slate-500 hover:bg-slate-100"
+                        disabled={savingSettings}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        onClick={() => handleSaveSettings(selectedUser.id)}
+                        className="rounded-xl font-black h-10 px-6 text-xs text-white shadow-md hover:shadow-lg transition-all hover:scale-105 active:scale-95 bg-gradient-to-r from-primary to-blue-600"
+                        disabled={savingSettings}
+                      >
+                        {savingSettings ? (
+                          <>
+                            <span className="animate-spin mr-2 h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full" />
+                            Salvando...
+                          </>
+                        ) : (
+                          <>
+                            <Check className="h-4 w-4 mr-2" />
+                            Salvar Configurações
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
                 {/* Quick Metrics */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-8 px-1">
@@ -765,7 +1109,7 @@ const WaUsersPage = () => {
                               className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-600 text-white font-black px-6 h-12 rounded-2xl shadow-lg shadow-emerald-100 hover:shadow-emerald-200 transition-all flex items-center gap-2 hover:scale-[1.02] active:scale-95 border-none"
                             >
                               <Coins className="h-4 w-4" />
-                              Confirmar e Registrar R$ {paymentTier === 'premium' ? '14,90' : '29,90'}
+                              Confirmar e Registrar R$ {paymentTier === 'premium' ? '29,90' : '14,90'}
                             </Button>
                           </div>
                         </div>

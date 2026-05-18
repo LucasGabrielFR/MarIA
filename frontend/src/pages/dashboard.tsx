@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { API_URL } from '../lib/api'
 
 import { StatsCards } from '../components/dashboard/stats-cards'
@@ -10,6 +11,7 @@ import { cn } from "@/lib/utils"
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<any>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -46,7 +48,10 @@ export default function DashboardPage() {
         <div className="lg:col-span-2 bg-white rounded-3xl shadow-sm p-8 border border-slate-100">
           <div className="flex justify-between items-center mb-8">
             <h3 className="text-xl font-bold text-slate-800">Conversas Recentes</h3>
-            <button className="text-primary text-sm font-bold hover:underline bg-blue-50 px-4 py-2 rounded-full transition-colors">
+            <button 
+              onClick={() => navigate('/wa-users')}
+              className="text-primary text-sm font-bold hover:underline bg-blue-50 px-4 py-2 rounded-full transition-colors"
+            >
               Ver todas
             </button>
           </div>
@@ -62,7 +67,11 @@ export default function DashboardPage() {
               </TableHeader>
               <TableBody>
                 {conversations.map((conv: any) => (
-                  <TableRow key={conv.id} className="border-slate-50 hover:bg-slate-50/50 transition-all duration-200 cursor-pointer group">
+                  <TableRow 
+                    key={conv.id} 
+                    onClick={() => navigate('/wa-users', { state: { userId: conv.userId } })}
+                    className="border-slate-50 hover:bg-slate-50/50 transition-all duration-200 cursor-pointer group"
+                  >
                     <TableCell className="font-bold flex items-center gap-3 py-4">
                       <Avatar className="h-9 w-9 border border-slate-100 shadow-sm">
                         <AvatarFallback className="bg-blue-50 text-primary text-xs font-bold">{conv.user[0]}</AvatarFallback>
@@ -121,7 +130,10 @@ export default function DashboardPage() {
               <p className="text-xs text-slate-500 font-medium">Sistema operando em modo: {stats?.health?.status || '...'}</p>
             </div>
           </div>
-          <button className="w-full mt-8 py-4 bg-primary text-white rounded-2xl font-bold shadow-xl shadow-blue-200 hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300">
+          <button 
+            onClick={() => navigate('/settings')}
+            className="w-full mt-8 py-4 bg-primary text-white rounded-2xl font-bold shadow-xl shadow-blue-200 hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300"
+          >
             Ir para Configurações
           </button>
         </div>

@@ -83,4 +83,13 @@ export class AdminController {
   ) {
     return this.adminService.updateUserSubscription(id, tier, expiresAt);
   }
+
+  @Post('wa-users/:id/settings')
+  async updateSettings(
+    @Param('id') id: string,
+    @Body('isPaused') isPaused: boolean,
+    @Body('monthlyLimitBrl') monthlyLimitBrl: number | null
+  ) {
+    return this.adminService.updateUserSettings(id, isPaused, monthlyLimitBrl);
+  }
 }

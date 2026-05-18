@@ -184,6 +184,7 @@ export class AdminService {
       if (!uniqueUsersMap.has(m.user_id) && uniqueUsersMap.size < 6) {
         uniqueUsersMap.set(m.user_id, {
           id: m.id,
+          userId: m.user_id,
           user: m.users?.name || 'Desconhecido',
           status: m.users?.status === 'active' ? 'Ativo' : 'Triagem',
           content: m.content,
@@ -504,6 +505,26 @@ export class AdminService {
     const updateData: any = {
       subscription_tier: tier,
       subscription_expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
+      updated_at: new Date()
+    };
+
+    const { data, error } = await supabase
+      .from('users')
+      .update(updateData)
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return { success: true, data };
+  }
+
+  async updateUserSettings(userId: string, isPaused: boolean, monthlyLimitBrl: number | null) {
+    const supabase = this.supabaseService.getClient();
+
+    const updateData: any = {
+      is_paused: isPaused,
+      monthly_limit_brl: monthlyLimitBrl,
       updated_at: new Date()
     };
 
