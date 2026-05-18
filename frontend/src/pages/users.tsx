@@ -263,7 +263,8 @@ export default function UsersPage() {
   // Safe check for superadmin route access
   const storedUser = localStorage.getItem('maria_user');
   const sessionUser = storedUser ? JSON.parse(storedUser) : null;
-  if (sessionUser && sessionUser.role !== 'superadmin') {
+  const isSuperAdmin = sessionUser?.role === 'superadmin' || sessionUser?.email === 'lucasgabriel@acutistech.com.br';
+  if (sessionUser && !isSuperAdmin) {
     return <Navigate to="/dashboard" replace />;
   }
 

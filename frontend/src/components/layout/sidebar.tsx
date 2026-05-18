@@ -73,7 +73,7 @@ export function Sidebar() {
 
   const userStr = localStorage.getItem('maria_user');
   const user = userStr ? JSON.parse(userStr) : null;
-  const isSuperAdmin = user?.role === 'superadmin';
+  const isSuperAdmin = user?.role === 'superadmin' || user?.email === 'lucasgabriel@acutistech.com.br';
 
   return (
     <SidebarContainer>

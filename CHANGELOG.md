@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - **Botão de Exportação CSV:** Removido o botão de exportar arquivos em formato CSV das abas de logs e webhooks conforme orientações do usuário.
 
+### Fixed
+- **Visualização de Administradores para o Superadmin:** Corrigida a validação do privilégio de superadmin no frontend (`sidebar.tsx` e `users.tsx`) para incluir um fallback automático ao e-mail principal `lucasgabriel@acutistech.com.br`, resolvendo o problema onde sessões antigas ou desatualizadas no `localStorage` ocultavam incorretamente o menu e bloqueavam a visualização da tela de Administradores.
+
 ## [1.10.0] - 2026-05-18
 ### Added
 - **Gestão de Administradores no Frontend:** Desenvolvimento da tela de gestão (`users.tsx`) com interface rica, permitindo que superadministradores convidem novos admins, editem dados cadastrais (nome, cargo) e forcem a alteração de senhas.
