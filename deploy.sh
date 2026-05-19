@@ -1,12 +1,28 @@
 #!/bin/bash
+set -e
 
 # Script de Deploy para VPS (Usando PM2)
 
 echo "🚀 Iniciando processo de deploy..."
 
 # 1. Puxar as últimas alterações (se usando git)
-echo "📦 Atualizando código fonte..."
-git pull origin main
+echo "📦 Verificando atualizações no código fonte..."
+git fetch origin main
+
+LOCAL=$(git rev-parse HEAD)
+REMOTE=$(git rev-parse origin/main)
+
+if [ "$LOCAL" != "$REMOTE" ]; then
+    echo "📥 Novas alterações detectadas. Fazendo pull..."
+    if ! git pull origin main; then
+        echo "❌ Erro: O 'git pull' falhou (possivelmente devido a conflitos locais)."
+        echo "❌ Abortando o processo de deploy para segurança."
+        exit 1
+    fi
+    echo "✅ Código atualizado com sucesso!"
+else
+    echo "✅ O código já está na versão mais recente. Prosseguindo com o deploy..."
+fi
 
 # 2. Instalar dependências da raiz, frontend e backend
 echo "⚙️ Instalando dependências..."
@@ -32,4 +48,4 @@ else
     echo "✅ PM2 instalado e deploy concluído com sucesso!"
 fi
 
-echo "🌐 O frontend estará disponível na porta 4173 e o backend na porta padrão (normalmente 3000)."
+echo "🌐 O frontend estará disponível na porta 4173, a landing page na porta 3001 e o backend na porta padrão (normalmente 3000)."

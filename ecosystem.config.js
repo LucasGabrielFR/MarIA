@@ -18,5 +18,15 @@ module.exports = {
         NODE_ENV: 'production',
       },
     },
+    {
+      name: 'maria-landing',
+      script: 'npm',
+      args: 'run start',
+      cwd: './landing',
+      env: {
+        NODE_ENV: 'production',
+        PORT: 3002,
+      },
+    },
   ],
 };

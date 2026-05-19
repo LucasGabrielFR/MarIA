@@ -10,6 +10,7 @@ const rootPkg = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../package.j
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: '/admin/',
   define: {
     'import.meta.env.VITE_APP_VERSION': JSON.stringify(rootPkg.version),
   },
