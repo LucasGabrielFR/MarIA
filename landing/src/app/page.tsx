@@ -468,27 +468,24 @@ export default function Home() {
         href="https://wa.me/5562981949980"
         target="_blank"
         rel="noopener noreferrer"
-        className="fixed bottom-8 right-8 z-50 flex items-center gap-3 group"
+        className="fixed bottom-8 right-8 z-50 flex items-center justify-center w-14 h-14 bg-gradient-to-r from-[#0047AB] to-[#0056D2] hover:scale-110 transition-all duration-300 rounded-full shadow-[0_8px_30px_rgba(0,71,171,0.35)] hover:shadow-[0_12px_40px_rgba(0,71,171,0.5)] border border-[#D4AF37]/45 hover:border-[#D4AF37]/80 group shrink-0"
         aria-label="Fale com a MarIA no WhatsApp"
       >
-        {/* Label (Slides/Fades in on hover) */}
-        <span className="hidden md:inline-block px-4 py-2 bg-white text-slate-800 text-sm font-bold rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.08)] border border-slate-100 opacity-0 -translate-x-4 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 pointer-events-none whitespace-nowrap">
+        {/* Elegant gold ripple ring */}
+        <span className="absolute inset-0 rounded-full bg-[#0047AB] opacity-40 animate-ping pointer-events-none"></span>
+
+        {/* Label (Slides/Fades in on hover) - Now ABSOLUTELY positioned to prevent blocking clicking footer elements */}
+        <span className="hidden md:inline-block absolute right-16 px-4 py-2 bg-[#0a0f1c]/95 text-white text-xs font-bold rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.4)] border border-[#D4AF37]/35 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 pointer-events-none whitespace-nowrap">
           Fale com a MarIA
         </span>
 
-        {/* Button */}
-        <div className="relative flex items-center justify-center w-16 h-16 bg-[#25D366] text-white rounded-full shadow-[0_8px_30px_rgba(37,211,102,0.4)] hover:shadow-[0_12px_40px_rgba(37,211,102,0.6)] hover:scale-110 transition-all duration-300 border border-white/20 shrink-0">
-          {/* Elegant ripple rings */}
-          <span className="absolute inset-0 rounded-full bg-[#25D366] opacity-40 animate-ping pointer-events-none"></span>
-          
-          {/* WhatsApp SVG Icon */}
-          <svg 
-            className="w-8 h-8 fill-current relative z-10 transition-transform duration-300 group-hover:rotate-12" 
-            viewBox="0 0 24 24"
-          >
-            <path d="M12.012 2c-5.506 0-9.988 4.482-9.988 9.988 0 1.76.46 3.414 1.258 4.86L2 22l5.304-1.39a9.92 9.92 0 004.708 1.185h.004c5.506 0 10.012-4.482 10.012-9.992C22.028 6.486 17.518 2 12.012 2zm6.276 14.194c-.258.73-1.498 1.428-2.072 1.528-.574.1-1.314.18-3.926-.88-2.91-1.18-4.786-4.16-4.93-4.36-.146-.2-.1.08 1.01-1.39.528-.7 1.156-.84 1.488-.84.33 0 .428.02.56.02.13.01.3-.04.46.36.17.42.59 1.46.64 1.57.05.11.08.24.01.38-.07.14-.15.3-.3.47-.15.17-.32.38-.46.51-.16.15-.33.32-.14.65.19.33.85 1.41 1.83 2.29.98.88 1.81 1.15 2.14 1.28.33.13.52.11.71-.1.19-.21.82-.96 1.04-1.29.22-.33.45-.28.76-.16.31.12 1.97.93 2.3.1.33-.16.55-.38.6-.51.05-.13.08-.24.01-.38-.07-.14-.46-.36-1.12-.67z"/>
-          </svg>
-        </div>
+        {/* WhatsApp SVG Icon inside the styled button */}
+        <svg 
+          className="w-7 h-7 fill-white relative z-10 transition-transform duration-300 group-hover:rotate-12" 
+          viewBox="0 0 24 24"
+        >
+          <path d="M12.012 2c-5.506 0-9.988 4.482-9.988 9.988 0 1.76.46 3.414 1.258 4.86L2 22l5.304-1.39a9.92 9.92 0 004.708 1.185h.004c5.506 0 10.012-4.482 10.012-9.992C22.028 6.486 17.518 2 12.012 2zm6.276 14.194c-.258.73-1.498 1.428-2.072 1.528-.574.1-1.314.18-3.926-.88-2.91-1.18-4.786-4.16-4.93-4.36-.146-.2-.1.08 1.01-1.39.528-.7 1.156-.84 1.488-.84.33 0 .428.02.56.02.13.01.3-.04.46.36.17.42.59 1.46.64 1.57.05.11.08.24.01.38-.07.14-.15.3-.3.47-.15.17-.32.38-.46.51-.16.15-.33.32-.14.65.19.33.85 1.41 1.83 2.29.98.88 1.81 1.15 2.14 1.28.33.13.52.11.71-.1.19-.21.82-.96 1.04-1.29.22-.33.45-.28.76-.16.31.12 1.97.93 2.3.1.33-.16.55-.38.6-.51.05-.13.08-.24.01-.38-.07-.14-.46-.36-1.12-.67z"/>
+        </svg>
       </a>
     </div>
   );
