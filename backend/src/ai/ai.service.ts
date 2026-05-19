@@ -568,15 +568,26 @@ export class AiService implements OnModuleInit {
       // Conteúdo utilitário e cacheado -> Enviar direto sem gastar quota/LLM
       this.logger.log(`Servindo cache direto para intent ${intent}.`);
       
-      let formattedTargetDate = targetDate;
-      if (targetDate && targetDate.includes('-')) {
-        const parts = targetDate.split('-');
-        if (parts.length === 3) {
-          formattedTargetDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+      let response = cachedResponse.trim();
+      const lowerResponse = response.toLowerCase();
+      
+      // Se o conteúdo em cache NÃO possuir cabeçalho padrão, adicionamos um cabeçalho formatado
+      if (!lowerResponse.startsWith('*liturgia do dia') && 
+          !lowerResponse.startsWith('*santo do dia') && 
+          !lowerResponse.startsWith('*mistérios') && 
+          !lowerResponse.startsWith('*conteúdo do dia')) {
+        
+        this.logger.log('Cache sem cabeçalho padrão. Prependendo cabeçalho formatado.');
+        let formattedTargetDate = targetDate;
+        if (targetDate && targetDate.includes('-')) {
+          const parts = targetDate.split('-');
+          if (parts.length === 3) {
+            formattedTargetDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+          }
         }
+        response = `*${intent === 'LITURGY' ? 'Liturgia' : 'Conteúdo'} do Dia (${formattedTargetDate})*\n\n${response}`;
       }
 
-      const response = `*${intent === 'LITURGY' ? 'Liturgia' : 'Conteúdo'} do Dia (${formattedTargetDate})*\n\n${cachedResponse.trim()}`;
       await this.saveMessage(userId, 'assistant', response, false);
       return response;
     }

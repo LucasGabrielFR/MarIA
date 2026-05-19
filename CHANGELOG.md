@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.13.1] - 2026-05-19
 ### Fixed
 - **Autenticação em Gestão de Fiéis (x-admin-id):** Corrigido o envio do cabeçalho `'x-admin-id'` nas ações de exclusão de dados pessoais (`handleClearData`), atualização de assinaturas (`handleUpdateSubscription`) e salvamento de configurações operacionais (`handleSaveSettings`) na página `wa-users.tsx`, eliminando falhas de permissão ao executar essas tarefas como administrador ou superadmin.
-- **Formatação de Data em Mensagens de Cache:** Padronizada a exibição da data nas mensagens de cache diário direto (como Liturgia e Santo do Dia) no formato brasileiro (`dd/mm/yyyy`), em substituição ao padrão americano (`yyyy-mm-dd`), assegurando uma comunicação mais natural e amigável para o fiel.
+- **Formatação de Data e Remoção de Cabeçalhos Duplicados em Cache:** Padronizada a exibição da data nas mensagens de cache diário direto no formato brasileiro (`dd/mm/yyyy`). Além disso, foi implementada uma verificação inteligente no backend (`ai.service.ts`) para evitar a duplicação de cabeçalhos quando o conteúdo salvo no banco de dados já possui um título próprio com a data, garantindo mensagens perfeitamente limpas e sem redundâncias.
 
 ## [1.13.0] - 2026-05-19
 ### Added
