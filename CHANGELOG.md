@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.1] - 2026-05-19
+### Fixed
+- **Autenticação em Gestão de Fiéis (x-admin-id):** Corrigido o envio do cabeçalho `'x-admin-id'` nas ações de exclusão de dados pessoais (`handleClearData`), atualização de assinaturas (`handleUpdateSubscription`) e salvamento de configurações operacionais (`handleSaveSettings`) na página `wa-users.tsx`, eliminando falhas de permissão ao executar essas tarefas como administrador ou superadmin.
+
 ## [1.13.0] - 2026-05-19
 ### Added
 - **Gestão de Páginas Legais:** Nova seção "Páginas Legais" integrada no Painel de Configurações (`settings.tsx`) que possibilita a visualização e edição dinâmica em Markdown dos Termos de Uso (`terms_of_use`) e da Política de Privacidade (`privacy_policy`).

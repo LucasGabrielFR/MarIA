@@ -153,10 +153,14 @@ const WaUsersPage = () => {
     
     setDeleting(true)
     try {
+      const storedUser = localStorage.getItem('maria_user')
+      const adminId = storedUser ? JSON.parse(storedUser)?.id : ''
+      
       const response = await fetch(`${API_URL}/admin/wa-users/${selectedUser.id}/clear-data`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
+          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
+          'x-admin-id': adminId
         }
       })
       
@@ -249,11 +253,15 @@ const WaUsersPage = () => {
 
   const handleUpdateSubscription = async (userId: string, tier: string) => {
     try {
+      const storedUser = localStorage.getItem('maria_user')
+      const adminId = storedUser ? JSON.parse(storedUser)?.id : ''
+
       const response = await fetch(`${API_URL}/admin/wa-users/${userId}/subscription`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'x-admin-id': adminId
         },
         body: JSON.stringify({ tier, expiresAt: subscriptionExpiresAt || null })
       })
@@ -321,11 +329,15 @@ const WaUsersPage = () => {
     try {
       const parsedLimit = monthlyLimitBrl.trim() === '' ? null : parseFloat(monthlyLimitBrl)
       
+      const storedUser = localStorage.getItem('maria_user')
+      const adminId = storedUser ? JSON.parse(storedUser)?.id : ''
+
       const response = await fetch(`${API_URL}/admin/wa-users/${userId}/settings`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'x-admin-id': adminId
         },
         body: JSON.stringify({ 
           isPaused, 
