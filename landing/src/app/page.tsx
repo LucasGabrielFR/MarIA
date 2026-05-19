@@ -468,24 +468,32 @@ export default function Home() {
         href="https://wa.me/5562981949980"
         target="_blank"
         rel="noopener noreferrer"
-        className="fixed bottom-8 right-8 z-50 flex items-center justify-center w-14 h-14 bg-gradient-to-r from-[#0047AB] to-[#0056D2] hover:scale-110 transition-all duration-300 rounded-full shadow-[0_8px_30px_rgba(0,71,171,0.35)] hover:shadow-[0_12px_40px_rgba(0,71,171,0.5)] border border-[#D4AF37]/45 hover:border-[#D4AF37]/80 group shrink-0"
+        className="fixed bottom-8 right-8 z-50 flex items-center justify-center w-14 h-14 bg-[#22C55E] hover:scale-110 transition-all duration-300 rounded-full shadow-[0_8px_30px_rgba(34,197,94,0.4)] hover:shadow-[0_12px_40px_rgba(34,197,94,0.6)] group shrink-0"
         aria-label="Fale com a MarIA no WhatsApp"
       >
-        {/* Elegant gold ripple ring */}
-        <span className="absolute inset-0 rounded-full bg-[#0047AB] opacity-40 animate-ping pointer-events-none"></span>
+        {/* Elegant green ripple ring */}
+        <span className="absolute inset-0 rounded-full bg-[#22C55E] opacity-40 animate-ping pointer-events-none"></span>
 
         {/* Label (Slides/Fades in on hover) - Now ABSOLUTELY positioned to prevent blocking clicking footer elements */}
-        <span className="hidden md:inline-block absolute right-16 px-4 py-2 bg-[#0a0f1c]/95 text-white text-xs font-bold rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.4)] border border-[#D4AF37]/35 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 pointer-events-none whitespace-nowrap">
+        <span className="hidden md:inline-block absolute right-16 px-4 py-2 bg-[#0a0f1c]/95 text-white text-xs font-bold rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.4)] border border-[#22C55E]/30 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 pointer-events-none whitespace-nowrap">
           Fale com a MarIA
         </span>
 
-        {/* WhatsApp SVG Icon inside the styled button */}
+        {/* Telephone Outline Icon (Lucide-style Phone icon for perfect match) */}
         <svg 
-          className="w-7 h-7 fill-white relative z-10 transition-transform duration-300 group-hover:rotate-12" 
-          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg" 
+          width="24" 
+          height="24" 
+          viewBox="0 0 24 24" 
+          fill="none" 
+          stroke="white" 
+          strokeWidth="2" 
+          strokeLinecap="round" 
+          strokeLinejoin="round" 
+          className="w-6 h-6 relative z-10 transition-transform duration-300 group-hover:rotate-12"
         >
-          <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.262 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.457L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.413 9.863-9.847.002-2.634-1.023-5.11-2.887-6.974C16.582 1.921 14.1 1.88 12.005 1.88c-5.442 0-9.865 4.413-9.868 9.849-.001 1.769.467 3.493 1.357 5.024l-1.01 3.687 3.78-1.054zm12.569-4.736c-.276-.138-1.636-.807-1.89-.899-.253-.093-.438-.138-.623.139-.184.276-.714.899-.875 1.084-.162.184-.323.207-.599.069-.276-.138-1.168-.43-2.226-1.374-.823-.733-1.378-1.64-1.54-1.916-.162-.276-.017-.425.121-.562.124-.123.276-.323.415-.484.138-.162.184-.276.276-.461.093-.184.046-.347-.023-.485-.069-.138-.623-1.501-.853-2.053-.224-.538-.47-.464-.647-.474l-.553-.01c-.19 0-.498.07-.76.357-.262.288-1 .977-1 2.38s1.023 2.761 1.162 2.946c.139.184 2.012 3.073 4.873 4.314.68.296 1.212.473 1.627.604.684.218 1.307.187 1.8.114.55-.082 1.636-.668 1.866-1.32.23-.653.23-1.214.161-1.32-.069-.107-.253-.176-.529-.314z"/>
-        </svg>
+          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+            </svg>
       </a>
     </div>
   );
