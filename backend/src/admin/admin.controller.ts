@@ -63,6 +63,11 @@ export class AdminController {
     );
   }
 
+  @Get('settings/public/:key')
+  async getPublicSystemSetting(@Param('key') key: string) {
+    return this.adminService.getPublicSystemSetting(key);
+  }
+
   @Get('settings')
   async getSystemSettings() {
     return this.adminService.getSystemSettings();

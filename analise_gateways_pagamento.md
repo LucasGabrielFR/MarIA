@@ -34,21 +34,7 @@ Abaixo estão os cenários de margem de lucro por usuário considerando **100% d
 
 ### Cenário A: Plano Básico (R$ 14,90) - Custo IA Máx: R$ 4,50
 
-#### **Pagamento via Pix**
-*   **Stripe:**
-    *   Taxa Gateway: R$ 0,18
-    *   Custo IA Máx: R$ 4,50
-    *   **Sobram (Margem): R$ 10,22 (68,6%)** ✅ *Excelente*
-*   **Asaas:**
-    *   Taxa Gateway: R$ 1,99
-    *   Custo IA Máx: R$ 4,50
-    *   **Sobram (Margem): R$ 8,41 (56,4%)** ⚠️ *Prejudicado pela taxa fixa*
-
 #### **Pagamento via Cartão de Crédito**
-*   **Stripe:**
-    *   Taxa Gateway: R$ 0,98 *(3,99% + R$ 0,39)*
-    *   Custo IA Máx: R$ 4,50
-    *   **Sobram (Margem): R$ 9,42 (63,2%)**
 *   **Asaas:**
     *   Taxa Gateway: R$ 0,94 *(2,99% + R$ 0,49)*
     *   Custo IA Máx: R$ 4,50
@@ -58,21 +44,7 @@ Abaixo estão os cenários de margem de lucro por usuário considerando **100% d
 
 ### Cenário B: Plano Premium (R$ 29,90) - Custo IA Máx: R$ 9,00
 
-#### **Pagamento via Pix**
-*   **Stripe:**
-    *   Taxa Gateway: R$ 0,36
-    *   Custo IA Máx: R$ 9,00
-    *   **Sobram (Margem): R$ 20,54 (68,7%)** ✅ *Excelente*
-*   **Asaas:**
-    *   Taxa Gateway: R$ 1,99
-    *   Custo IA Máx: R$ 9,00
-    *   **Sobram (Margem): R$ 18,91 (63,2%)**
-
 #### **Pagamento via Cartão de Crédito**
-*   **Stripe:**
-    *   Taxa Gateway: R$ 1,58 *(3,99% + R$ 0,39)*
-    *   Custo IA Máx: R$ 9,00
-    *   **Sobram (Margem): R$ 19,32 (64,6%)**
 *   **Asaas:**
     *   Taxa Gateway: R$ 1,38 *(2,99% + R$ 0,49)*
     *   Custo IA Máx: R$ 9,00

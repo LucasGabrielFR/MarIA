@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.0] - 2026-05-19
+### Added
+- **Gestão de Páginas Legais:** Nova seção "Páginas Legais" integrada no Painel de Configurações (`settings.tsx`) que possibilita a visualização e edição dinâmica em Markdown dos Termos de Uso (`terms_of_use`) e da Política de Privacidade (`privacy_policy`).
+- **Visualização em Tempo Real (Live Preview):** Interface de visualização em tempo real incorporada ao editor, simulando de forma fiel e com estética premium (tema escuro com detalhes dourados e glassmorphism) o layout exato de como as páginas legais são exibidas na Landing Page.
+
+### Fixed
+- **Autenticação em Requisições Administrativas (x-admin-id):** Corrigidas as chamadas de API no painel de configurações para enviar o cabeçalho `'x-admin-id'` contendo o ID do administrador logado obtido do `localStorage`. Isso soluciona o erro de permissão que impedia a atualização das configurações gerais do sistema, limpeza de cache, sincronização de câmbio e chaveamento do modo de manutenção.
+- **Favicon da Landing Page:** Substituição do favicon padrão do Next.js pelo logo premium do projeto (`maria_logo_premium.png`) na raiz do aplicativo de landing, garantindo consistência visual de marca.
+
+## [1.12.0] - 2026-05-19
+### Added
+- **Seção de Perguntas Frequentes (FAQ):** Nova seção interativa na Landing Page respondendo a dúvidas teológicas, devocionais e de privacidade (A MarIA substitui a confissão?, privacidade, base teológica baseada no Magistério).
+- **Canal de Suporte por E-mail:** Inclusão oficial do e-mail de contato e suporte `maria@acutistech.com.br` na Landing Page e no rodapé institucional.
+
+### Changed
+- **Redesign e Alinhamento do Mockup do Celular:** O mockup do celular (iPhone) no Hero Section agora fica perfeitamente alinhado verticalmente de forma padrão, mantendo-se elegante e profissional, e apenas interagindo suavemente no hover.
+- **Remoção de Elementos de Status das Telas de Conversa:** O carrossel de capturas de conversas reais agora oculta a parte superior (status bar com horário, bateria e redes), elevando o nível de profissionalismo e credibilidade da interface.
+- **Foco Teológico e Doutrinário da Persona:** Copywriting da Landing Page ajustado para ressaltar o posicionamento de Inteligência Artificial Católica Fiel ao Magistério e Catecismo, operando com a doçura e acolhimento de Nossa Senhora em diversos perfis de fiéis (espiritual, teológico e emocional).
+- **Remoção de Card de Guru Místico:** Removido o card flutuante "Paz Interior" para consolidar o posicionamento oficial da MarIA como IA Católica e não como um guru genérico, substituindo-o pelo indicador "Fiel à Doutrina (Catecismo da Igreja)".
+
 ## [1.11.0] - 2026-05-18
 ### Added
 - **Correção nos Custos de IA & Tabela de Logs de Uso:** Solucionada a falha na agregação de custos de IA e logs de uso que vinham zerados. Agora a contagem de tokens de prompt/completion é calculada e convertida em reais em tempo real, populando corretamente os gráficos e tabelas da tela de Dados e Logs.

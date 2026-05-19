@@ -19,7 +19,13 @@
 - **Segurança Enterprise:** Implementação de Row Level Security (RLS) em todo o banco de dados, garantindo isolamento total e controle granular de acesso administrativo com **diálogos de confirmação** para ações críticas e irreversíveis.
 - **Proteção de Dados e Segurança Maternal:** Identificação de intenções maliciosas ou pedidos de dados sensíveis (tokens, segredos). A MarIA responde com firmeza e um "puxão de orelha" maternal, protegendo o sistema com doçura e autoridade espiritual.
 - **Onboarding Humanizado em 2 Etapas**: Fluxo de acolhimento que separa a saudação inicial da apresentação detalhada de ferramentas e oferta de planos.
-- **Inteligência Financeira e Assinaturas**:
+- **Landing Page Premium com Checkout Integrado**:
+  - **Identidade 100% Católica**: Copywriting focado no carinho maternal de Nossa Senhora e alinhamento dogmático estrito com o Magistério e o Catecismo da Igreja.
+  - **Vitrine Dinâmica de Conversas**: Celular (iPhone) 3D perfeitamente alinhado com transição de screenshots reais das conversas e corte automático de barras de status para máxima credibilidade.
+  - **Filtro e FAQ Inteligente**: Sessão interativa de Perguntas Frequentes (FAQ) detalhando aspectos de privacidade, sacramentos, quotas e limites.
+  - **Suporte Centralizado**: Integração do canal corporativo oficial `maria@acutistech.com.br` para suporte técnico e solicitações de exclusão de dados.
+- **Inteligência Financeira e Assinaturas (Stripe → Asaas)**:
+  - **Integração Asaas**: Checkout robusto no cartão de crédito via links de pagamento hospedados, integrado aos ciclos Mensal e Anual com concessão automática de acesso.
   - **Módulo Financeiro**: Dashboard de Margem de Contribuição com cálculo em tempo real de Receita vs. Custos de IA, agora equipado com **Filtro de Período dinâmico** por presets rápidos (Mês Atual, Semana, 15/30 Dias, 3/6 Meses, Ano, Todo o Período) ou datas personalizadas via calendário.
   - **Gestão de Assinatura Premium**: Painel de visualização moderno em grid de cards interativos, com atalhos inteligentes de prorrogação de prazo (+30, +90 dias, Limpar) e controles estritos de validade.
   - **Comprovação de Pagamento (Emerald Panel)**: Seção dedicada com degradê elegante, seletor segmentado e registro ágil de pagamentos em Pix/Dinheiro com emissão automática de 30 dias de acesso premium.
@@ -28,7 +34,7 @@
   - **Pausa Pastoral (Silenciamento do Bot)**: Permite pausar individualmente o envio de respostas automáticas da IA para um fiel específico através do dashboard, mantendo o recebimento de mensagens e o histórico íntegros.
   - **Limite de Bônus (R$)**: Define um limite mensal de bônus em Reais (R$) para o consumo de mensagens extras fora da franquia padrão de mensagens do plano do fiel, com bloqueio automático inteligente e aviso amigável quando atingido.
   - **Recuperação e Métricas**: Usuários com dados excluídos são mantidos como `disabled` para métricas; ao enviar nova mensagem, a triagem é reiniciada automaticamente.
-  - **Arquitetura Plugável**: Estrutura preparada para integração futura com gateways (Stripe, Mercado Pago).
+  - **Arquitetura Plugável**: Estrutura preparada para integração de webhooks do Asaas para processar cancelamentos e aprovações de crédito.
 - **Parametrização IA Pro Max**: Interface administrativa totalmente redesenhada com navegação lateral, busca global e labels educativas ("Onde Funciona" e "Impacto") para cada prompt do sistema.
 - **Gestão de Administradores e Controle de Acesso (RBAC)**: Tela de gerenciamento dedicada permitindo que superadministradores convidem administradores (com senha padrão `MarIA123` e primeiro login com alteração de senha obrigatória), redefinam senhas a quente, alterem cargos e excluam contas de acesso.
 - **Auditoria Operacional Completa (Timeline)**: Registro detalhado em tempo real de todas as ações administrativas críticas na tabela `activity_logs`. Ações como logins, alterações de planos/bônus de fiéis, edições de prompts e resets de cache são exibidos individualmente em uma timeline de auditoria elegante e interativa (Drawer).

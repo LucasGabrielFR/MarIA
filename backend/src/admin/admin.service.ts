@@ -413,6 +413,23 @@ export class AdminService {
     return data;
   }
 
+  async getPublicSystemSetting(key: string) {
+    const allowedKeys = ['terms_of_use', 'privacy_policy'];
+    if (!allowedKeys.includes(key)) {
+      throw new Error(`Acesso negado: a configuração '${key}' não é pública.`);
+    }
+
+    const supabase = this.supabaseService.getClient();
+    const { data, error } = await supabase
+      .from('system_settings')
+      .select('key, value, description, updated_at')
+      .eq('key', key)
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
   async updateSystemSetting(adminId: string, key: string, value: string) {
     const requester = await this.getRequesterAdmin(adminId);
     const supabase = this.supabaseService.getClient();

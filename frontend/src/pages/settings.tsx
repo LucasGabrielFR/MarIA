@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
-import { Cpu, DollarSign, ShieldCheck, Save, RefreshCw, AlertTriangle, Trash2, Power, ChevronDown, Search } from 'lucide-react'
+import { Cpu, DollarSign, ShieldCheck, Save, RefreshCw, AlertTriangle, Trash2, Power, ChevronDown, Search, FileText, Eye } from 'lucide-react'
 import { 
   Dialog, 
   DialogContent, 
@@ -30,6 +30,17 @@ export default function SettingsPage() {
     onConfirm: () => void;
   } | null>(null);
 
+  const [activeLegalTab, setActiveLegalTab] = useState<'terms' | 'privacy'>('terms');
+  const [termsText, setTermsText] = useState('');
+  const [privacyText, setPrivacyText] = useState('');
+
+  useEffect(() => {
+    if (settings.length > 0) {
+      setTermsText(getSettingValue('terms_of_use'));
+      setPrivacyText(getSettingValue('privacy_policy'));
+    }
+  }, [settings]);
+
   useEffect(() => {
     fetchSettings();
     handleSyncExchange();
@@ -38,7 +49,11 @@ export default function SettingsPage() {
 
   const fetchSettings = async () => {
     try {
-      const response = await fetch(`${API_URL}/admin/settings`);
+      const storedUser = localStorage.getItem('maria_user');
+      const adminId = storedUser ? JSON.parse(storedUser)?.id : '';
+      const response = await fetch(`${API_URL}/admin/settings`, {
+        headers: { 'x-admin-id': adminId }
+      });
       const data = await response.json();
       setSettings(data);
     } catch (error) {
@@ -63,14 +78,19 @@ export default function SettingsPage() {
 
   const handleUpdate = async (key: string, value: string) => {
     try {
+      const storedUser = localStorage.getItem('maria_user');
+      const adminId = storedUser ? JSON.parse(storedUser)?.id : '';
       const response = await fetch(`${API_URL}/admin/settings/${key}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-admin-id': adminId
+        },
         body: JSON.stringify({ value })
       });
 
       if (response.ok) {
-        toast.success(`Configuração "${key}" atualizada!`);
+        toast.success(`Configuração salva com sucesso!`);
         fetchSettings();
       } else {
         throw new Error();
@@ -83,7 +103,12 @@ export default function SettingsPage() {
   const handleSyncExchange = async () => {
     setSyncing(true);
     try {
-      const response = await fetch(`${API_URL}/admin/settings/sync-exchange`, { method: 'POST' });
+      const storedUser = localStorage.getItem('maria_user');
+      const adminId = storedUser ? JSON.parse(storedUser)?.id : '';
+      const response = await fetch(`${API_URL}/admin/settings/sync-exchange`, { 
+        method: 'POST',
+        headers: { 'x-admin-id': adminId }
+      });
       const data = await response.json();
       if (data.success) {
         toast.success(`Câmbio atualizado: R$ ${data.rate}`);
@@ -101,7 +126,12 @@ export default function SettingsPage() {
   const handleClearCache = async () => {
     setExecuting('cache');
     try {
-      const response = await fetch(`${API_URL}/admin/settings/clear-cache`, { method: 'POST' });
+      const storedUser = localStorage.getItem('maria_user');
+      const adminId = storedUser ? JSON.parse(storedUser)?.id : '';
+      const response = await fetch(`${API_URL}/admin/settings/clear-cache`, { 
+        method: 'POST',
+        headers: { 'x-admin-id': adminId }
+      });
       if (response.ok) {
         toast.success("Cache semântico limpo com sucesso!");
       } else {
@@ -118,7 +148,12 @@ export default function SettingsPage() {
   const handleToggleMaintenance = async () => {
     setExecuting('maintenance');
     try {
-      const response = await fetch(`${API_URL}/admin/settings/toggle-maintenance`, { method: 'POST' });
+      const storedUser = localStorage.getItem('maria_user');
+      const adminId = storedUser ? JSON.parse(storedUser)?.id : '';
+      const response = await fetch(`${API_URL}/admin/settings/toggle-maintenance`, { 
+        method: 'POST',
+        headers: { 'x-admin-id': adminId }
+      });
       const data = await response.json();
       if (data.success) {
         toast.success(`Modo de manutenção ${data.enabled ? 'ativado' : 'desativado'}!`);
@@ -251,6 +286,123 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Páginas Legais Section */}
+        <Card className="rounded-3xl border-none shadow-sm bg-white overflow-hidden">
+          <CardHeader className="border-b border-slate-50 pb-6">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-blue-50 text-[#0047AB] rounded-xl">
+                  <FileText size={20} />
+                </div>
+                <div>
+                  <CardTitle className="font-bold text-slate-800">Páginas Legais</CardTitle>
+                  <CardDescription className="text-slate-500 font-medium">Edite os Termos de Uso e a Política de Privacidade com suporte a Markdown.</CardDescription>
+                </div>
+              </div>
+              
+              {/* Tab Selector Buttons */}
+              <div className="bg-slate-100 p-1 rounded-xl flex items-center shadow-inner">
+                <Button 
+                  onClick={() => setActiveLegalTab('terms')}
+                  variant="ghost"
+                  className={`h-9 px-4 rounded-lg text-xs font-bold transition-all ${activeLegalTab === 'terms' ? 'bg-white text-[#0047AB] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  Termos de Uso
+                </Button>
+                <Button 
+                  onClick={() => setActiveLegalTab('privacy')}
+                  variant="ghost"
+                  className={`h-9 px-4 rounded-lg text-xs font-bold transition-all ${activeLegalTab === 'privacy' ? 'bg-white text-[#0047AB] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  Política de Privacidade
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Left Column: Editor */}
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <Label className="font-bold text-slate-700 ml-1">
+                    {activeLegalTab === 'terms' ? 'Editar Termos de Uso (Markdown)' : 'Editar Política de Privacidade (Markdown)'}
+                  </Label>
+                  <span className="text-[10px] bg-blue-50 text-[#0047AB] font-extrabold uppercase px-2 py-0.5 rounded">Basic MD</span>
+                </div>
+                
+                <textarea
+                  value={activeLegalTab === 'terms' ? termsText : privacyText}
+                  onChange={(e) => {
+                    if (activeLegalTab === 'terms') {
+                      setTermsText(e.target.value);
+                    } else {
+                      setPrivacyText(e.target.value);
+                    }
+                  }}
+                  placeholder={activeLegalTab === 'terms' ? 'Digite os Termos de Uso...' : 'Digite a Política de Privacidade...'}
+                  className="w-full min-h-[400px] max-h-[600px] font-mono text-sm p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all resize-y outline-none"
+                />
+                
+                <div className="text-[11px] text-slate-400 font-medium ml-1 leading-relaxed">
+                  <strong>Formatação Suportada:</strong> Use <code># Título 1</code>, <code>## Título 2</code>, <code>### Título 3</code>, <code>**Negrito**</code> e <code>- Marcador</code> para formatar o texto.
+                </div>
+                
+                <Button 
+                  onClick={() => {
+                    if (activeLegalTab === 'terms') {
+                      handleUpdate('terms_of_use', termsText);
+                    } else {
+                      handleUpdate('privacy_policy', privacyText);
+                    }
+                  }}
+                  className="h-12 bg-[#0047AB] hover:bg-[#003580] text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-100 hover:shadow-2xl transition-all duration-300 mt-2"
+                >
+                  <Save size={18} />
+                  Salvar {activeLegalTab === 'terms' ? 'Termos de Uso' : 'Política de Privacidade'}
+                </Button>
+              </div>
+
+              {/* Right Column: Premium Live Preview */}
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <Label className="font-bold text-slate-700 ml-1 flex items-center gap-2">
+                    <Eye size={16} className="text-[#0047AB]" />
+                    Visualização em Tempo Real (Landing Page)
+                  </Label>
+                  <div className="flex items-center gap-1.5">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Live Preview</span>
+                  </div>
+                </div>
+
+                {/* Simulated Glassmorphism landing page view */}
+                <div className="w-full h-full min-h-[400px] max-h-[500px] overflow-y-auto p-8 bg-slate-950 text-slate-300 rounded-2xl border border-slate-800 shadow-inner font-sans scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-slate-950 relative flex flex-col justify-between selection:bg-[#D4AF37] selection:text-[#0047AB]">
+                  
+                  {/* Subtle simulated ambient glows */}
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-[#0047AB]/10 rounded-full filter blur-2xl pointer-events-none"></div>
+                  <div className="absolute bottom-0 left-0 w-32 h-32 bg-[#D4AF37]/5 rounded-full filter blur-2xl pointer-events-none"></div>
+                  
+                  <div className="relative z-10 flex-grow">
+                    <div className="text-[10px] text-slate-400 font-semibold tracking-wider uppercase mb-4 border-b border-white/5 pb-2">
+                      Última atualização: {new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })} (Simulado)
+                    </div>
+                    
+                    <div 
+                      className="prose prose-invert max-w-none text-slate-300 font-sans"
+                      dangerouslySetInnerHTML={{ 
+                        __html: parseMarkdown(activeLegalTab === 'terms' ? termsText : privacyText) || "<p class='text-slate-500 italic font-light'>Digite algo no editor ao lado para ver a pré-visualização instantânea...</p>" 
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Danger Zone Redesign */}
         <Card className="rounded-3xl border border-red-200/50 shadow-lg shadow-red-50/50 bg-white overflow-hidden relative">
@@ -509,3 +661,65 @@ const ModelSelect = ({
     </div>
   );
 };
+
+// Markdown basic parser function to mimic Next.js terms/privacy render
+function parseMarkdown(md: string) {
+  if (!md) return "";
+  
+  let html = md
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+  // Bold
+  html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+
+  // Headers
+  html = html.replace(/^### (.*?)$/gm, "<h3 class='text-xl font-bold mt-8 mb-4 text-white'>$1</h3>");
+  html = html.replace(/^## (.*?)$/gm, "<h2 class='text-2xl font-bold mt-10 mb-4 text-white border-b border-white/10 pb-2'>$1</h2>");
+  html = html.replace(/^# (.*?)$/gm, "<h1 class='text-4xl font-extrabold mt-12 mb-6 text-[#D4AF37]'>$1</h1>");
+
+  // Bullet Lists
+  const lines = html.split("\n");
+  let inList = false;
+  const processedLines = lines.map(line => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+      const content = trimmed.substring(2);
+      let res = "";
+      if (!inList) {
+        inList = true;
+        res += "<ul class='list-disc list-inside my-6 pl-4 space-y-3 text-slate-300'>";
+      }
+      res += `<li>${content}</li>`;
+      return res;
+    } else {
+      let res = "";
+      if (inList) {
+        inList = false;
+        res += "</ul>";
+      }
+      return res + line;
+    }
+  });
+  if (inList) {
+    processedLines.push("</ul>");
+  }
+  html = processedLines.join("\n");
+
+  // Paragraphs (double newlines)
+  const paragraphs = html.split(/\n\s*\n/);
+  html = paragraphs
+    .map(p => {
+      const trimmed = p.trim();
+      if (!trimmed) return "";
+      if (trimmed.startsWith("<h") || trimmed.startsWith("<ul") || trimmed.startsWith("<li")) {
+        return trimmed;
+      }
+      return `<p class="my-5 text-slate-300 leading-relaxed font-light text-base md:text-lg">${trimmed.replace(/\n/g, "<br />")}</p>`;
+    })
+    .filter(Boolean)
+    .join("\n");
+
+  return html;
+}
