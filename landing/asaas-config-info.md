@@ -29,4 +29,10 @@ A nossa aplicação (`AsaasService`) já cria a Subscription de forma dinâmica 
 - `planId=premium` e `cycle=monthly` -> R$ 29,90 / mês
 - `planId=premium` e `cycle=annual` -> R$ 322,80 / ano
 
-A cobrança é sempre forçada para *Cartão de Crédito*, gerando a fatura e retornando a `invoiceUrl` para a Landing Page redirecionar o cliente automaticamente para a tela segura do Asaas para inserir os dados do cartão.
+O backend gera o link nesta ordem (conforme [documentação Asaas](https://docs.asaas.com/)):
+
+1. **Link de pagamento recorrente** (`POST /v3/paymentLinks`, `chargeType: RECURRENT`) — página onde o cliente preenche dados e escolhe Pix, cartão ou boleto.
+2. **Checkout hospedado** (`POST /v3/checkouts`, `chargeTypes: RECURRENT`) — formulário completo do Asaas Checkout.
+3. **Assinatura + fatura** (`POST /v3/subscriptions` + `GET /v3/subscriptions/{id}/payments`) — `invoiceUrl` da primeira cobrança pendente.
+
+Use `ASAAS_API_KEY` (ou `ASAAS_TOKEN`) e `ASAAS_API_URL` no `.env` do backend.

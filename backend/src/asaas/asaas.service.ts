@@ -2,16 +2,92 @@ import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { UazapiService } from '../uazapi/uazapi.service';
 
+/** Imagem 1x1 PNG transparente (exigida pelo Checkout Asaas nos itens). */
+const CHECKOUT_PLACEHOLDER_IMAGE_BASE64 =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+
+type PlanId = 'basic' | 'premium';
+type BillingCycle = 'monthly' | 'annual';
+
+interface PlanConfig {
+  value: number;
+  cycleAsaas: 'MONTHLY' | 'YEARLY';
+  description: string;
+  linkName: string;
+  itemName: string;
+}
+
 @Injectable()
 export class AsaasService {
   private readonly logger = new Logger(AsaasService.name);
-  private readonly apiKey = process.env.ASAAS_API_KEY || '';
-  private readonly apiUrl = process.env.ASAAS_API_URL || 'https://sandbox.asaas.com/api/v3';
+  private readonly apiKey =
+    process.env.ASAAS_API_KEY || process.env.ASAAS_TOKEN || '';
+  private readonly apiUrl =
+    process.env.ASAAS_API_URL || 'https://sandbox.asaas.com/api/v3';
 
   constructor(
     private readonly supabase: SupabaseService,
     private readonly uazapi: UazapiService,
   ) {}
+
+  private getPlanConfig(planId: PlanId, cycle: BillingCycle): PlanConfig {
+    const configs: Record<PlanId, Record<BillingCycle, PlanConfig>> = {
+      basic: {
+        monthly: {
+          value: 14.9,
+          cycleAsaas: 'MONTHLY',
+          description: 'Plano Básico Mensal - MarIA',
+          linkName: 'MarIA - Plano Básico Mensal',
+          itemName: 'MarIA Básico Mensal',
+        },
+        annual: {
+          value: 154.8,
+          cycleAsaas: 'YEARLY',
+          description: 'Plano Básico Anual - MarIA',
+          linkName: 'MarIA - Plano Básico Anual',
+          itemName: 'MarIA Básico Anual',
+        },
+      },
+      premium: {
+        monthly: {
+          value: 29.9,
+          cycleAsaas: 'MONTHLY',
+          description: 'Plano Premium Mensal - MarIA',
+          linkName: 'MarIA - Plano Premium Mensal',
+          itemName: 'MarIA Premium Mensal',
+        },
+        annual: {
+          value: 322.8,
+          cycleAsaas: 'YEARLY',
+          description: 'Plano Premium Anual - MarIA',
+          linkName: 'MarIA - Plano Premium Anual',
+          itemName: 'MarIA Premium Anual',
+        },
+      },
+    };
+
+    const cfg = configs[planId]?.[cycle];
+    if (!cfg) {
+      throw new BadRequestException('Plano ou ciclo inválido');
+    }
+    return cfg;
+  }
+
+  private normalizePhone(phone: string): string {
+    return (phone || '').replace(/\D/g, '');
+  }
+
+  private buildExternalReference(
+    planId: PlanId,
+    cycle: BillingCycle,
+    phone: string,
+  ): string {
+    return `${planId}_${cycle}_${this.normalizePhone(phone)}`;
+  }
+
+  private formatDate(date: Date): string {
+    return date.toISOString().split('T')[0];
+  }
 
   private async request(endpoint: string, method: string, data?: any) {
     const url = `${this.apiUrl}${endpoint}`;
@@ -19,7 +95,8 @@ export class AsaasService {
       method,
       headers: {
         'Content-Type': 'application/json',
-        'access_token': this.apiKey,
+        access_token: this.apiKey,
+        'User-Agent': 'MarIA/1.0',
       },
       ...(data && { body: JSON.stringify(data) }),
     };
@@ -28,11 +105,303 @@ export class AsaasService {
     const result = await response.json();
 
     if (!response.ok) {
-      this.logger.error(`Asaas API error: ${JSON.stringify(result)}`);
+      this.logger.error(`Asaas API error [${method} ${endpoint}]: ${JSON.stringify(result)}`);
       throw new Error(result?.errors?.[0]?.description || 'Erro na integração com Asaas');
     }
 
     return result;
+  }
+
+  private parseExternalReference(externalReference?: string): {
+    planTier: string;
+    cycle?: string;
+    phone: string | null;
+  } {
+    if (!externalReference) {
+      return { planTier: 'basic', phone: null };
+    }
+
+    const parts = externalReference.split('_');
+    if (parts.length >= 3) {
+      return {
+        planTier: parts[0],
+        cycle: parts[1],
+        phone: parts.slice(2).join('_'),
+      };
+    }
+
+    return { planTier: parts[0] || 'basic', phone: null };
+  }
+
+  private async ensureAsaasCustomer(
+    phone: string,
+    displayName?: string | null,
+  ): Promise<{ customerId: string; userId?: string }> {
+    const normalizedPhone = this.normalizePhone(phone);
+
+    const { data: user } = await this.supabase
+      .getClient()
+      .from('users')
+      .select('id, name, asaas_customer_id')
+      .eq('phone', normalizedPhone)
+      .maybeSingle();
+
+    if (user?.asaas_customer_id) {
+      return { customerId: user.asaas_customer_id, userId: user.id };
+    }
+
+    const customerPayload = {
+      name: displayName || user?.name || `Cliente MarIA ${normalizedPhone}`,
+      mobilePhone: normalizedPhone,
+      phone: normalizedPhone,
+      notificationDisabled: false,
+    };
+
+    const customer = await this.request('/customers', 'POST', customerPayload);
+
+    if (user?.id) {
+      await this.supabase
+        .getClient()
+        .from('users')
+        .update({ asaas_customer_id: customer.id })
+        .eq('id', user.id);
+    }
+
+    return { customerId: customer.id, userId: user?.id };
+  }
+
+  /**
+   * Link de pagamento recorrente (documentação: POST /v3/paymentLinks, chargeType RECURRENT).
+   * O cliente preenche dados e escolhe Pix/Cartão/Boleto na página do Asaas.
+   */
+  private async createRecurrentPaymentLink(
+    planId: PlanId,
+    cycle: BillingCycle,
+    phone: string,
+  ): Promise<string> {
+    const cfg = this.getPlanConfig(planId, cycle);
+    const externalReference = this.buildExternalReference(planId, cycle, phone);
+
+    const payload = {
+      name: cfg.linkName,
+      description: cfg.description,
+      value: cfg.value,
+      billingType: 'UNDEFINED',
+      chargeType: 'RECURRENT',
+      subscriptionCycle: cfg.cycleAsaas,
+      externalReference,
+      dueDateLimitDays: 10,
+    };
+
+    this.logger.log(`Creating Asaas payment link: ${JSON.stringify(payload)}`);
+    const link = await this.request('/paymentLinks', 'POST', payload);
+
+    if (!link.url) {
+      throw new Error('Asaas não retornou URL do link de pagamento');
+    }
+
+    return link.url;
+  }
+
+  /**
+   * Checkout hospedado (documentação: POST /v3/checkouts, chargeTypes RECURRENT).
+   * Retorna link pronto para o cliente concluir o pagamento.
+   */
+  private async createHostedCheckout(
+    planId: PlanId,
+    cycle: BillingCycle,
+    phone: string,
+    customerId?: string,
+    customerName?: string | null,
+  ): Promise<string> {
+    const cfg = this.getPlanConfig(planId, cycle);
+    const normalizedPhone = this.normalizePhone(phone);
+    const externalReference = this.buildExternalReference(planId, cycle, phone);
+
+    const nextDue = new Date();
+    nextDue.setDate(nextDue.getDate() + 1);
+
+    const successUrl =
+      process.env.ASAAS_CHECKOUT_SUCCESS_URL ||
+      'https://maria.acutistech.com.br/?checkout=success';
+    const cancelUrl =
+      process.env.ASAAS_CHECKOUT_CANCEL_URL ||
+      'https://maria.acutistech.com.br/?checkout=cancel';
+
+    const payload: Record<string, unknown> = {
+      billingTypes: ['CREDIT_CARD', 'PIX'],
+      chargeTypes: ['RECURRENT'],
+      minutesToExpire: 1440,
+      externalReference,
+      callback: {
+        successUrl,
+        cancelUrl,
+        autoRedirect: true,
+      },
+      items: [
+        {
+          name: cfg.itemName.substring(0, 30),
+          description: cfg.description.substring(0, 150),
+          quantity: 1,
+          value: cfg.value,
+          imageBase64: CHECKOUT_PLACEHOLDER_IMAGE_BASE64,
+        },
+      ],
+      subscription: {
+        cycle: cfg.cycleAsaas,
+        nextDueDate: this.formatDate(nextDue),
+      },
+    };
+
+    if (customerId) {
+      payload.customer = customerId;
+    } else {
+      payload.customerData = {
+        name: customerName || `Cliente MarIA`,
+        phone: normalizedPhone,
+      };
+    }
+
+    this.logger.log(`Creating Asaas checkout session for ${externalReference}`);
+    const checkout = await this.request('/checkouts', 'POST', payload);
+
+    if (!checkout.link) {
+      throw new Error('Asaas não retornou link do checkout');
+    }
+
+    return checkout.link;
+  }
+
+  /**
+   * Assinatura + primeira cobrança com invoiceUrl (documentação: POST /v3/subscriptions).
+   */
+  private async createSubscriptionInvoiceUrl(
+    planId: PlanId,
+    cycle: BillingCycle,
+    phone: string,
+    customerId: string,
+  ): Promise<string> {
+    const cfg = this.getPlanConfig(planId, cycle);
+    const externalReference = this.buildExternalReference(planId, cycle, phone);
+
+    const nextDue = new Date();
+    nextDue.setDate(nextDue.getDate() + 1);
+
+    const subscriptionPayload = {
+      customer: customerId,
+      billingType: 'UNDEFINED',
+      value: cfg.value,
+      nextDueDate: this.formatDate(nextDue),
+      cycle: cfg.cycleAsaas,
+      description: cfg.description,
+      externalReference,
+    };
+
+    this.logger.log(`Creating Asaas subscription: ${JSON.stringify(subscriptionPayload)}`);
+    const subscription = await this.request('/subscriptions', 'POST', subscriptionPayload);
+    this.logger.log(`Subscription created: ${subscription.id}`);
+
+    let invoiceUrl: string | null = null;
+
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const payments = await this.request(
+        `/subscriptions/${subscription.id}/payments?status=PENDING&limit=5&order=asc`,
+        'GET',
+      );
+
+      const pending = payments.data?.find((p: any) => p.invoiceUrl);
+      if (pending?.invoiceUrl) {
+        invoiceUrl = pending.invoiceUrl;
+        break;
+      }
+
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+
+    if (!invoiceUrl) {
+      this.logger.error(`No invoiceUrl for subscription ${subscription.id}`);
+      throw new Error(
+        'A assinatura foi criada, mas a fatura ainda não está disponível. Tente novamente em alguns instantes.',
+      );
+    }
+
+    return invoiceUrl;
+  }
+
+  async createCheckoutUrl(
+    planId: string,
+    cycle: string,
+    phone: string,
+  ): Promise<{ url: string }> {
+    if (!this.apiKey) {
+      this.logger.warn('ASAAS_API_KEY/ASAAS_TOKEN not set. Returning dummy URL.');
+      return { url: 'https://sandbox.asaas.com/checkout/dummy' };
+    }
+
+    const normalizedPlan = planId as PlanId;
+    const normalizedCycle = cycle as BillingCycle;
+    if (!['basic', 'premium'].includes(normalizedPlan)) {
+      throw new BadRequestException('Plano inválido');
+    }
+    if (!['monthly', 'annual'].includes(normalizedCycle)) {
+      throw new BadRequestException('Ciclo inválido');
+    }
+
+    const { customerId, userId } = await this.ensureAsaasCustomer(phone);
+    const { data: userRow } = userId
+      ? await this.supabase
+          .getClient()
+          .from('users')
+          .select('name')
+          .eq('id', userId)
+          .maybeSingle()
+      : { data: null };
+
+    const strategies: Array<{ name: string; run: () => Promise<string> }> = [
+      {
+        name: 'paymentLink',
+        run: () =>
+          this.createRecurrentPaymentLink(normalizedPlan, normalizedCycle, phone),
+      },
+      {
+        name: 'checkout',
+        run: () =>
+          this.createHostedCheckout(
+            normalizedPlan,
+            normalizedCycle,
+            phone,
+            customerId,
+            userRow?.name,
+          ),
+      },
+      {
+        name: 'subscription',
+        run: () =>
+          this.createSubscriptionInvoiceUrl(
+            normalizedPlan,
+            normalizedCycle,
+            phone,
+            customerId,
+          ),
+      },
+    ];
+
+    let lastError: Error | null = null;
+
+    for (const strategy of strategies) {
+      try {
+        const url = await strategy.run();
+        this.logger.log(`Checkout URL via ${strategy.name}: ${url}`);
+        return { url };
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        this.logger.warn(
+          `Asaas strategy "${strategy.name}" failed: ${lastError.message}`,
+        );
+      }
+    }
+
+    throw lastError || new Error('Não foi possível gerar o link de pagamento');
   }
 
   async cancelSubscription(subscriptionId: string): Promise<void> {
@@ -45,247 +414,151 @@ export class AsaasService {
       await this.request(`/subscriptions/${subscriptionId}`, 'DELETE');
       this.logger.log(`Subscription ${subscriptionId} cancelled successfully in Asaas.`);
     } catch (error) {
-      this.logger.error(`Error cancelling subscription ${subscriptionId} in Asaas: ${error.message}`);
+      this.logger.error(
+        `Error cancelling subscription ${subscriptionId} in Asaas: ${error.message}`,
+      );
       throw error;
     }
-  }
-
-  async createCheckoutUrl(planId: string, cycle: string, phone: string): Promise<{ url: string }> {
-    if (!this.apiKey) {
-      this.logger.warn('ASAAS_API_KEY not set. Returning a dummy URL for testing.');
-      return { url: 'https://sandbox.asaas.com/checkout/dummy' };
-    }
-
-    // Determine value and cycle mapping
-    let value = 0;
-    let cycleAsaas = 'MONTHLY';
-    let description = '';
-
-    if (planId === 'basic') {
-      if (cycle === 'annual') {
-         value = 154.80; // R$ 12,90 * 12
-         cycleAsaas = 'YEARLY';
-         description = 'Plano Básico (Anual) - MarIA';
-      } else {
-         value = 14.99;
-         cycleAsaas = 'MONTHLY';
-         description = 'Plano Básico (Mensal) - MarIA';
-      }
-    } else if (planId === 'premium') {
-      if (cycle === 'annual') {
-         value = 322.80; // R$ 26,90 * 12
-         cycleAsaas = 'YEARLY';
-         description = 'Plano Premium (Anual) - MarIA';
-      } else {
-         value = 29.90;
-         cycleAsaas = 'MONTHLY';
-         description = 'Plano Premium (Mensal) - MarIA';
-      }
-    } else {
-      throw new BadRequestException('Plano inválido');
-    }
-
-    // 1. Check or create Customer in Asaas based on phone
-    const { data: user } = await this.supabase.getClient()
-       .from('users')
-       .select('id, name, asaas_customer_id')
-       .eq('phone', phone)
-       .single();
-
-    let asaasCustomerId = user?.asaas_customer_id;
-
-    if (!asaasCustomerId) {
-       const customerPayload = {
-         name: user?.name || `Cliente WhatsApp ${phone}`,
-         mobilePhone: phone,
-         phone: phone,
-         notificationDisabled: false,
-       };
-       const customer = await this.request('/customers', 'POST', customerPayload);
-       asaasCustomerId = customer.id;
-
-       if (user) {
-          await this.supabase.getClient()
-             .from('users')
-             .update({ asaas_customer_id: asaasCustomerId })
-             .eq('id', user.id);
-       }
-    }
-
-    // 2. Create Subscription with billingType UNDEFINED so the customer can
-    //    choose Pix, Boleto or Credit Card on the checkout page.
-    //    The first pending payment's invoiceUrl is the checkout link.
-    const nextDueDate = new Date();
-    nextDueDate.setDate(nextDueDate.getDate() + 1); // tomorrow
-
-    const subscriptionPayload = {
-       customer: asaasCustomerId,
-       billingType: 'UNDEFINED', // Lets the customer choose payment method at checkout
-       value: value,
-       nextDueDate: nextDueDate.toISOString().split('T')[0],
-       cycle: cycleAsaas,
-       description: description,
-       externalReference: `${planId}_${cycle}_${phone}`,
-    };
-
-    this.logger.log(`Creating Asaas subscription: ${JSON.stringify(subscriptionPayload)}`);
-    const subscription = await this.request('/subscriptions', 'POST', subscriptionPayload);
-    this.logger.log(`Subscription created: ${subscription.id}`);
-
-    // 3. Retrieve the first pending payment for this subscription to get the invoiceUrl (checkout link)
-    // Asaas creates the first charge automatically on subscription creation.
-    // We query with a small retry in case the charge hasn't propagated yet.
-    let invoiceUrl: string | null = null;
-
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const payments = await this.request(
-        `/payments?subscription=${subscription.id}&status=PENDING&limit=1`,
-        'GET'
-      );
-
-      if (payments.data && payments.data.length > 0 && payments.data[0].invoiceUrl) {
-        invoiceUrl = payments.data[0].invoiceUrl;
-        break;
-      }
-
-      // Wait 1s before retrying
-      await new Promise(r => setTimeout(r, 1000));
-    }
-
-    if (!invoiceUrl) {
-      // Fallback: try bankSlipUrl or payment link directly from subscription
-      if (subscription.bankSlipUrl) {
-        invoiceUrl = subscription.bankSlipUrl;
-      } else {
-        this.logger.error(`Could not get invoiceUrl for subscription ${subscription.id}`);
-        throw new Error('Não foi possível gerar a URL de pagamento. Tente novamente em instantes.');
-      }
-    }
-
-    this.logger.log(`Checkout URL for subscription ${subscription.id}: ${invoiceUrl}`);
-    return { url: invoiceUrl! };
-
   }
 
   async handleWebhook(event: any) {
     this.logger.log(`Received Asaas Webhook: ${event.event}`);
 
-    // Asaas sends "PAYMENT_CONFIRMED" or "PAYMENT_RECEIVED" when a charge is paid
     if (event.event === 'PAYMENT_CONFIRMED' || event.event === 'PAYMENT_RECEIVED') {
-       const payment = event.payment;
-       const subscriptionId = payment.subscription;
-       const customerId = payment.customer;
-       const externalReference = payment.externalReference; // "basic_5511999999999"
-       
-       if (!subscriptionId) return { received: true };
+      const payment = event.payment;
+      const subscriptionId = payment.subscription;
+      const customerId = payment.customer;
+      const externalReference = payment.externalReference;
 
-       let planTier = 'basic';
-       let phone = null;
+      if (!subscriptionId) return { received: true };
 
-       if (externalReference) {
-          const parts = externalReference.split('_');
-          if (parts.length >= 2) {
-             planTier = parts[0];
-             phone = parts[1];
-          }
-       } else {
-         // Try to deduce plan from value
-         if (payment.value >= 29.90) planTier = 'premium';
-         else planTier = 'basic';
-       }
+      const parsed = this.parseExternalReference(externalReference);
+      let planTier = parsed.planTier;
+      let phone = parsed.phone;
 
-       // Update Supabase
-       const supabaseClient = this.supabase.getClient();
-       
-       let userQuery = supabaseClient.from('users').select('*').eq('asaas_customer_id', customerId).single();
-       let { data: user } = await userQuery;
+      if (!phone && payment.customer) {
+        const { data: userByCustomer } = await this.supabase
+          .getClient()
+          .from('users')
+          .select('phone')
+          .eq('asaas_customer_id', customerId)
+          .maybeSingle();
+        phone = userByCustomer?.phone || null;
+      }
 
-       if (!user && phone) {
-            // Fallback to phone mapping
-            const { data: phoneUser } = await supabaseClient.from('users').select('*').eq('phone', phone).single();
-            user = phoneUser;
-       }
+      if (planTier !== 'basic' && planTier !== 'premium') {
+        if (payment.value >= 29.9) planTier = 'premium';
+        else planTier = 'basic';
+      }
 
-       if (user) {
-          const oldSubscriptionId = user.asaas_subscription_id;
+      const supabaseClient = this.supabase.getClient();
 
-          // Prevent Double Billing / Upgrade Cancellation:
-          // If user had an active subscription in Asaas and it is different from this new one, cancel it.
-          if (oldSubscriptionId && oldSubscriptionId !== subscriptionId) {
-             this.logger.log(`Detectando upgrade/mudança de plano para o usuário ${user.id}. Cancelando assinatura antiga ${oldSubscriptionId}...`);
-             try {
-                await this.cancelSubscription(oldSubscriptionId);
-             } catch (cancelErr) {
-                this.logger.error(`Falha ao cancelar assinatura antiga ${oldSubscriptionId}: ${cancelErr.message}`);
-             }
-          }
+      let { data: user } = await supabaseClient
+        .from('users')
+        .select('*')
+        .eq('asaas_customer_id', customerId)
+        .maybeSingle();
 
-          // Calculate next expiration date
-          const expiresAt = new Date();
-          if (payment.value > 100) {
-             expiresAt.setFullYear(expiresAt.getFullYear() + 1); // Annual plan
-          } else {
-             expiresAt.setMonth(expiresAt.getMonth() + 1); // Monthly plan
-          }
+      if (!user && phone) {
+        const { data: phoneUser } = await supabaseClient
+          .from('users')
+          .select('*')
+          .eq('phone', this.normalizePhone(phone))
+          .maybeSingle();
+        user = phoneUser;
+      }
 
-          // Update user columns
-          await supabaseClient.from('users').update({
-             asaas_subscription_id: subscriptionId,
-             subscription_tier: planTier,
-             plan_tier: planTier,
-             asaas_customer_id: customerId,
-             subscription_expires_at: expiresAt.toISOString(),
-             updated_at: new Date().toISOString()
-          }).eq('id', user.id);
+      if (user) {
+        const oldSubscriptionId = user.asaas_subscription_id;
 
-          // Insert record in subscriptions table
-          await supabaseClient.from('subscriptions').insert({
-             user_id: user.id,
-             tier: planTier,
-             amount: payment.value,
-             status: 'paid',
-             provider: 'asaas',
-             expires_at: expiresAt.toISOString(),
-             created_at: new Date().toISOString()
-          });
-
-          this.logger.log(`Updated user ${user.id} to plan ${planTier} and recorded subscription.`);
-
-          // Send welcome message via WhatsApp
+        if (oldSubscriptionId && oldSubscriptionId !== subscriptionId) {
+          this.logger.log(
+            `Upgrade detectado para ${user.id}. Cancelando assinatura ${oldSubscriptionId}...`,
+          );
           try {
-             const promptKey = `welcome_${planTier}`;
-             const { data: promptData } = await supabaseClient
-                .from('ai_prompts')
-                .select('content')
-                .eq('key', promptKey)
-                .eq('is_active', true)
-                .single();
-
-             const welcomeMsg = promptData?.content || (planTier === 'premium' 
-                ? '🌟 *Sua assinatura Premium foi confirmada com sucesso!* Seja muito bem-vindo!' 
-                : '🎉 *Sua assinatura Básica foi confirmada com sucesso!* Seja muito bem-vindo!');
-
-             const targetChatId = user.wa_chatid || `${user.phone}@s.whatsapp.net`;
-             await this.uazapi.sendMessage(targetChatId, welcomeMsg);
-          } catch (msgErr) {
-             this.logger.error(`Error sending welcome message to user ${user.id}: ${msgErr.message}`);
+            await this.cancelSubscription(oldSubscriptionId);
+          } catch (cancelErr) {
+            this.logger.error(
+              `Falha ao cancelar assinatura antiga ${oldSubscriptionId}: ${cancelErr.message}`,
+            );
           }
-       } else {
-          this.logger.warn(`User not found for asaas_customer_id: ${customerId}`);
-       }
+        }
+
+        const expiresAt = new Date();
+        const isAnnual =
+          parsed.cycle === 'annual' || payment.value > 100 || payment.value >= 154;
+        if (isAnnual) {
+          expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+        } else {
+          expiresAt.setMonth(expiresAt.getMonth() + 1);
+        }
+
+        await supabaseClient
+          .from('users')
+          .update({
+            asaas_subscription_id: subscriptionId,
+            subscription_tier: planTier,
+            plan_tier: planTier,
+            asaas_customer_id: customerId,
+            subscription_expires_at: expiresAt.toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', user.id);
+
+        await supabaseClient.from('subscriptions').insert({
+          user_id: user.id,
+          tier: planTier,
+          amount: payment.value,
+          status: 'paid',
+          provider: 'asaas',
+          expires_at: expiresAt.toISOString(),
+          created_at: new Date().toISOString(),
+        });
+
+        this.logger.log(`Updated user ${user.id} to plan ${planTier}.`);
+
+        try {
+          const promptKey = `welcome_${planTier}`;
+          const { data: promptData } = await supabaseClient
+            .from('ai_prompts')
+            .select('content')
+            .eq('key', promptKey)
+            .eq('is_active', true)
+            .single();
+
+          const welcomeMsg =
+            promptData?.content ||
+            (planTier === 'premium'
+              ? '🌟 *Sua assinatura Premium foi confirmada com sucesso!* Seja muito bem-vindo!'
+              : '🎉 *Sua assinatura Básica foi confirmada com sucesso!* Seja muito bem-vindo!');
+
+          const targetChatId = user.wa_chatid || `${user.phone}@s.whatsapp.net`;
+          await this.uazapi.sendMessage(targetChatId, welcomeMsg);
+        } catch (msgErr) {
+          this.logger.error(
+            `Error sending welcome message to user ${user.id}: ${msgErr.message}`,
+          );
+        }
+      } else {
+        this.logger.warn(`User not found for asaas_customer_id: ${customerId}`);
+      }
     }
 
     if (event.event === 'SUBSCRIPTION_DELETED' || event.event === 'SUBSCRIPTION_CANCELED') {
-       const subscriptionId = event.payment?.subscription || event.subscription?.id;
-       if (!subscriptionId) return { received: true };
+      const subscriptionId = event.payment?.subscription || event.subscription?.id;
+      if (!subscriptionId) return { received: true };
 
-       await this.supabase.getClient().from('users').update({
+      await this.supabase
+        .getClient()
+        .from('users')
+        .update({
           subscription_tier: 'free',
           plan_tier: 'free',
-          updated_at: new Date().toISOString()
-       }).eq('asaas_subscription_id', subscriptionId);
-       
-       this.logger.log(`Downgraded subscription ${subscriptionId} to free`);
+          updated_at: new Date().toISOString(),
+        })
+        .eq('asaas_subscription_id', subscriptionId);
+
+      this.logger.log(`Downgraded subscription ${subscriptionId} to free`);
     }
 
     return { received: true };
@@ -313,27 +586,30 @@ export class AsaasService {
         const nextDueDate = sub.nextDueDate;
 
         let planTier = 'basic';
-        if (value >= 29.90 || sub.description?.toLowerCase().includes('premium')) {
+        if (value >= 29.9 || sub.description?.toLowerCase().includes('premium')) {
           planTier = 'premium';
         }
 
         const expiresAt = new Date(nextDueDate);
-        expiresAt.setDate(expiresAt.getDate() + 1); // 1 day grace period
+        expiresAt.setDate(expiresAt.getDate() + 1);
 
-        let { data: user } = await supabaseClient
+        const { data: user } = await supabaseClient
           .from('users')
           .select('id, subscription_tier')
           .eq('asaas_customer_id', customerId)
           .maybeSingle();
 
         if (user) {
-          await supabaseClient.from('users').update({
-            asaas_subscription_id: subscriptionId,
-            subscription_tier: planTier,
-            plan_tier: planTier,
-            subscription_expires_at: expiresAt.toISOString(),
-            updated_at: new Date().toISOString()
-          }).eq('id', user.id);
+          await supabaseClient
+            .from('users')
+            .update({
+              asaas_subscription_id: subscriptionId,
+              subscription_tier: planTier,
+              plan_tier: planTier,
+              subscription_expires_at: expiresAt.toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', user.id);
 
           const { data: existingSub } = await supabaseClient
             .from('subscriptions')
@@ -351,7 +627,7 @@ export class AsaasService {
               status: 'paid',
               provider: 'asaas',
               expires_at: expiresAt.toISOString(),
-              created_at: new Date().toISOString()
+              created_at: new Date().toISOString(),
             });
           }
 
@@ -367,7 +643,10 @@ export class AsaasService {
     }
   }
 
-  async updateSubscription(subscriptionId: string, payload: { value: number, cycle: string, description: string }): Promise<any> {
+  async updateSubscription(
+    subscriptionId: string,
+    payload: { value: number; cycle: string; description: string },
+  ): Promise<any> {
     if (!this.apiKey) {
       this.logger.warn('ASAAS_API_KEY not set. Skipping update in sandbox.');
       return { id: subscriptionId, ...payload };
@@ -378,12 +657,14 @@ export class AsaasService {
       const result = await this.request(`/subscriptions/${subscriptionId}`, 'POST', {
         value: payload.value,
         cycle: payload.cycle,
-        description: payload.description
+        description: payload.description,
       });
       this.logger.log(`Subscription ${subscriptionId} updated successfully in Asaas.`);
       return result;
     } catch (error) {
-      this.logger.error(`Error updating subscription ${subscriptionId} in Asaas: ${error.message}`);
+      this.logger.error(
+        `Error updating subscription ${subscriptionId} in Asaas: ${error.message}`,
+      );
       throw error;
     }
   }
