@@ -5,7 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.2] - 2026-05-21
+### Fixed
+- **Bug Crítico: JSON Parse no Status do Fluxo (`SyntaxError: Expected ':'`):** O método `handleFlowStep` em `ai.service.ts` usava `split(':')` para decodificar o status do usuário no formato `flow:subscription_flow:confirm_plan:{"plan":"1"}`. Como o JSON contém dois-pontos (`:`) em seus valores, o split fragmentava o payload, causando `SyntaxError` ao tentar dar `JSON.parse`. Corrigido usando `indexOf(':')` posicional para extrair com precisão apenas o segmento do JSON sem quebrá-lo.
+- **Link do Asaas Incorreto (Link Dummy / URL Inválida):** A integração com o Asaas usava `billingType: 'CREDIT_CARD'`, que **não gera uma URL de checkout pública** para assinaturas. Alterado para `billingType: 'UNDEFINED'`, que permite o cliente escolher o método de pagamento (Pix, Boleto ou Cartão) no checkout do Asaas e retorna corretamente um `invoiceUrl` público na primeira cobrança pendente. Adicionado retry com 3 tentativas (intervalo de 1s) para aguardar a propagação da cobrança na API do Asaas antes de falhar.
+- **Botões Nativos WhatsApp Não Sendo Enviados:** O `sendInteractiveMessage` em `uazapi.service.ts` agora tenta **primeiro** os botões nativos do WhatsApp quando há 3 ou menos opções configuradas, e só realiza o fallback para texto se o envio nativo falhar (erro HTTP) ou lançar exceção. Quando há mais de 3 botões, bypassa a tentativa nativa e envia direto o texto (que já contém a lista numerada 1️⃣, 2️⃣... proveniente do banco de dados).
+
 ## [1.14.1] - 2026-05-21
+
 ### Added
 - **Editor Dinâmico de Botões no Fluxo de Assinatura:** O editor de flows automáticos (`/flows`) foi completamente refatorado com gerenciamento dinâmico de botões, permitindo adicionar, remover e editar IDs e textos de cada opção sem limitação estática.
 - **Preset "Preços Híbridos Otimizados":** Botão de atalho no editor de `Etapa 1: Escolha do Plano` que carrega automaticamente os 4 planos com preços compactados (ex: `Básico R$14,99/mês`, `Bás. Anual R$12,90`) otimizados para o limite de 20 caracteres do WhatsApp.
