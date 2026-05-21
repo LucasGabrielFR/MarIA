@@ -25,7 +25,7 @@ interface FlowStep {
   buttons: Array<{ id: string; text: string }>;
 }
 
-type FlowStepKey = 'select_plan' | 'select_cycle';
+type FlowStepKey = 'select_plan' | 'select_cycle' | 'payment_confirmed';
 
 type FlowSteps = Record<FlowStepKey, FlowStep>;
 
@@ -43,6 +43,7 @@ function normalizeFlowSteps(steps: Partial<FlowSteps> & { confirm_plan?: FlowSte
   return {
     select_plan: steps.select_plan || { text: '', buttons: [] },
     select_cycle: selectCycle,
+    payment_confirmed: steps.payment_confirmed || { text: '', buttons: [] },
   };
 }
 
@@ -69,6 +70,12 @@ const SELECT_PLAN_MESSAGE_TEXT =
   '• Acompanhamento diário rigoroso\n' +
   '• A partir de *R$ 29,90/mês* (ou *R$ 26,90/mês* no anual)\n\n' +
   '_Escolha o plano nos botões abaixo. Na próxima etapa você define se prefere pagamento mensal ou anual._';
+
+/** Texto padrão da etapa 3 — Confirmação de pagamento e boas-vindas. */
+const PAYMENT_CONFIRMED_MESSAGE_TEXT =
+  '🎉 *Seja muito bem-vindo ao Plano {tier_label} da MarIA!* 🎉\n\n' +
+  'Sua assinatura foi confirmada com sucesso no Asaas!\n\n' +
+  'Agora você tem acesso a mais recursos e limites aumentados. Que a sua jornada espiritual seja ricamente abençoada. Estou muito feliz em te acompanhar de perto! 🙏✨';
 
 export default function FlowsPage() {
   const [flows, setFlows] = React.useState<AutomaticFlow[]>([]);
@@ -235,10 +242,14 @@ export default function FlowsPage() {
               { id: '3', text: 'Voltar' },
             ],
           },
+          payment_confirmed: {
+            text: PAYMENT_CONFIRMED_MESSAGE_TEXT,
+            buttons: [],
+          },
         },
       };
     });
-    toast.success('Preset do fluxo em 2 etapas carregado! Clique em "Salvar Alterações" para aplicar.');
+    toast.success('Preset do fluxo em 3 etapas carregado! Clique em "Salvar Alterações" para aplicar.');
   };
 
   const saveFlow = async () => {
@@ -248,6 +259,7 @@ export default function FlowsPage() {
     const steps = normalizeFlowSteps(selectedFlow.steps);
     const selectPlanText = steps.select_plan.text;
     const selectCycleText = steps.select_cycle.text;
+    const paymentConfirmedText = steps.payment_confirmed?.text || '';
 
     if (!selectPlanText.trim()) {
       toast.error('O texto da etapa de plano não pode estar vazio');
@@ -259,7 +271,12 @@ export default function FlowsPage() {
       return;
     }
 
-    if (steps.select_plan.buttons.length > 3 || steps.select_cycle.buttons.length > 3) {
+    if (!paymentConfirmedText.trim()) {
+      toast.error('O texto da etapa de confirmação de pagamento não pode estar vazio');
+      return;
+    }
+
+    if (steps.select_plan.buttons.length > 3 || steps.select_cycle.buttons.length > 3 || (steps.payment_confirmed?.buttons?.length || 0) > 3) {
       toast.warning('Cada etapa deve ter no máximo 3 botões para o WhatsApp enviar botões nativos.');
     }
 
@@ -407,6 +424,30 @@ export default function FlowsPage() {
                       <span className="absolute right-4 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
                     )}
                   </button>
+
+                  <div className="flex justify-center my-0">
+                    <ArrowRight className="h-5 w-5 text-slate-300 rotate-90" />
+                  </div>
+
+                  <button
+                    onClick={() => setActiveStep('payment_confirmed')}
+                    className={`p-4 rounded-2xl border text-left flex items-start gap-4 transition-all relative ${activeStep === 'payment_confirmed'
+                        ? 'bg-blue-50 border-blue-200 shadow-sm shadow-blue-50'
+                        : 'bg-slate-50/30 border-slate-100 hover:bg-slate-50/50'
+                      }`}
+                  >
+                    <div className={`p-2.5 rounded-xl font-bold text-xs flex items-center justify-center ${activeStep === 'payment_confirmed' ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-200 text-slate-600'
+                      }`}>
+                      3
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold text-slate-700">Confirmação de Pagamento</span>
+                      <span className="text-xs text-slate-400">Boas-vindas pós-pagamento</span>
+                    </div>
+                    {activeStep === 'payment_confirmed' && (
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
+                    )}
+                  </button>
                 </div>
               </CardContent>
             </Card>
@@ -426,12 +467,18 @@ export default function FlowsPage() {
                   </div>
                   <div>
                     <h3 className="text-2xl font-black text-slate-800 tracking-tight">
-                      {activeStep === 'select_plan' ? 'Etapa 1: Tipo de Plano' : 'Etapa 2: Forma de Pagamento'}
+                      {activeStep === 'select_plan'
+                        ? 'Etapa 1: Tipo de Plano'
+                        : activeStep === 'select_cycle'
+                        ? 'Etapa 2: Forma de Pagamento'
+                        : 'Etapa 3: Confirmação de Pagamento'}
                     </h3>
                     <p className="text-slate-400 font-bold text-sm mt-1">
                       {activeStep === 'select_plan'
                         ? 'Botões Básico, Premium e Cancelar (máx. 3 — nativos no WhatsApp).'
-                        : 'Botões Mensal, Anual e Voltar. Após a escolha, o link do Asaas é enviado automaticamente.'}
+                        : activeStep === 'select_cycle'
+                        ? 'Botões Mensal, Anual e Voltar. Após a escolha, o link do Asaas é enviado automaticamente.'
+                        : 'Mensagem de boas-vindas enviada no WhatsApp imediatamente após a confirmação do pagamento.'}
                     </p>
                   </div>
                 </div>
@@ -587,6 +634,19 @@ export default function FlowsPage() {
                           <li>{`{tier_label}`} — Básico ou Premium</li>
                           <li>{`{plan_options}`} — Valores mensal e anual do plano</li>
                           <li>{`{upgrade_warning}`} — Aviso de upgrade (só quando aplicável)</li>
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+
+                  {activeStep === 'payment_confirmed' && (
+                    <div className="p-4 rounded-2xl bg-amber-50/50 border border-amber-100 text-amber-800 text-xs font-medium leading-relaxed flex items-start gap-3">
+                      <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-extrabold mb-1">Placeholders nesta etapa:</p>
+                        <ul className="list-disc list-inside mt-1 pl-2 space-y-1 font-bold font-mono text-[10px] text-slate-600">
+                          <li>{`{tier_label}`} — Nome do plano em português (ex: Básico ou Premium)</li>
+                          <li>{`{user_name}`} — Nome do usuário (se cadastrado no banco)</li>
                         </ul>
                       </div>
                     </div>

@@ -572,19 +572,40 @@ export class AsaasService {
         this.logger.log(`Updated user ${user.id} to plan ${planTier}.`);
 
         try {
-          const promptKey = `welcome_${planTier}`;
-          const { data: promptData } = await supabaseClient
-            .from('ai_prompts')
-            .select('content')
-            .eq('key', promptKey)
-            .eq('is_active', true)
-            .single();
+          // 1. Tenta carregar do fluxo automático (tabela automatic_flows)
+          const { data: flowData } = await supabaseClient
+            .from('automatic_flows')
+            .select('steps')
+            .eq('key', 'subscription_flow')
+            .maybeSingle() as any;
 
-          const welcomeMsg =
-            promptData?.content ||
-            (planTier === 'premium'
+          let welcomeMsg = flowData?.steps?.payment_confirmed?.text;
+
+          // 2. Fallback para ai_prompts
+          if (!welcomeMsg) {
+            const promptKey = `welcome_${planTier}`;
+            const { data: promptData } = await supabaseClient
+              .from('ai_prompts')
+              .select('content')
+              .eq('key', promptKey)
+              .eq('is_active', true)
+              .maybeSingle() as any;
+            welcomeMsg = promptData?.content;
+          }
+
+          // 3. Fallback estático de segurança
+          if (!welcomeMsg) {
+            welcomeMsg = planTier === 'premium'
               ? '🌟 *Sua assinatura Premium foi confirmada com sucesso!* Seja muito bem-vindo!'
-              : '🎉 *Sua assinatura Básica foi confirmada com sucesso!* Seja muito bem-vindo!');
+              : '🎉 *Sua assinatura Básica foi confirmada com sucesso!* Seja muito bem-vindo!';
+          }
+
+          // 4. Substituição de placeholders e tratamento de quebras de linha (\n literais)
+          const tierLabel = planTier === 'premium' ? 'Premium' : 'Básico';
+          welcomeMsg = welcomeMsg
+            .replace(/{tier_label}/g, tierLabel)
+            .replace(/{user_name}/g, user.name || '')
+            .replace(/\\n/g, '\n');
 
           const targetChatId = user.wa_chatid || `${user.phone}@s.whatsapp.net`;
           await this.uazapi.sendMessage(targetChatId, welcomeMsg);

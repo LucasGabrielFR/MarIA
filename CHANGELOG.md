@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.14.7] - 2026-05-21
+
+### Added
+- **Etapa de Confirmação de Pagamento no Fluxo Automático:** Adicionado o passo "Confirmação de Pagamento" (Etapa 3) no gerenciador de fluxos automáticos (`/flows`). Agora o administrador pode configurar de forma totalmente visual o conteúdo da mensagem de boas-vindas/sucesso que é enviada no WhatsApp.
+- **Suporte a Placeholders em Mensagem de Confirmação:** O novo passo suporta a substituição dinâmica de `{tier_label}` (nome amigável do plano contratado em português) e `{user_name}` (nome do usuário associado) para mensagens personalizadas de alto engajamento.
+
+### Changed
+- **Integração Webhook do Asaas Resiliente a Quebras de Linha:** O manipulador do webhook de pagamentos (`handleWebhook` em `asaas.service.ts`) foi atualizado para consultar a mensagem personalizada diretamente da nova propriedade `steps.payment_confirmed.text` na tabela `automatic_flows`.
+- **Tratamento de Quebras de Linha Escapadas:** Implementada conversão robusta de sequências literais `\n` em quebras de linha reais do WhatsApp (`.replace(/\\n/g, '\n')`), corrigindo definitivamente o problema em que o WhatsApp enviava mensagens mal formatadas com a sequência do caractere de escape explícita.
+- **Fallbacks de Segurança de Boas-vindas:** Mantido fluxo secundário de verificação que recorre à tabela `ai_prompts` (`welcome_basic` ou `welcome_premium`) e mensagens estáticas padronizadas de segurança se o fluxo não estiver populado no banco de dados.
+
 ## [1.14.6] - 2026-05-21
 
 ### Added
