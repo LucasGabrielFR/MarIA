@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.4] - 2026-05-21
+
+### Added
+- **Prevenção de Duplicação de Clientes Asaas por Telefone:** Implementação da busca ativa do cliente pelo telefone (com e sem o DDI `55`) no Asaas via API `/customers` antes de instanciar um novo perfil (`ensureAsaasCustomer`). Vincula dinamicamente no banco de dados local caso encontre.
+- **Sincronização Bidirecional Inteligente (Telefone/Asaas ID):** Ação de sincronização em lote (`syncSubscriptions`) aprimorada para buscar detalhes de clientes não vinculados diretamente no Asaas, pesquisando fiéis locais pelo telefone e salvando automaticamente o `asaas_customer_id` correto no banco local para restaurar a integridade dos dados sem intervenção manual.
+- **Validade e Expiração de Checkouts Hospedados:** Configuração do parâmetro `minutesToExpire` em `120` minutos (2 horas) para expiração automática de links de checkout pendentes no Asaas. Os links também passam a expirar imediatamente e de forma definitiva no exato instante em que o primeiro pagamento é concluído com sucesso.
+
+### Changed
+- **Priorização de Links de Assinatura Únicos (Anti-Duplicação):** A geração de links em `createCheckoutUrl` foi reestruturada para testar primeiro os fluxos seguros e de fatura única (`subscription` e `checkout` hospedado), deixando `paymentLink` genérico apenas como último recurso. Desta forma, o cliente sempre acessa uma sessão identificada, evitando a digitação manual de dados redundantes e a consequente duplicação no painel do Asaas.
+
 ## [1.14.3] - 2026-05-21
 
 ### Added

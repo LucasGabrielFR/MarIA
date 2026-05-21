@@ -133,6 +133,43 @@ export class AsaasService {
     return { planTier: parts[0] || 'basic', phone: null };
   }
 
+  private async findAsaasCustomerByPhone(phone: string): Promise<string | null> {
+    const normalizedPhone = this.normalizePhone(phone);
+    if (!normalizedPhone) return null;
+
+    try {
+      // Tenta buscar com o telefone normalizado
+      let response = await this.request(`/customers?mobilePhone=${normalizedPhone}`, 'GET');
+      if (response.data && response.data.length > 0) {
+        return response.data[0].id;
+      }
+
+      response = await this.request(`/customers?phone=${normalizedPhone}`, 'GET');
+      if (response.data && response.data.length > 0) {
+        return response.data[0].id;
+      }
+
+      // Se o telefone começa com 55 (DDI Brasil), tenta buscar também sem o 55
+      if (normalizedPhone.startsWith('55') && normalizedPhone.length > 10) {
+        const phoneWithoutDDI = normalizedPhone.substring(2);
+        
+        response = await this.request(`/customers?mobilePhone=${phoneWithoutDDI}`, 'GET');
+        if (response.data && response.data.length > 0) {
+          return response.data[0].id;
+        }
+
+        response = await this.request(`/customers?phone=${phoneWithoutDDI}`, 'GET');
+        if (response.data && response.data.length > 0) {
+          return response.data[0].id;
+        }
+      }
+    } catch (err) {
+      this.logger.warn(`Erro ao buscar cliente no Asaas por telefone: ${err.message}`);
+    }
+
+    return null;
+  }
+
   private async ensureAsaasCustomer(
     phone: string,
     displayName?: string | null,
@@ -148,6 +185,22 @@ export class AsaasService {
 
     if (user?.asaas_customer_id) {
       return { customerId: user.asaas_customer_id, userId: user.id };
+    }
+
+    // Busca no Asaas para evitar duplicações de clientes
+    const existingCustomerId = await this.findAsaasCustomerByPhone(phone);
+    if (existingCustomerId) {
+      this.logger.log(
+        `Cliente existente encontrado no Asaas: ${existingCustomerId} para o telefone ${normalizedPhone}`
+      );
+      if (user?.id) {
+        await this.supabase
+          .getClient()
+          .from('users')
+          .update({ asaas_customer_id: existingCustomerId })
+          .eq('id', user.id);
+      }
+      return { customerId: existingCustomerId, userId: user?.id };
     }
 
     const customerPayload = {
@@ -230,7 +283,7 @@ export class AsaasService {
     const payload: Record<string, unknown> = {
       billingTypes: ['CREDIT_CARD'],
       chargeTypes: ['RECURRENT'],
-      minutesToExpire: 1440,
+      minutesToExpire: 120, // Expira em 2 horas caso não seja pago, liberando recursos
       externalReference,
       callback: {
         successUrl,
@@ -358,9 +411,14 @@ export class AsaasService {
 
     const strategies: Array<{ name: string; run: () => Promise<string> }> = [
       {
-        name: 'paymentLink',
+        name: 'subscription',
         run: () =>
-          this.createRecurrentPaymentLink(normalizedPlan, normalizedCycle, phone),
+          this.createSubscriptionInvoiceUrl(
+            normalizedPlan,
+            normalizedCycle,
+            phone,
+            customerId,
+          ),
       },
       {
         name: 'checkout',
@@ -374,14 +432,9 @@ export class AsaasService {
           ),
       },
       {
-        name: 'subscription',
+        name: 'paymentLink',
         run: () =>
-          this.createSubscriptionInvoiceUrl(
-            normalizedPlan,
-            normalizedCycle,
-            phone,
-            customerId,
-          ),
+          this.createRecurrentPaymentLink(normalizedPlan, normalizedCycle, phone),
       },
     ];
 
@@ -592,11 +645,38 @@ export class AsaasService {
         const expiresAt = new Date(nextDueDate);
         expiresAt.setDate(expiresAt.getDate() + 1);
 
-        const { data: user } = await supabaseClient
+        let { data: user } = await supabaseClient
           .from('users')
           .select('id, subscription_tier')
           .eq('asaas_customer_id', customerId)
           .maybeSingle();
+
+        // Se não encontrou por asaas_customer_id, tenta buscar pelo telefone do cliente no Asaas
+        if (!user) {
+          try {
+            const customer = await this.request(`/customers/${customerId}`, 'GET');
+            const customerPhone = this.normalizePhone(customer.mobilePhone || customer.phone || '');
+            if (customerPhone) {
+              const { data: matchedUser } = await supabaseClient
+                .from('users')
+                .select('id, subscription_tier')
+                .eq('phone', customerPhone)
+                .maybeSingle();
+              
+              if (matchedUser) {
+                user = matchedUser;
+                // Vincula imediatamente o asaas_customer_id no nosso banco
+                await supabaseClient
+                  .from('users')
+                  .update({ asaas_customer_id: customerId })
+                  .eq('id', user.id);
+                this.logger.log(`Vinculado cliente Asaas ${customerId} ao usuário ${user.id} pelo telefone.`);
+              }
+            }
+          } catch (custErr) {
+            this.logger.warn(`Erro ao buscar dados do cliente ${customerId} para vincular por telefone: ${custErr.message}`);
+          }
+        }
 
         if (user) {
           await supabaseClient
