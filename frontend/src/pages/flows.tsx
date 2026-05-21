@@ -11,12 +11,8 @@ import {
   Loader2, 
   GitFork, 
   MessageSquare, 
-  Sparkles, 
-  HelpCircle,
   ArrowRight,
-  CheckCircle2,
   AlertTriangle,
-  Play,
   RotateCcw
 } from 'lucide-react';
 import { apiRequest } from '@/lib/api';

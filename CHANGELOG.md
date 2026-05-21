@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **Compilação do TypeScript no Backend:** Resolvido o erro em `ai.service.ts` onde as queries no Postgrest Supabase referentes à tabela `automatic_flows` não possuíam o operador `.select('*')` explícito.
 - **Assinatura do Método processMessage:** Corrigido o tipo de retorno do método `processMessage` de `Promise<string | string[] | null>` para `Promise<any>`, permitindo o retorno de estruturas complexas para mensagens interativas com botões.
+- **Erro de Build no Frontend:** Corrigida a falha de compilação de produção (`tsc -b && vite build`) no frontend ao remover importações não utilizadas de ícones da biblioteca `lucide-react` na página `flows.tsx`, resolvendo a restrição estrita de `"noUnusedLocals"`.
 
 ## [1.13.1] - 2026-05-19
 ### Fixed
