@@ -65,21 +65,21 @@ export class AsaasService {
       if (cycle === 'annual') {
          value = 154.80; // R$ 12,90 * 12
          cycleAsaas = 'YEARLY';
-         description = 'Plano Básico (Anual)';
+         description = 'Plano Básico (Anual) - MarIA';
       } else {
-         value = 14.99; // Plano básico mensal - R$14,99
+         value = 14.99;
          cycleAsaas = 'MONTHLY';
-         description = 'Plano Básico (Mensal)';
+         description = 'Plano Básico (Mensal) - MarIA';
       }
     } else if (planId === 'premium') {
       if (cycle === 'annual') {
          value = 322.80; // R$ 26,90 * 12
          cycleAsaas = 'YEARLY';
-         description = 'Plano Premium (Anual)';
+         description = 'Plano Premium (Anual) - MarIA';
       } else {
-         value = 29.90; // Plano Premium mensal - R$29,90
+         value = 29.90;
          cycleAsaas = 'MONTHLY';
-         description = 'Plano Premium (Mensal)';
+         description = 'Plano Premium (Mensal) - MarIA';
       }
     } else {
       throw new BadRequestException('Plano inválido');
@@ -87,23 +87,23 @@ export class AsaasService {
 
     // 1. Check or create Customer in Asaas based on phone
     const { data: user } = await this.supabase.getClient()
-      .from('users')
-      .select('id, asaas_customer_id')
-      .eq('phone', phone)
-      .single();
+       .from('users')
+       .select('id, name, asaas_customer_id')
+       .eq('phone', phone)
+       .single();
 
     let asaasCustomerId = user?.asaas_customer_id;
 
     if (!asaasCustomerId) {
-       // Create Customer in Asaas
        const customerPayload = {
-         name: `Cliente WhatsApp ${phone}`,
+         name: user?.name || `Cliente WhatsApp ${phone}`,
          mobilePhone: phone,
+         phone: phone,
+         notificationDisabled: false,
        };
        const customer = await this.request('/customers', 'POST', customerPayload);
        asaasCustomerId = customer.id;
 
-       // Link if user exists
        if (user) {
           await this.supabase.getClient()
              .from('users')
@@ -112,31 +112,59 @@ export class AsaasService {
        }
     }
 
-    // 2. Create Subscription in Asaas
+    // 2. Create Subscription with billingType UNDEFINED so the customer can
+    //    choose Pix, Boleto or Credit Card on the checkout page.
+    //    The first pending payment's invoiceUrl is the checkout link.
     const nextDueDate = new Date();
-    nextDueDate.setDate(nextDueDate.getDate() + 1); // Starting tomorrow or today
+    nextDueDate.setDate(nextDueDate.getDate() + 1); // tomorrow
 
     const subscriptionPayload = {
        customer: asaasCustomerId,
-       billingType: 'CREDIT_CARD',
+       billingType: 'UNDEFINED', // Lets the customer choose payment method at checkout
        value: value,
        nextDueDate: nextDueDate.toISOString().split('T')[0],
        cycle: cycleAsaas,
        description: description,
-       externalReference: `${planId}_${phone}`, // To identify on webhook
+       externalReference: `${planId}_${cycle}_${phone}`,
     };
 
+    this.logger.log(`Creating Asaas subscription: ${JSON.stringify(subscriptionPayload)}`);
     const subscription = await this.request('/subscriptions', 'POST', subscriptionPayload);
+    this.logger.log(`Subscription created: ${subscription.id}`);
 
-    // 3. To get a checkout URL, Asaas usually provides `invoiceUrl` in the charge.
-    const payments = await this.request(`/payments?subscription=${subscription.id}&status=PENDING`, 'GET');
-    
-    if (payments.data && payments.data.length > 0) {
-       return { url: payments.data[0].invoiceUrl };
+    // 3. Retrieve the first pending payment for this subscription to get the invoiceUrl (checkout link)
+    // Asaas creates the first charge automatically on subscription creation.
+    // We query with a small retry in case the charge hasn't propagated yet.
+    let invoiceUrl: string | null = null;
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const payments = await this.request(
+        `/payments?subscription=${subscription.id}&status=PENDING&limit=1`,
+        'GET'
+      );
+
+      if (payments.data && payments.data.length > 0 && payments.data[0].invoiceUrl) {
+        invoiceUrl = payments.data[0].invoiceUrl;
+        break;
+      }
+
+      // Wait 1s before retrying
+      await new Promise(r => setTimeout(r, 1000));
     }
 
-    // Fallback if no payment was immediately found
-    throw new Error('Não foi possível gerar a URL de pagamento. Tente novamente.');
+    if (!invoiceUrl) {
+      // Fallback: try bankSlipUrl or payment link directly from subscription
+      if (subscription.bankSlipUrl) {
+        invoiceUrl = subscription.bankSlipUrl;
+      } else {
+        this.logger.error(`Could not get invoiceUrl for subscription ${subscription.id}`);
+        throw new Error('Não foi possível gerar a URL de pagamento. Tente novamente em instantes.');
+      }
+    }
+
+    this.logger.log(`Checkout URL for subscription ${subscription.id}: ${invoiceUrl}`);
+    return { url: invoiceUrl! };
+
   }
 
   async handleWebhook(event: any) {

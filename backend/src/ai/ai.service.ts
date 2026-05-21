@@ -812,13 +812,23 @@ export class AiService implements OnModuleInit {
 
   async handleFlowStep(user: any, userStatus: string, message: string): Promise<any> {
     const supabase = this.supabaseService.getClient();
-    const parts = userStatus.split(':');
-    const stepId = parts[2];
-    
+
+    // Format: "flow:subscription_flow:step_id:{json_context}"
+    // We cannot use plain split(':') because the JSON context contains colons.
+    // Instead, we parse the first 3 segments by position.
+    const flowPrefix = 'flow:';
+    const withoutFlow = userStatus.slice(flowPrefix.length); // "subscription_flow:step_id:{...}"
+    const firstColon = withoutFlow.indexOf(':');             // index of ':' after flow key
+    const secondColon = withoutFlow.indexOf(':', firstColon + 1); // index of ':' after step_id
+
+    // stepId is the segment between firstColon and secondColon
+    const stepId = withoutFlow.slice(firstColon + 1, secondColon === -1 ? undefined : secondColon);
+
     let contextData: any = {};
-    if (parts[3]) {
+    if (secondColon !== -1) {
+      const jsonStr = withoutFlow.slice(secondColon + 1);
       try {
-        contextData = JSON.parse(parts[3]);
+        contextData = JSON.parse(jsonStr);
       } catch (e) {
         this.logger.error('Error parsing flow context JSON', e);
       }
@@ -884,7 +894,7 @@ export class AiService implements OnModuleInit {
         const selectStep = steps.select_plan;
         return {
           type: 'interactive',
-          text: '⚠️ Opção inválida. Por favor, escolha uma das opções abaixo:\n\n' + selectStep.text,
+          text: '\u26a0\ufe0f Op\u00e7\u00e3o inv\u00e1lida. Por favor, escolha uma das op\u00e7\u00f5es abaixo:\n\n' + selectStep.text,
           buttons: selectStep.buttons
         };
       }
@@ -903,7 +913,7 @@ export class AiService implements OnModuleInit {
         const selectStep = steps.select_plan;
         return {
           type: 'interactive',
-          text: 'Você já possui o *Plano Básico* ativo! Não é necessário assinar novamente o mesmo plano. Se quiser ter acesso ilimitado, você pode escolher o *Plano Premium*. 😉\n\n' + selectStep.text,
+          text: 'Voc\u00ea j\u00e1 possui o *Plano B\u00e1sico* ativo! N\u00e3o \u00e9 necess\u00e1rio assinar novamente o mesmo plano. Se quiser ter acesso ilimitado, voc\u00ea pode escolher o *Plano Premium*. \ud83d\ude09\n\n' + selectStep.text,
           buttons: selectStep.buttons
         };
       }
