@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Etapa de Confirmação de Pagamento no Fluxo Automático:** Adicionado o passo "Confirmação de Pagamento" (Etapa 3) no gerenciador de fluxos automáticos (`/flows`). Agora o administrador pode configurar de forma totalmente visual o conteúdo da mensagem de boas-vindas/sucesso que é enviada no WhatsApp.
 - **Suporte a Placeholders em Mensagem de Confirmação:** O novo passo suporta a substituição dinâmica de `{tier_label}` (nome amigável do plano contratado em português) e `{user_name}` (nome do usuário associado) para mensagens personalizadas de alto engajamento.
+- **Sincronização de Scripts e Seeds SQL:** Atualizados os scripts de semente e migração de banco de dados (`migration_automatic_flows.sql` e `update_subscription_flow_buttons.sql`) para incluir e carregar por padrão a nova estrutura de 3 etapas com a mensagem de boas-vindas otimizada e quebras de linha nativas pré-configuradas.
 
 ### Changed
 - **Integração Webhook do Asaas Resiliente a Quebras de Linha:** O manipulador do webhook de pagamentos (`handleWebhook` em `asaas.service.ts`) foi atualizado para consultar a mensagem personalizada diretamente da nova propriedade `steps.payment_confirmed.text` na tabela `automatic_flows`.

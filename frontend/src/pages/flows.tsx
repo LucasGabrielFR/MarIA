@@ -40,10 +40,13 @@ interface AutomaticFlow {
 
 function normalizeFlowSteps(steps: Partial<FlowSteps> & { confirm_plan?: FlowStep }): FlowSteps {
   const selectCycle = steps.select_cycle || steps.confirm_plan || { text: '', buttons: [] };
+  const paymentConfirmed = steps.payment_confirmed && steps.payment_confirmed.text.trim()
+    ? steps.payment_confirmed
+    : { text: PAYMENT_CONFIRMED_MESSAGE_TEXT, buttons: [] };
   return {
     select_plan: steps.select_plan || { text: '', buttons: [] },
     select_cycle: selectCycle,
-    payment_confirmed: steps.payment_confirmed || { text: '', buttons: [] },
+    payment_confirmed: paymentConfirmed,
   };
 }
 
@@ -74,8 +77,10 @@ const SELECT_PLAN_MESSAGE_TEXT =
 /** Texto padrão da etapa 3 — Confirmação de pagamento e boas-vindas. */
 const PAYMENT_CONFIRMED_MESSAGE_TEXT =
   '🎉 *Seja muito bem-vindo ao Plano {tier_label} da MarIA!* 🎉\n\n' +
-  'Sua assinatura foi confirmada com sucesso no Asaas!\n\n' +
-  'Agora você tem acesso a mais recursos e limites aumentados. Que a sua jornada espiritual seja ricamente abençoada. Estou muito feliz em te acompanhar de perto! 🙏✨';
+  'Sua assinatura foi confirmada com sucesso no Asaas! 🌟\n\n' +
+  'Agora você tem acesso a mais recursos e limites aumentados. Que a sua jornada espiritual seja ricamente abençoada. Estou muito feliz em te acompanhar de perto! 🙏✨\n\n' +
+  '💡 *Dica:* Se precisar ver seu limite de mensagens ou tirar dúvidas sobre sua conta, basta enviar a palavra *Painel* ou *Ajuda* a qualquer momento.\n\n' +
+  'Que o amor maternal de Maria Santíssima te guarde hoje e sempre! 🕊️💙';
 
 export default function FlowsPage() {
   const [flows, setFlows] = React.useState<AutomaticFlow[]>([]);
