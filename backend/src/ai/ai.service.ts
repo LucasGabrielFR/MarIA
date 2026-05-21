@@ -834,7 +834,7 @@ export class AiService implements OnModuleInit {
     const tierLabel = tier === 'basic' ? 'Básico' : 'Premium';
     const planOptions =
       tier === 'basic'
-        ? '• *Mensal* — R$ 14,99/mês\n• *Anual* — 12x R$ 12,90 (R$ 154,80/ano)'
+        ? '• *Mensal* — R$ 14,90/mês\n• *Anual* — 12x R$ 12,90 (R$ 154,80/ano)'
         : '• *Mensal* — R$ 29,90/mês\n• *Anual* — 12x R$ 26,90 (R$ 322,80/ano)';
 
     let upgradeWarning = '';

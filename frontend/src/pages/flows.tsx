@@ -50,6 +50,26 @@ function formatFlowPreviewText(text: string): string {
   return (text || '').replace(/\\n/g, '\n');
 }
 
+/** Texto padrão da etapa 1 — alinhado à landing (planos e benefícios). */
+const SELECT_PLAN_MESSAGE_TEXT =
+  'Olá! Que bom que você quer assinar a MarIA. ✨\n\n' +
+  'Conheça nossos planos:\n\n' +
+  '*📘 Plano Básico*\n' +
+  'Para quem busca direcionamento e uma companhia diária constante.\n' +
+  '• Tudo do gratuito (Liturgia, Santo do Dia e Terço)\n' +
+  '• *300 mensagens/mês* conversando com a IA\n' +
+  '• Aconselhamento emocional profundo\n' +
+  '• Tira-dúvidas com base teológica e do Catecismo\n' +
+  '• A partir de *R$ 14,90/mês* (ou *R$ 12,90/mês* no anual)\n\n' +
+  '*✨ Plano Premium*\n' +
+  'Para quem deseja imersão teológica e oração intensa.\n' +
+  '• Tudo do plano Básico\n' +
+  '• *600 mensagens/mês* conversando com a IA\n' +
+  '• Respostas mais elaboradas e longas\n' +
+  '• Acompanhamento diário rigoroso\n' +
+  '• A partir de *R$ 29,90/mês* (ou *R$ 26,90/mês* no anual)\n\n' +
+  '_Escolha o plano nos botões abaixo. Na próxima etapa você define se prefere pagamento mensal ou anual._';
+
 export default function FlowsPage() {
   const [flows, setFlows] = React.useState<AutomaticFlow[]>([]);
   const [selectedFlow, setSelectedFlow] = React.useState<AutomaticFlow | null>(null);
@@ -196,10 +216,7 @@ export default function FlowsPage() {
         ...current,
         steps: {
           select_plan: {
-            text:
-              'Olá! Que bom que você quer assinar a MarIA. ✨\n\n' +
-              'Escolha o *tipo de plano* que melhor combina com você:\n\n' +
-              '_Use os botões abaixo para continuar._',
+            text: SELECT_PLAN_MESSAGE_TEXT,
             buttons: [
               { id: '1', text: 'Básico' },
               { id: '2', text: 'Premium' },
