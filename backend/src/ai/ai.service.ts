@@ -562,7 +562,7 @@ export class AiService implements OnModuleInit {
         .single();
       
       const selectStep = flowData?.steps?.select_plan || { text: 'Escolha seu plano:', buttons: [] };
-      const responseText = upgradeIntro + selectStep.text;
+      const responseText = upgradeIntro + this.formatFlowText(selectStep.text);
 
       const interactiveResponse = {
         type: 'interactive',
@@ -810,6 +810,51 @@ export class AiService implements OnModuleInit {
     return this.asaasService;
   }
 
+  private formatFlowText(text: string): string {
+    return (text || '').replace(/\\n/g, '\n');
+  }
+
+  private matchesFlowOption(
+    cleanMsg: string,
+    buttonId: string,
+    buttonText: string,
+    keywords: string[],
+  ): boolean {
+    const btn = buttonText.toLowerCase();
+    if (cleanMsg === buttonId) return true;
+    if (btn && (cleanMsg === btn || cleanMsg.includes(btn) || btn.includes(cleanMsg))) return true;
+    return keywords.some((k) => cleanMsg.includes(k));
+  }
+
+  private buildCycleStepMessage(
+    cycleStep: { text?: string; buttons?: any[] },
+    tier: 'basic' | 'premium',
+    previousTier: string,
+  ) {
+    const tierLabel = tier === 'basic' ? 'Básico' : 'Premium';
+    const planOptions =
+      tier === 'basic'
+        ? '• *Mensal* — R$ 14,99/mês\n• *Anual* — 12x R$ 12,90 (R$ 154,80/ano)'
+        : '• *Mensal* — R$ 29,90/mês\n• *Anual* — 12x R$ 26,90 (R$ 322,80/ano)';
+
+    let upgradeWarning = '';
+    if (previousTier === 'basic' && tier === 'premium') {
+      upgradeWarning =
+        '⚠️ *Atenção:* Você já tem o Plano Básico ativo. Ao assinar o Premium, a assinatura anterior será cancelada no Asaas quando o novo pagamento for confirmado.\n\n';
+    }
+
+    const text = this.formatFlowText(cycleStep.text || '')
+      .replace('{tier_label}', tierLabel)
+      .replace('{plan_options}', planOptions)
+      .replace('{upgrade_warning}', upgradeWarning);
+
+    return {
+      type: 'interactive',
+      text,
+      buttons: cycleStep.buttons || [],
+    };
+  }
+
   async handleFlowStep(user: any, userStatus: string, message: string): Promise<any> {
     const supabase = this.supabaseService.getClient();
 
@@ -850,193 +895,174 @@ export class AiService implements OnModuleInit {
     const cleanMsg = message.trim().toLowerCase();
 
     if (stepId === 'select_plan') {
-      // User replies to option select
-      const selectStep = steps.select_plan || { buttons: [] };
-      const getBtnText = (id: string) => selectStep.buttons?.find((b: any) => b.id === id)?.text?.toLowerCase() || '';
+      const selectStep = steps.select_plan || { text: '', buttons: [] };
+      const getBtnText = (id: string) =>
+        selectStep.buttons?.find((b: any) => b.id === id)?.text?.toLowerCase() || '';
 
-      const isOption1 = cleanMsg === '1' || 
-                        (getBtnText('1') && (cleanMsg === getBtnText('1') || cleanMsg.includes(getBtnText('1')) || getBtnText('1').includes(cleanMsg))) || 
-                        cleanMsg.includes('básico mensal') || 
-                        cleanMsg.includes('basico mensal');
-      
-      const isOption2 = cleanMsg === '2' || 
-                        (getBtnText('2') && (cleanMsg === getBtnText('2') || cleanMsg.includes(getBtnText('2')) || getBtnText('2').includes(cleanMsg))) || 
-                        cleanMsg.includes('básico anual') || 
-                        cleanMsg.includes('basico anual');
-      
-      const isOption3 = cleanMsg === '3' || 
-                        (getBtnText('3') && (cleanMsg === getBtnText('3') || cleanMsg.includes(getBtnText('3')) || getBtnText('3').includes(cleanMsg))) || 
-                        cleanMsg.includes('premium mensal');
-      
-      const isOption4 = cleanMsg === '4' || 
-                        (getBtnText('4') && (cleanMsg === getBtnText('4') || cleanMsg.includes(getBtnText('4')) || getBtnText('4').includes(cleanMsg))) || 
-                        cleanMsg.includes('premium anual');
-      
-      const isOption5 = cleanMsg === '5' || 
-                        (getBtnText('5') && (cleanMsg === getBtnText('5') || cleanMsg.includes(getBtnText('5')) || getBtnText('5').includes(cleanMsg))) || 
-                        cleanMsg.includes('cancelar') || 
-                        cleanMsg.includes('sair');
-
-
-      if (isOption5) {
-        await supabase.from('users').update({ status: 'active' }).eq('id', user.id);
-        return 'Fluxo de assinatura cancelado com sucesso. Se precisar de algo mais, estou aqui! Que Deus te abençoe! 🙏';
-      }
-
-      let selectedPlan = '';
-      if (isOption1) selectedPlan = '1';
-      else if (isOption2) selectedPlan = '2';
-      else if (isOption3) selectedPlan = '3';
-      else if (isOption4) selectedPlan = '4';
-
-      if (!selectedPlan) {
-        // Option is invalid, send same select_plan message again
-        const selectStep = steps.select_plan;
-        return {
-          type: 'interactive',
-          text: '\u26a0\ufe0f Op\u00e7\u00e3o inv\u00e1lida. Por favor, escolha uma das op\u00e7\u00f5es abaixo:\n\n' + selectStep.text,
-          buttons: selectStep.buttons
-        };
-      }
-
-      // Check if user is selecting a plan they already have active
-      const userTier = user.subscription_tier || 'free';
-      const isSelectingBasic = selectedPlan === '1' || selectedPlan === '2';
-      const isSelectingPremium = selectedPlan === '3' || selectedPlan === '4';
-
-      if (userTier === 'premium' && isSelectingPremium) {
-        await supabase.from('users').update({ status: 'active' }).eq('id', user.id);
-        return 'Você já possui o *Plano Premium* ativo, que é o nosso plano máximo! Não é necessário assinar novamente ou fazer upgrade. Que Deus te abençoe! 🙏';
-      }
-
-      if (userTier === 'basic' && isSelectingBasic) {
-        const selectStep = steps.select_plan;
-        return {
-          type: 'interactive',
-          text: 'Voc\u00ea j\u00e1 possui o *Plano B\u00e1sico* ativo! N\u00e3o \u00e9 necess\u00e1rio assinar novamente o mesmo plano. Se quiser ter acesso ilimitado, voc\u00ea pode escolher o *Plano Premium*. \ud83d\ude09\n\n' + selectStep.text,
-          buttons: selectStep.buttons
-        };
-      }
-
-      // Transition to confirmation step
-      const nextContext = {
-        plan: selectedPlan,
-        previous_tier: userTier
-      };
-
-      await supabase.from('users').update({
-        status: `flow:subscription_flow:confirm_plan:${JSON.stringify(nextContext)}`
-      }).eq('id', user.id);
-
-      // Prepare confirm step text
-      const planNames = {
-        '1': 'Plano Básico Mensal (R$ 14,99/mês)',
-        '2': 'Plano Básico Anual (R$ 154,80/ano)',
-        '3': 'Plano Premium Mensal (R$ 29,90/mês)',
-        '4': 'Plano Premium Anual (R$ 322,80/ano)'
-      };
-
-      const planName = planNames[selectedPlan];
-      let upgradeWarning = '';
-
-      if (userTier === 'basic' && isSelectingPremium) {
-        upgradeWarning = '⚠️ *Atenção:* Identificamos que você possui o Plano Básico ativo. Ao assinar o Plano Premium, sua assinatura anterior será cancelada no Asaas assim que o novo pagamento for confirmado para evitar cobranças duplicadas.\n\n';
-      }
-
-      const confirmStep = steps.confirm_plan;
-      const formattedText = confirmStep.text
-        .replace('{plan_name}', planName)
-        .replace('{upgrade_warning}', upgradeWarning);
-
-      return {
-        type: 'interactive',
-        text: formattedText,
-        buttons: confirmStep.buttons
-      };
-    }
-
-    if (stepId === 'confirm_plan') {
-      // User replies to confirmation
-      const confirmStep = steps.confirm_plan || { buttons: [] };
-      const getConfirmBtnText = (id: string) => confirmStep.buttons?.find((b: any) => b.id === id)?.text?.toLowerCase() || '';
-
-      const isYes = cleanMsg === '1' || 
-                    (getConfirmBtnText('1') && (cleanMsg === getConfirmBtnText('1') || cleanMsg.includes(getConfirmBtnText('1')) || getConfirmBtnText('1').includes(cleanMsg))) || 
-                    cleanMsg.includes('sim') || 
-                    cleanMsg.includes('confirmar');
-      
-      const isNo = cleanMsg === '2' || 
-                   (getConfirmBtnText('2') && (cleanMsg === getConfirmBtnText('2') || cleanMsg.includes(getConfirmBtnText('2')) || getConfirmBtnText('2').includes(cleanMsg))) || 
-                   cleanMsg.includes('não') || 
-                   cleanMsg.includes('nao') || 
-                   cleanMsg.includes('voltar');
-      
-      const isCancel = cleanMsg === '3' || 
-                       (getConfirmBtnText('3') && (cleanMsg === getConfirmBtnText('3') || cleanMsg.includes(getConfirmBtnText('3')) || getConfirmBtnText('3').includes(cleanMsg))) || 
-                       cleanMsg.includes('cancelar') || 
-                       cleanMsg.includes('sair');
-
-
+      const isCancel = this.matchesFlowOption(cleanMsg, '3', getBtnText('3'), ['cancelar', 'sair']);
       if (isCancel) {
         await supabase.from('users').update({ status: 'active' }).eq('id', user.id);
         return 'Fluxo de assinatura cancelado com sucesso. Se precisar de algo mais, estou aqui! Que Deus te abençoe! 🙏';
       }
 
-      if (isNo) {
-        // Go back to select_plan step
-        await supabase.from('users').update({
-          status: 'flow:subscription_flow:select_plan'
-        }).eq('id', user.id);
+      const isBasic = this.matchesFlowOption(cleanMsg, '1', getBtnText('1'), ['básico', 'basico', 'basic']);
+      const isPremium = this.matchesFlowOption(cleanMsg, '2', getBtnText('2'), ['premium']);
 
+      let tier: 'basic' | 'premium' | '' = '';
+      if (isBasic && !isPremium) tier = 'basic';
+      else if (isPremium && !isBasic) tier = 'premium';
+      else if (isBasic && isPremium) tier = 'premium';
+
+      if (!tier) {
+        return {
+          type: 'interactive',
+          text: `⚠️ Opção inválida. Por favor, escolha uma das opções abaixo:\n\n${this.formatFlowText(selectStep.text)}`,
+          buttons: selectStep.buttons,
+        };
+      }
+
+      const userTier = user.subscription_tier || 'free';
+
+      if (userTier === 'premium' && tier === 'premium') {
+        await supabase.from('users').update({ status: 'active' }).eq('id', user.id);
+        return 'Você já possui o *Plano Premium* ativo, que é o nosso plano máximo! Não é necessário assinar novamente ou fazer upgrade. Que Deus te abençoe! 🙏';
+      }
+
+      if (userTier === 'basic' && tier === 'basic') {
+        return {
+          type: 'interactive',
+          text:
+            'Você já possui o *Plano Básico* ativo! Não é necessário assinar novamente o mesmo plano. Se quiser ter acesso ilimitado, escolha o *Plano Premium*. 😊\n\n' +
+            this.formatFlowText(selectStep.text),
+          buttons: selectStep.buttons,
+        };
+      }
+
+      const nextContext = { tier, previous_tier: userTier };
+      await supabase
+        .from('users')
+        .update({
+          status: `flow:subscription_flow:select_cycle:${JSON.stringify(nextContext)}`,
+        })
+        .eq('id', user.id);
+
+      const cycleStep = steps.select_cycle || steps.confirm_plan || { text: '', buttons: [] };
+      return this.buildCycleStepMessage(cycleStep, tier, userTier);
+    }
+
+    if (stepId === 'select_cycle' || stepId === 'confirm_plan') {
+      const cycleStep = steps.select_cycle || steps.confirm_plan || { text: '', buttons: [] };
+      const getBtnText = (id: string) =>
+        cycleStep.buttons?.find((b: any) => b.id === id)?.text?.toLowerCase() || '';
+
+      // Compatibilidade com fluxo antigo (confirmação Sim/Não + plan 1–4)
+      if (stepId === 'confirm_plan' && contextData.plan) {
+        const getConfirmBtnText = (id: string) => getBtnText(id);
+        const isYes =
+          this.matchesFlowOption(cleanMsg, '1', getConfirmBtnText('1'), ['sim', 'confirmar']) ||
+          cleanMsg.includes('confirmar');
+        const isNo =
+          this.matchesFlowOption(cleanMsg, '2', getConfirmBtnText('2'), ['não', 'nao', 'voltar']) ||
+          cleanMsg.includes('voltar');
+        const isCancel = this.matchesFlowOption(cleanMsg, '3', getConfirmBtnText('3'), ['cancelar', 'sair']);
+
+        if (isCancel) {
+          await supabase.from('users').update({ status: 'active' }).eq('id', user.id);
+          return 'Fluxo de assinatura cancelado com sucesso. Se precisar de algo mais, estou aqui! Que Deus te abençoe! 🙏';
+        }
+        if (isNo) {
+          await supabase.from('users').update({ status: 'flow:subscription_flow:select_plan' }).eq('id', user.id);
+          const selectStep = steps.select_plan;
+          return {
+            type: 'interactive',
+            text: this.formatFlowText(selectStep.text),
+            buttons: selectStep.buttons,
+          };
+        }
+        if (!isYes) {
+          const planNames: Record<string, string> = {
+            '1': 'Plano Básico Mensal (R$ 14,99/mês)',
+            '2': 'Plano Básico Anual (R$ 154,80/ano)',
+            '3': 'Plano Premium Mensal (R$ 29,90/mês)',
+            '4': 'Plano Premium Anual (R$ 322,80/ano)',
+          };
+          const planName = planNames[contextData.plan] || 'Plano';
+          let upgradeWarning = '';
+          if (contextData.previous_tier === 'basic' && (contextData.plan === '3' || contextData.plan === '4')) {
+            upgradeWarning =
+              '⚠️ *Atenção:* Identificamos que você possui o Plano Básico ativo. Ao assinar o Plano Premium, sua assinatura anterior será cancelada no Asaas assim que o novo pagamento for confirmado.\n\n';
+          }
+          const formattedText =
+            '⚠️ Opção inválida. Confirma a assinatura?\n\n' +
+            this.formatFlowText(cycleStep.text)
+              .replace('{plan_name}', planName)
+              .replace('{upgrade_warning}', upgradeWarning);
+          return { type: 'interactive', text: formattedText, buttons: cycleStep.buttons };
+        }
+
+        const plan = contextData.plan;
+        let planId = 'basic';
+        let cycle = 'monthly';
+        if (plan === '1') {
+          planId = 'basic';
+          cycle = 'monthly';
+        } else if (plan === '2') {
+          planId = 'basic';
+          cycle = 'annual';
+        } else if (plan === '3') {
+          planId = 'premium';
+          cycle = 'monthly';
+        } else if (plan === '4') {
+          planId = 'premium';
+          cycle = 'annual';
+        }
+        await supabase.from('users').update({ status: 'active' }).eq('id', user.id);
+        try {
+          const asaas = this.getAsaasService();
+          const checkout = await asaas.createCheckoutUrl(planId, cycle, user.phone);
+          return (
+            `Perfeito! Aqui está o seu link de pagamento:\n\n` +
+            `🔗 ${checkout.url}\n\n` +
+            `O pagamento é 100% seguro pelo Asaas. Assim que for confirmado, sua assinatura será ativada automaticamente e eu te aviso por aqui! 🙏✨`
+          );
+        } catch (err) {
+          this.logger.error(`Error generating checkout link for user ${user.id}`, err);
+          return `Desculpe, não consegui gerar o seu link de pagamento agora. Por favor, tente novamente mais tarde ou entre em contato com nosso suporte técnico.`;
+        }
+      }
+
+      if (cleanMsg.includes('cancelar') || cleanMsg.includes('sair')) {
+        await supabase.from('users').update({ status: 'active' }).eq('id', user.id);
+        return 'Fluxo de assinatura cancelado com sucesso. Se precisar de algo mais, estou aqui! Que Deus te abençoe! 🙏';
+      }
+
+      const isBack = this.matchesFlowOption(cleanMsg, '3', getBtnText('3'), ['voltar', 'anterior']);
+      if (isBack) {
+        await supabase.from('users').update({ status: 'flow:subscription_flow:select_plan' }).eq('id', user.id);
         const selectStep = steps.select_plan;
         return {
           type: 'interactive',
-          text: selectStep.text,
-          buttons: selectStep.buttons
+          text: this.formatFlowText(selectStep.text),
+          buttons: selectStep.buttons,
         };
       }
 
-      if (!isYes) {
-        // Send confirm step again
-        const planNames = {
-          '1': 'Plano Básico Mensal (R$ 14,99/mês)',
-          '2': 'Plano Básico Anual (R$ 154,80/ano)',
-          '3': 'Plano Premium Mensal (R$ 29,90/mês)',
-          '4': 'Plano Premium Anual (R$ 322,80/ano)'
-        };
+      const isMonthly = this.matchesFlowOption(cleanMsg, '1', getBtnText('1'), ['mensal', 'mês', 'mes']);
+      const isAnnual = this.matchesFlowOption(cleanMsg, '2', getBtnText('2'), ['anual', 'ano']);
 
-        const plan = contextData.plan;
-        const previousTier = contextData.previous_tier;
-        const planName = planNames[plan] || 'Plano';
-        let upgradeWarning = '';
-
-        if (previousTier === 'basic' && (plan === '3' || plan === '4')) {
-          upgradeWarning = '⚠️ *Atenção:* Identificamos que você possui o Plano Básico ativo. Ao assinar o Plano Premium, sua assinatura anterior será cancelada no Asaas assim que o novo pagamento for confirmado para evitar cobranças duplicadas.\n\n';
-        }
-
-        const confirmStep = steps.confirm_plan;
-        const formattedText = '⚠️ Opção inválida. Confirma a assinatura?\n\n' + confirmStep.text
-          .replace('{plan_name}', planName)
-          .replace('{upgrade_warning}', upgradeWarning);
-
+      if (!isMonthly && !isAnnual) {
+        const tier = (contextData.tier || 'basic') as 'basic' | 'premium';
+        const invalid = this.buildCycleStepMessage(cycleStep, tier, contextData.previous_tier || 'free');
         return {
           type: 'interactive',
-          text: formattedText,
-          buttons: confirmStep.buttons
+          text: `⚠️ Opção inválida. Escolha a forma de pagamento:\n\n${invalid.text}`,
+          buttons: invalid.buttons,
         };
       }
 
-      // User confirmed (Sim)! Generate payment link.
-      const plan = contextData.plan;
-      let planId = 'basic';
-      let cycle = 'monthly';
+      const tier = (contextData.tier || 'basic') as 'basic' | 'premium';
+      const cycle = isMonthly ? 'monthly' : 'annual';
 
-      if (plan === '1') { planId = 'basic'; cycle = 'monthly'; }
-      else if (plan === '2') { planId = 'basic'; cycle = 'annual'; }
-      else if (plan === '3') { planId = 'premium'; cycle = 'monthly'; }
-      else if (plan === '4') { planId = 'premium'; cycle = 'annual'; }
-
-      // Reset user status to active before generating
       await supabase.from('users').update({ status: 'active' }).eq('id', user.id);
 
       try {
@@ -1045,8 +1071,16 @@ export class AiService implements OnModuleInit {
           throw new Error('AsaasService not available');
         }
 
-        const checkout = await asaas.createCheckoutUrl(planId, cycle, user.phone);
-        return `Aqui está o seu link de pagamento para concluir a assinatura:\n\n🔗 ${checkout.url}\n\nO pagamento é processado de forma 100% segura. Assim que for confirmado, sua assinatura será ativada automaticamente e eu te avisarei por aqui! Boas-vindas! 🙏✨`;
+        const checkout = await asaas.createCheckoutUrl(tier, cycle, user.phone);
+        const tierLabel = tier === 'basic' ? 'Básico' : 'Premium';
+        const cycleLabel = isMonthly ? 'Mensal' : 'Anual';
+
+        return (
+          `Perfeito! *Plano ${tierLabel} ${cycleLabel}* selecionado.\n\n` +
+          `Aqui está o seu link de pagamento:\n\n` +
+          `🔗 ${checkout.url}\n\n` +
+          `O pagamento é 100% seguro pelo Asaas. Assim que for confirmado, sua assinatura será ativada automaticamente e eu te aviso por aqui! 🙏✨`
+        );
       } catch (err) {
         this.logger.error(`Error generating checkout link for user ${user.id}`, err);
         return `Desculpe, não consegui gerar o seu link de pagamento agora. Por favor, tente novamente mais tarde ou entre em contato com nosso suporte técnico.`;

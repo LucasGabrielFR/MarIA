@@ -95,46 +95,39 @@ export class UazapiService {
   }
 
   async sendInteractiveMessage(chatId: string, text: string, buttons: Array<{id: string, text: string}>): Promise<boolean> {
-    // WhatsApp supports a maximum of 3 native interactive buttons.
-    // If we have 3 or fewer, attempt native buttons first.
-    const MAX_NATIVE_BUTTONS = 3;
-    const canUseNativeButtons = buttons.length <= MAX_NATIVE_BUTTONS;
+    // Always attempt native WhatsApp buttons first, regardless of count.
+    // If WhatsApp rejects the request (e.g., >3 buttons), we fall back to plain text automatically.
+    try {
+      this.logger.log(`Attempting to send ${buttons.length} native buttons to ${chatId}`);
+      const response = await fetch(`${this.apiUrl}/send/buttons`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'token': this.token,
+        },
+        body: JSON.stringify({
+          number: chatId,
+          text: text,
+          buttons: buttons.map(b => ({
+            buttonId: b.id,
+            buttonText: { displayText: b.text },
+            type: 1
+          }))
+        }),
+      });
 
-    if (canUseNativeButtons) {
-      try {
-        this.logger.log(`Attempting to send ${buttons.length} native buttons to ${chatId}`);
-        const response = await fetch(`${this.apiUrl}/send/buttons`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'token': this.token,
-          },
-          body: JSON.stringify({
-            number: chatId,
-            text: text,
-            buttons: buttons.map(b => ({
-              buttonId: b.id,
-              buttonText: { displayText: b.text },
-              type: 1
-            }))
-          }),
-        });
-
-        if (response.ok) {
-          this.logger.log(`Native buttons sent successfully to ${chatId}`);
-          return true;
-        }
-
-        const errorText = await response.text();
-        this.logger.warn(`UAZAPI /send/buttons failed (${response.status}: ${errorText}). Falling back to text message.`);
-      } catch (error) {
-        this.logger.warn(`Error sending native buttons: ${error.message}. Falling back to text message.`);
+      if (response.ok) {
+        this.logger.log(`Native buttons sent successfully to ${chatId}`);
+        return true;
       }
-    } else {
-      this.logger.log(`${buttons.length} buttons exceeds WhatsApp limit (${MAX_NATIVE_BUTTONS}). Using text message with numbered list.`);
+
+      const errorText = await response.text();
+      this.logger.warn(`UAZAPI /send/buttons failed (${response.status}: ${errorText}). Falling back to text message.`);
+    } catch (error) {
+      this.logger.warn(`Error sending native buttons: ${error.message}. Falling back to text message.`);
     }
 
-    // Fallback: send plain text (the DB text already contains the numbered list e.g. 1️⃣, 2️⃣...)
+    // Fallback: plain text (already contains numbered list 1️⃣, 2️⃣... from the DB)
     return this.sendMessage(chatId, text);
   }
 }

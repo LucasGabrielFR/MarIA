@@ -2,7 +2,6 @@ import React from 'react';
 import { MainLayout } from '@/components/layout/main-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -26,17 +25,33 @@ interface FlowStep {
   buttons: Array<{ id: string; text: string }>;
 }
 
+type FlowStepKey = 'select_plan' | 'select_cycle';
+
 interface AutomaticFlow {
   id: string;
   key: string;
   name: string;
   steps: {
     select_plan: FlowStep;
-    confirm_plan: FlowStep;
+    select_cycle: FlowStep;
+    confirm_plan?: FlowStep;
     [key: string]: FlowStep;
   };
   created_at: string;
   updated_at: string;
+}
+
+function normalizeFlowSteps(steps: AutomaticFlow['steps']): AutomaticFlow['steps'] {
+  const selectCycle = steps.select_cycle || steps.confirm_plan || { text: '', buttons: [] };
+  return {
+    ...steps,
+    select_plan: steps.select_plan || { text: '', buttons: [] },
+    select_cycle: selectCycle,
+  };
+}
+
+function formatFlowPreviewText(text: string): string {
+  return (text || '').replace(/\\n/g, '\n');
 }
 
 export default function FlowsPage() {
@@ -44,7 +59,7 @@ export default function FlowsPage() {
   const [selectedFlow, setSelectedFlow] = React.useState<AutomaticFlow | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
-  const [activeStep, setActiveStep] = React.useState<'select_plan' | 'confirm_plan'>('select_plan');
+  const [activeStep, setActiveStep] = React.useState<FlowStepKey>('select_plan');
 
   React.useEffect(() => {
     fetchFlows();
@@ -58,7 +73,9 @@ export default function FlowsPage() {
       if (data && data.length > 0) {
         // Seleciona o fluxo de assinatura por padrão
         const subFlow = data.find((f: AutomaticFlow) => f.key === 'subscription_flow') || data[0];
-        setSelectedFlow(JSON.parse(JSON.stringify(subFlow))); // Deep copy para edição segura
+        const copy = JSON.parse(JSON.stringify(subFlow)) as AutomaticFlow;
+        copy.steps = normalizeFlowSteps(copy.steps);
+        setSelectedFlow(copy);
       }
     } catch (error) {
       toast.error('Erro ao carregar fluxos automáticos');
@@ -67,7 +84,7 @@ export default function FlowsPage() {
     }
   };
 
-  const handleTextChange = (stepKey: 'select_plan' | 'confirm_plan', value: string) => {
+  const handleTextChange = (stepKey: FlowStepKey, value: string) => {
     if (!selectedFlow) return;
 
     setSelectedFlow(current => {
@@ -85,7 +102,7 @@ export default function FlowsPage() {
     });
   };
 
-  const handleButtonTextChange = (stepKey: 'select_plan' | 'confirm_plan', buttonIndex: number, value: string) => {
+  const handleButtonTextChange = (stepKey: FlowStepKey, buttonIndex: number, value: string) => {
     if (!selectedFlow) return;
 
     setSelectedFlow(current => {
@@ -107,7 +124,7 @@ export default function FlowsPage() {
     });
   };
 
-  const handleButtonIdChange = (stepKey: 'select_plan' | 'confirm_plan', buttonIndex: number, value: string) => {
+  const handleButtonIdChange = (stepKey: FlowStepKey, buttonIndex: number, value: string) => {
     if (!selectedFlow) return;
 
     setSelectedFlow(current => {
@@ -129,7 +146,7 @@ export default function FlowsPage() {
     });
   };
 
-  const handleAddButton = (stepKey: 'select_plan' | 'confirm_plan') => {
+  const handleAddButton = (stepKey: FlowStepKey) => {
     if (!selectedFlow) return;
 
     setSelectedFlow(current => {
@@ -153,7 +170,7 @@ export default function FlowsPage() {
     });
   };
 
-  const handleDeleteButton = (stepKey: 'select_plan' | 'confirm_plan', buttonIndex: number) => {
+  const handleDeleteButton = (stepKey: FlowStepKey, buttonIndex: number) => {
     if (!selectedFlow) return;
 
     setSelectedFlow(current => {
@@ -182,43 +199,59 @@ export default function FlowsPage() {
       return {
         ...current,
         steps: {
-          ...current.steps,
           select_plan: {
-            ...current.steps.select_plan,
+            text:
+              'Olá! Que bom que você quer assinar a MarIA. ✨\n\n' +
+              'Escolha o *tipo de plano* que melhor combina com você:\n\n' +
+              '_Use os botões abaixo para continuar._',
             buttons: [
-              { id: '1', text: 'Básico R$14,99/mês' },
-              { id: '2', text: 'Bás. Anual R$12,90/mês' },
-              { id: '3', text: 'Premium R$29,90/mês' },
-              { id: '4', text: 'Prem. Anual R$26,90/mês' },
-              { id: '5', text: 'Cancelar' }
-            ]
-          }
-        }
+              { id: '1', text: 'Básico' },
+              { id: '2', text: 'Premium' },
+              { id: '3', text: 'Cancelar' },
+            ],
+          },
+          select_cycle: {
+            text:
+              '{upgrade_warning}Plano *{tier_label}* selecionado.\n\n' +
+              'Escolha a *forma de pagamento*:\n\n' +
+              '{plan_options}\n\n' +
+              '_Use os botões abaixo._',
+            buttons: [
+              { id: '1', text: 'Mensal' },
+              { id: '2', text: 'Anual' },
+              { id: '3', text: 'Voltar' },
+            ],
+          },
+        },
       };
     });
-    toast.success('Preset otimizado com preços carregado! Clique em "Salvar Alterações" para aplicar.');
+    toast.success('Preset do fluxo em 2 etapas carregado! Clique em "Salvar Alterações" para aplicar.');
   };
 
   const saveFlow = async () => {
     if (!selectedFlow) return;
 
     // Validações básicas do fluxo
-    const selectPlanText = selectedFlow.steps.select_plan.text;
-    const confirmPlanText = selectedFlow.steps.confirm_plan.text;
+    const steps = normalizeFlowSteps(selectedFlow.steps);
+    const selectPlanText = steps.select_plan.text;
+    const selectCycleText = steps.select_cycle.text;
 
     if (!selectPlanText.trim()) {
-      toast.error('O texto de seleção de planos não pode estar vazio');
+      toast.error('O texto da etapa de plano não pode estar vazio');
       return;
     }
 
-    if (!confirmPlanText.trim()) {
-      toast.error('O texto de confirmação não pode estar vazio');
+    if (!selectCycleText.trim()) {
+      toast.error('O texto da etapa de pagamento não pode estar vazio');
       return;
     }
 
-    // Alerta se placeholders críticos forem removidos de confirm_plan
-    if (!confirmPlanText.includes('{plan_name}') || !confirmPlanText.includes('{upgrade_warning}')) {
-      toast.warning('Atenção: Os placeholders {plan_name} ou {upgrade_warning} não foram encontrados no texto de confirmação. Eles são necessários para renderizar o plano dinamicamente.');
+    if (steps.select_plan.buttons.length > 3 || steps.select_cycle.buttons.length > 3) {
+      toast.warning('Cada etapa deve ter no máximo 3 botões para o WhatsApp enviar botões nativos.');
+    }
+
+    if (!selectCycleText.includes('{tier_label}') || !selectCycleText.includes('{plan_options}')) {
+      toast.warning('Atenção: Use {tier_label} e {plan_options} na etapa de pagamento para exibir o plano e os valores.');
     }
 
     setSaving(true);
@@ -226,7 +259,7 @@ export default function FlowsPage() {
       await apiRequest(`/ai/prompts/automatic-flows/${selectedFlow.key}`, {
         method: 'PUT',
         body: JSON.stringify({
-          steps: selectedFlow.steps,
+          steps: normalizeFlowSteps(selectedFlow.steps),
           name: selectedFlow.name
         })
       });
@@ -245,7 +278,9 @@ export default function FlowsPage() {
     if (!flows || flows.length === 0) return;
     const original = flows.find(f => f.key === selectedFlow?.key);
     if (original) {
-      setSelectedFlow(JSON.parse(JSON.stringify(original)));
+      const copy = JSON.parse(JSON.stringify(original)) as AutomaticFlow;
+      copy.steps = normalizeFlowSteps(copy.steps);
+      setSelectedFlow(copy);
       toast.success('Alterações descartadas. Retornado ao estado original do banco.');
     }
   };
@@ -285,7 +320,11 @@ export default function FlowsPage() {
                 {flows.map(f => (
                   <button
                     key={f.id}
-                    onClick={() => setSelectedFlow(JSON.parse(JSON.stringify(f)))}
+                    onClick={() => {
+                      const copy = JSON.parse(JSON.stringify(f)) as AutomaticFlow;
+                      copy.steps = normalizeFlowSteps(copy.steps);
+                      setSelectedFlow(copy);
+                    }}
                     className={`w-full text-left p-4 rounded-2xl border transition-all flex items-center justify-between group ${selectedFlow?.key === f.key
                         ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm shadow-blue-50/50'
                         : 'bg-slate-50/50 border-slate-100 hover:bg-slate-50 hover:scale-[1.02]'
@@ -325,7 +364,7 @@ export default function FlowsPage() {
                     </div>
                     <div className="flex flex-col">
                       <span className="text-sm font-bold text-slate-700">Escolha do Plano</span>
-                      <span className="text-xs text-slate-400">Mensal / Anual / Cancelar</span>
+                      <span className="text-xs text-slate-400">Básico / Premium / Cancelar</span>
                     </div>
                     {activeStep === 'select_plan' && (
                       <span className="absolute right-4 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
@@ -337,21 +376,21 @@ export default function FlowsPage() {
                   </div>
 
                   <button
-                    onClick={() => setActiveStep('confirm_plan')}
-                    className={`p-4 rounded-2xl border text-left flex items-start gap-4 transition-all relative ${activeStep === 'confirm_plan'
+                    onClick={() => setActiveStep('select_cycle')}
+                    className={`p-4 rounded-2xl border text-left flex items-start gap-4 transition-all relative ${activeStep === 'select_cycle'
                         ? 'bg-blue-50 border-blue-200 shadow-sm shadow-blue-50'
                         : 'bg-slate-50/30 border-slate-100 hover:bg-slate-50/50'
                       }`}
                   >
-                    <div className={`p-2.5 rounded-xl font-bold text-xs flex items-center justify-center ${activeStep === 'confirm_plan' ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-200 text-slate-600'
+                    <div className={`p-2.5 rounded-xl font-bold text-xs flex items-center justify-center ${activeStep === 'select_cycle' ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-200 text-slate-600'
                       }`}>
                       2
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-sm font-bold text-slate-700">Confirmação de Plano</span>
-                      <span className="text-xs text-slate-400">Sim / Voltar / Cancelar</span>
+                      <span className="text-sm font-bold text-slate-700">Forma de Pagamento</span>
+                      <span className="text-xs text-slate-400">Mensal / Anual / Voltar → Link Asaas</span>
                     </div>
-                    {activeStep === 'confirm_plan' && (
+                    {activeStep === 'select_cycle' && (
                       <span className="absolute right-4 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
                     )}
                   </button>
@@ -374,12 +413,12 @@ export default function FlowsPage() {
                   </div>
                   <div>
                     <h3 className="text-2xl font-black text-slate-800 tracking-tight">
-                      {activeStep === 'select_plan' ? 'Etapa 1: Escolha do Plano' : 'Etapa 2: Confirmação de Plano'}
+                      {activeStep === 'select_plan' ? 'Etapa 1: Tipo de Plano' : 'Etapa 2: Forma de Pagamento'}
                     </h3>
                     <p className="text-slate-400 font-bold text-sm mt-1">
                       {activeStep === 'select_plan'
-                        ? 'Define o texto principal e os botões de seleção de planos da assinatura.'
-                        : 'Define o texto de confirmação com suporte a placeholders de upgrade.'}
+                        ? 'Botões Básico, Premium e Cancelar (máx. 3 — nativos no WhatsApp).'
+                        : 'Botões Mensal, Anual e Voltar. Após a escolha, o link do Asaas é enviado automaticamente.'}
                     </p>
                   </div>
                 </div>
@@ -418,38 +457,129 @@ export default function FlowsPage() {
               <CardContent className="p-10 space-y-8">
 
                 {/* Editor do Texto Principal da Mensagem */}
-                <div className="space-y-3">
+                <div className="space-y-4">
+                  {/* Header */}
                   <div className="flex justify-between items-center">
                     <Label className="text-sm font-black text-slate-700 flex items-center gap-2">
-                      Texto Principal da Mensagem WhatsApp
+                      <MessageSquare className="h-4 w-4 text-blue-500" />
+                      Mensagem Enviada pelo WhatsApp
                     </Label>
-                    <Badge variant="outline" className="bg-slate-50 border-slate-200 text-slate-500 font-medium px-2 py-0.5 text-[10px]">
-                      Suporta formatação do WhatsApp (*negrito*, _itálico_)
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold text-slate-400">
+                        {selectedFlow.steps[activeStep].text.length} caracteres
+                      </span>
+                      <Badge variant="outline" className="bg-emerald-50 border-emerald-200 text-emerald-700 font-bold px-2 py-0.5 text-[10px]">
+                        WhatsApp Markdown
+                      </Badge>
+                    </div>
                   </div>
 
-                  <Textarea
-                    value={selectedFlow.steps[activeStep].text}
-                    onChange={(e) => handleTextChange(activeStep, e.target.value)}
-                    placeholder="Digite a mensagem que o fiel receberá..."
-                    rows={12}
-                    className="rounded-2xl border-slate-200 focus:ring-blue-100 focus:border-blue-400 font-medium text-slate-700 leading-relaxed p-5 transition-all text-sm resize-y"
-                  />
+                  {/* Toolbar de formatação rápida */}
+                  <div className="flex flex-wrap items-center gap-1.5 p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider mr-1">Inserir:</span>
+                    {[
+                      { label: '*Negrito*', insert: '*texto*', title: 'Negrito WhatsApp' },
+                      { label: '_Itálico_', insert: '_texto_', title: 'Itálico WhatsApp' },
+                      { label: '↵ Nova linha', insert: '\n', title: 'Quebra de linha' },
+                      { label: '↵↵ Parágrafo', insert: '\n\n', title: 'Parágrafo (linha em branco)' },
+                      { label: '1️⃣', insert: '1️⃣ ', title: 'Emoji 1' },
+                      { label: '2️⃣', insert: '2️⃣ ', title: 'Emoji 2' },
+                      { label: '3️⃣', insert: '3️⃣ ', title: 'Emoji 3' },
+                      { label: '4️⃣', insert: '4️⃣ ', title: 'Emoji 4' },
+                      { label: '5️⃣', insert: '5️⃣ ', title: 'Emoji 5' },
+                    ].map((item) => (
+                      <button
+                        key={item.label}
+                        type="button"
+                        title={item.title}
+                        onClick={() => {
+                          const textarea = document.getElementById(`msg-editor-${activeStep}`) as HTMLTextAreaElement;
+                          if (!textarea) return;
+                          const start = textarea.selectionStart;
+                          const end = textarea.selectionEnd;
+                          const current = selectedFlow.steps[activeStep].text;
+                          const newText = current.slice(0, start) + item.insert + current.slice(end);
+                          handleTextChange(activeStep, newText);
+                          setTimeout(() => {
+                            textarea.focus();
+                            textarea.setSelectionRange(start + item.insert.length, start + item.insert.length);
+                          }, 0);
+                        }}
+                        className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white border border-slate-200 text-slate-600 hover:border-blue-300 hover:text-blue-700 hover:bg-blue-50 transition-all cursor-pointer shadow-sm active:scale-95"
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
 
-                  {activeStep === 'confirm_plan' && (
+                  {/* Editor + Preview lado a lado */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {/* Editor */}
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider pl-1">✏️ Editor</span>
+                      <div className="relative">
+                        <textarea
+                          id={`msg-editor-${activeStep}`}
+                          value={selectedFlow.steps[activeStep].text}
+                          onChange={(e) => handleTextChange(activeStep, e.target.value)}
+                          placeholder={"Olá! Aqui está a mensagem que será enviada...\n\nUse *negrito* e _itálico_ para formatar."}
+                          rows={14}
+                          style={{ fontFamily: "'Courier New', Courier, monospace", lineHeight: '1.65', letterSpacing: '0.01em' }}
+                          className="w-full rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 text-slate-700 p-4 transition-all text-[13px] resize-y bg-slate-50/80 shadow-inner"
+                        />
+                        <div className="absolute bottom-3 right-3 text-[9px] font-bold text-slate-300 pointer-events-none select-none">
+                          {selectedFlow.steps[activeStep].text.split('\n').length} linhas
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Preview WhatsApp */}
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider pl-1">👁️ Preview WhatsApp</span>
+                      <div className="rounded-2xl overflow-hidden border border-slate-100 shadow-inner bg-[#e5ddd5] h-full min-h-[280px] p-4 flex flex-col justify-end gap-2">
+                        <div className="self-start max-w-[92%] bg-white rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm text-[13px] text-slate-800 leading-relaxed break-words" style={{ fontFamily: 'Segoe UI, system-ui, sans-serif' }}>
+                          {selectedFlow.steps[activeStep].text
+                            ? formatFlowPreviewText(selectedFlow.steps[activeStep].text)
+                                .split('\n')
+                                .map((line, i) => (
+                                  <span key={i}>
+                                    {line
+                                      .split(/(\*[^*]+\*|_[^_]+_)/g)
+                                      .map((part, j) => {
+                                        if (part.startsWith('*') && part.endsWith('*'))
+                                          return <strong key={j}>{part.slice(1, -1)}</strong>;
+                                        if (part.startsWith('_') && part.endsWith('_'))
+                                          return <em key={j}>{part.slice(1, -1)}</em>;
+                                        return <span key={j}>{part}</span>;
+                                      })}
+                                    {i < selectedFlow.steps[activeStep].text.split('\n').length - 1 && <br />}
+                                  </span>
+                                ))
+                            : <span className="text-slate-400 italic text-xs">Pré-visualização aparecerá aqui...</span>
+                          }
+                          <div className="text-right mt-1.5">
+                            <span className="text-[10px] text-slate-400">00:00 ✓✓</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {activeStep === 'select_cycle' && (
                     <div className="p-4 rounded-2xl bg-amber-50/50 border border-amber-100 text-amber-800 text-xs font-medium leading-relaxed flex items-start gap-3">
                       <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
                       <div>
-                        <p className="font-extrabold mb-1">Dica de Placeholders Requeridos:</p>
-                        <p className="text-slate-600">Este texto é renderizado de forma dinâmica. Lembre-se de incluir as seguintes tags que o sistema substituirá automaticamente:</p>
-                        <ul className="list-disc list-inside mt-2 pl-2 space-y-1 font-bold font-mono text-[10px] text-slate-600">
-                          <li>{`{plan_name}`} - Nome do plano selecionado (Básico/Premium + valor)</li>
-                          <li>{`{upgrade_warning}`} - Alerta de cancelamento de assinatura antiga no caso de Upgrade</li>
+                        <p className="font-extrabold mb-1">Placeholders nesta etapa:</p>
+                        <ul className="list-disc list-inside mt-1 pl-2 space-y-1 font-bold font-mono text-[10px] text-slate-600">
+                          <li>{`{tier_label}`} — Básico ou Premium</li>
+                          <li>{`{plan_options}`} — Valores mensal e anual do plano</li>
+                          <li>{`{upgrade_warning}`} — Aviso de upgrade (só quando aplicável)</li>
                         </ul>
                       </div>
                     </div>
                   )}
                 </div>
+
 
                 {/* Editor de Botões Interativos (WhatsApp) */}
                 <div className="border-t border-slate-100 pt-8 space-y-6">
@@ -466,17 +596,15 @@ export default function FlowsPage() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                      {activeStep === 'select_plan' && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={loadOptimizedPreset}
-                          className="h-9 px-4 rounded-xl border-emerald-100 hover:border-emerald-200 text-emerald-700 hover:bg-emerald-50/50 bg-emerald-50/10 font-bold text-xs flex items-center gap-2 transition-all active:scale-95 shadow-sm cursor-pointer"
-                        >
-                          <Sparkles className="h-3.5 w-3.5" />
-                          Preços Híbridos Otimizados (Preset)
-                        </Button>
-                      )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={loadOptimizedPreset}
+                        className="h-9 px-4 rounded-xl border-emerald-100 hover:border-emerald-200 text-emerald-700 hover:bg-emerald-50/50 bg-emerald-50/10 font-bold text-xs flex items-center gap-2 transition-all active:scale-95 shadow-sm cursor-pointer"
+                      >
+                        <Sparkles className="h-3.5 w-3.5" />
+                        Carregar preset (2 etapas + 3 botões)
+                      </Button>
 
                       <Button
                         type="button"
@@ -489,25 +617,25 @@ export default function FlowsPage() {
                     </div>
                   </div>
 
-                  {/* Informação/Aviso de Limites do WhatsApp Híbrido */}
+                  {/* Informação sobre botões */}
                   <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100/80 text-xs font-semibold leading-relaxed flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex items-start gap-3">
                       <AlertTriangle className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
                       <div>
-                        <p className="font-extrabold text-slate-700 mb-0.5">Limites do WhatsApp & Fallback Automático:</p>
+                        <p className="font-extrabold text-slate-700 mb-0.5">Botões Interativos WhatsApp:</p>
                         <p className="text-slate-500">
-                          O WhatsApp permite no máximo <strong className="text-slate-700">3 botões</strong> de até <strong className="text-slate-700">20 caracteres</strong>. Se você definir mais de 3 botões, o sistema usará o **Uazapi Híbrido** e enviará a lista em formato de texto numerado, garantindo 100% de compatibilidade!
+                          Máximo de 3 botões por etapa (limite do WhatsApp). O sistema sempre tenta enviar botões nativos; se falhar, usa fallback em texto.
                         </p>
                       </div>
                     </div>
                     <div>
                       {selectedFlow.steps[activeStep].buttons.length > 3 ? (
                         <Badge className="bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-50 font-extrabold uppercase text-[9px] px-2.5 py-1 flex-shrink-0">
-                          ⚠️ Modo Híbrido (Texto)
+                          ⚠️ Fallback Texto Ativo
                         </Badge>
                       ) : (
                         <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-50 font-extrabold uppercase text-[9px] px-2.5 py-1 flex-shrink-0">
-                          ✅ Modo Botões Nativo
+                          ✅ Botões Nativos
                         </Badge>
                       )}
                     </div>
