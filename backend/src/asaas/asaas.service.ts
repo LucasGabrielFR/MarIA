@@ -2,6 +2,8 @@ import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { UazapiService } from '../uazapi/uazapi.service';
 
+import { MailService } from '../mail/mail.service';
+
 /** Imagem 1x1 PNG transparente (exigida pelo Checkout Asaas nos itens). */
 const CHECKOUT_PLACEHOLDER_IMAGE_BASE64 =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
@@ -28,6 +30,7 @@ export class AsaasService {
   constructor(
     private readonly supabase: SupabaseService,
     private readonly uazapi: UazapiService,
+    private readonly mail: MailService,
   ) {}
 
   private getPlanConfig(planId: PlanId, cycle: BillingCycle): PlanConfig {
@@ -80,9 +83,12 @@ export class AsaasService {
   private buildExternalReference(
     planId: PlanId,
     cycle: BillingCycle,
-    phone: string,
+    phoneOrSession: string,
   ): string {
-    return `${planId}_${cycle}_${this.normalizePhone(phone)}`;
+    if (phoneOrSession.startsWith('web_')) {
+      return `${planId}_${cycle}_${phoneOrSession}`;
+    }
+    return `${planId}_${cycle}_${this.normalizePhone(phoneOrSession)}`;
   }
 
   private formatDate(date: Date): string {
@@ -116,21 +122,31 @@ export class AsaasService {
     planTier: string;
     cycle?: string;
     phone: string | null;
+    sessionId: string | null;
   } {
     if (!externalReference) {
-      return { planTier: 'basic', phone: null };
+      return { planTier: 'basic', phone: null, sessionId: null };
     }
 
     const parts = externalReference.split('_');
     if (parts.length >= 3) {
+      if (parts[2] === 'web' && parts.length >= 5) {
+        return {
+          planTier: parts[0],
+          cycle: parts[1],
+          phone: null,
+          sessionId: parts.slice(4).join('_'),
+        };
+      }
       return {
         planTier: parts[0],
         cycle: parts[1],
         phone: parts.slice(2).join('_'),
+        sessionId: null,
       };
     }
 
-    return { planTier: parts[0] || 'basic', phone: null };
+    return { planTier: parts[0] || 'basic', phone: null, sessionId: null };
   }
 
   private async findAsaasCustomerByPhone(phone: string): Promise<string | null> {
@@ -378,6 +394,44 @@ export class AsaasService {
     return invoiceUrl;
   }
 
+  async createWebCheckoutSession(
+    planId: string,
+    cycle: string,
+  ): Promise<{ url: string; sessionId: string }> {
+    if (!this.apiKey) {
+      this.logger.warn('ASAAS_API_KEY/ASAAS_TOKEN not set. Returning dummy URL.');
+      return { url: 'https://sandbox.asaas.com/checkout/dummy', sessionId: 'dummy_session' };
+    }
+
+    const normalizedPlan = planId as PlanId;
+    const normalizedCycle = cycle as BillingCycle;
+    if (!['basic', 'premium'].includes(normalizedPlan)) {
+      throw new BadRequestException('Plano inválido');
+    }
+    if (!['monthly', 'annual'].includes(normalizedCycle)) {
+      throw new BadRequestException('Ciclo inválido');
+    }
+
+    try {
+      const sessionId =
+        Math.random().toString(36).substring(2, 15) +
+        Math.random().toString(36).substring(2, 15);
+      const phoneOrSession = `web_session_${sessionId}`;
+
+      const { url } = await this.createRecurrentPaymentLink(
+        normalizedPlan,
+        normalizedCycle,
+        phoneOrSession,
+      );
+
+      this.logger.log(`Web Checkout URL via paymentLink (sessionId: ${sessionId}): ${url}`);
+      return { url, sessionId };
+    } catch (err) {
+      this.logger.error(`Falha ao gerar checkout web Asaas: ${err.message}`);
+      throw err;
+    }
+  }
+
   async createCheckoutUrl(
     planId: string,
     cycle: string,
@@ -486,6 +540,65 @@ export class AsaasService {
       }
 
       const supabaseClient = this.supabase.getClient();
+
+      // Fluxo especial se o pagamento vier da Web (possui sessionId)
+      if (parsed.sessionId) {
+        this.logger.log(
+          `Recebido webhook de faturamento de origem WEB. Session ID: ${parsed.sessionId}`,
+        );
+
+        let customerEmail = '';
+        if (customerId) {
+          try {
+            const customer = await this.request(`/customers/${customerId}`, 'GET');
+            customerEmail = customer.email;
+            this.logger.log(`E-mail do cliente Asaas: ${customerEmail}`);
+          } catch (custErr) {
+            this.logger.warn(`Erro ao buscar dados do cliente ${customerId} no Asaas: ${custErr.message}`);
+          }
+        }
+
+        if (!customerEmail) {
+          customerEmail = payment.email || 'suporte@maria.acutistech.com.br';
+        }
+
+        // Gerar código único legível de ativação
+        const code = 'MARIA-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+
+        await supabaseClient.from('activation_codes').insert({
+          code,
+          session_id: parsed.sessionId,
+          email: customerEmail,
+          plan_tier: planTier,
+          billing_cycle: parsed.cycle || 'monthly',
+          asaas_subscription_id: subscriptionId,
+          asaas_customer_id: customerId,
+          status: 'pending',
+        });
+        this.logger.log(`Código de ativação ${code} criado para sessão ${parsed.sessionId}`);
+
+        try {
+          await this.mail.sendActivationEmail(
+            customerEmail,
+            code,
+            planTier,
+            parsed.cycle || 'monthly',
+          );
+        } catch (mailErr) {
+          this.logger.error(`Falha ao disparar email de ativação: ${mailErr.message}`);
+        }
+
+        if (paymentLinkId) {
+          try {
+            await this.deletePaymentLink(paymentLinkId);
+          } catch (delErr) {
+            this.logger.error(`Falha ao desabilitar o link de pagamento ${paymentLinkId}: ${delErr.message}`);
+          }
+        }
+
+        return { received: true };
+      }
+
       let user: any = null;
 
       // 1. Busca prioritária pelo ID do link de pagamento
@@ -795,5 +908,27 @@ export class AsaasService {
       );
       throw error;
     }
+  }
+
+  async checkWebActivationStatus(
+    sessionId: string,
+  ): Promise<{ confirmed: boolean; code?: string; planTier?: string }> {
+    const { data, error } = await this.supabase
+      .getClient()
+      .from('activation_codes')
+      .select('code, plan_tier, status')
+      .eq('session_id', sessionId)
+      .maybeSingle();
+
+    if (error) {
+      this.logger.error(`Erro ao consultar status da sessão ${sessionId}: ${error.message}`);
+      return { confirmed: false };
+    }
+
+    if (data) {
+      return { confirmed: true, code: data.code, planTier: data.plan_tier };
+    }
+
+    return { confirmed: false };
   }
 }

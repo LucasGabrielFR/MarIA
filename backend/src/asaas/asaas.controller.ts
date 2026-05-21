@@ -1,6 +1,8 @@
 import {
   Controller,
   Post,
+  Get,
+  Param,
   Body,
   Req,
   BadRequestException,
@@ -53,6 +55,25 @@ export class AsaasController {
       throw new BadRequestException('planId, cycle and phone are required');
     }
     return this.asaasService.createCheckoutUrl(planId, cycle, phone);
+  }
+
+  @Post('checkout-web')
+  async createWebCheckout(
+    @Body('planId') planId: string,
+    @Body('cycle') cycle: string
+  ) {
+    if (!planId || !cycle) {
+      throw new BadRequestException('planId and cycle are required');
+    }
+    return this.asaasService.createWebCheckoutSession(planId, cycle);
+  }
+
+  @Get('status/:sessionId')
+  async checkWebActivationStatus(@Param('sessionId') sessionId: string) {
+    if (!sessionId) {
+      throw new BadRequestException('sessionId is required');
+    }
+    return this.asaasService.checkWebActivationStatus(sessionId);
   }
 
   @Post('webhook')

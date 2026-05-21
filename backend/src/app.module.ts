@@ -10,6 +10,8 @@ import { UazapiModule } from './uazapi/uazapi.module';
 import { FinanceModule } from './finance/finance.module';
 import { AsaasModule } from './asaas/asaas.module';
 import { CustomerAuthModule } from './customer-auth/customer-auth.module';
+import { MailModule } from './mail/mail.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -28,6 +30,7 @@ import { CustomerAuthModule } from './customer-auth/customer-auth.module';
     FinanceModule,
     AsaasModule,
     CustomerAuthModule,
+    MailModule,
   ],
   controllers: [],
   providers: [],

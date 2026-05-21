@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.15.0] - 2026-05-21
+
+### Added
+- **Novo Fluxo de Faturamento via Landing Page (Web Session + Código de Ativação):** Implementado um fluxo de pagamento seguro de ponta a ponta na Landing Page que elimina a necessidade de digitação prévia de telefone e evita erros de digitação e duplicidade de suporte técnico.
+- **Tabela de Códigos de Ativação (`activation_codes`):** Criada a tabela de controle e resgate no banco de dados com suporte a chaves únicas `MARIA-XXXXXX` e controle de segurança Row Level Security (RLS).
+- **Serviço de Mail Transacional (`MailService`):** Implementado serviço com `nodemailer` para envio de e-mails em formato HTML elegante com instruções, código destacado e link direto para ativação no WhatsApp.
+- **Rastreamento de Origem de Assinatura (`origin`):** Adicionada a coluna `origin` nas tabelas `users` e `subscriptions` com suporte a `'web'` e `'wpp'` para identificar a origem das vendas.
+- **Polling de Status em Tempo Real:** Implementado endpoint de polling `/payment/asaas/status/:sessionId` no backend NestJS e integrado na Landing Page (Next.js) com um modal interativo e responsivo.
+- **Interceptação e Ativação por Código no WhatsApp Bot:** Ajustado o webhook do Uazapi no `UazapiController` para detectar códigos `/MARIA-[A-Z0-9]{6,10}/` no texto, resgatar o código de forma atômica no banco, cadastrar/atualizar o perfil do fiel vinculando seu `wa_chatid` com `origin = 'web'` e responder com uma saudação festiva premium ou básica.
+
 ## [1.14.8] - 2026-05-21
 
 ### Added

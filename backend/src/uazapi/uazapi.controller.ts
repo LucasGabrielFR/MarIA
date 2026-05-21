@@ -108,6 +108,170 @@ export class UazapiController {
       await this.uazapiService.markRead(chatId);
       await this.uazapiService.sendPresence(chatId, 'composing');
 
+      // Intercepta código de ativação
+      const activationCodeMatch = messageContent.match(/MARIA-[A-Z0-9]{6,10}/i);
+      if (activationCodeMatch) {
+        const code = activationCodeMatch[0].toUpperCase();
+        this.logger.log(`Tentativa de ativação de código recebida: ${code} de ${chatId}`);
+
+        const supabaseClient = this.supabaseService.getClient();
+
+        // Buscar código de ativação
+        const { data: actCode, error: actError } = await supabaseClient
+          .from('activation_codes')
+          .select('*')
+          .eq('code', code)
+          .maybeSingle();
+
+        if (actError) {
+          this.logger.error(`Erro ao buscar código de ativação ${code}: ${actError.message}`);
+          await this.uazapiService.sendMessage(
+            chatId,
+            `❌ Ocorreu um erro ao validar seu código de ativação. Por favor, tente novamente mais tarde ou fale com o suporte.`,
+          );
+          return;
+        }
+
+        if (!actCode) {
+          await this.uazapiService.sendMessage(
+            chatId,
+            `❌ Código de ativação *${code}* inválido. Verifique se digitou corretamente ou entre em contato com nosso suporte técnico.`,
+          );
+          return;
+        }
+
+        if (actCode.status === 'used') {
+          await this.uazapiService.sendMessage(
+            chatId,
+            `⚠️ O código de ativação *${code}* já foi utilizado anteriormente para ativar uma assinatura. Caso precise de ajuda, fale com o suporte.`,
+          );
+          return;
+        }
+
+        // Se o código é válido (status === 'pending')
+        const planTier = actCode.plan_tier;
+        const billingCycle = actCode.billing_cycle || 'monthly';
+        const asaasSubscriptionId = actCode.asaas_subscription_id;
+        const asaasCustomerId = actCode.asaas_customer_id;
+
+        // Calcular a data de expiração
+        const expiresAt = new Date();
+        if (billingCycle === 'annual') {
+          expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+        } else {
+          expiresAt.setMonth(expiresAt.getMonth() + 1);
+        }
+        expiresAt.setDate(expiresAt.getDate() + 1); // +1 dia de margem igual ao fluxo principal
+
+        // Atualizar status do código de ativação para 'used'
+        const { error: updateCodeError } = await supabaseClient
+          .from('activation_codes')
+          .update({
+            status: 'used',
+            used_at: new Date().toISOString(),
+            wa_chatid: chatId,
+          })
+          .eq('code', code);
+
+        if (updateCodeError) {
+          this.logger.error(`Erro ao atualizar código de ativação ${code} para 'used': ${updateCodeError.message}`);
+          await this.uazapiService.sendMessage(
+            chatId,
+            `❌ Erro interno ao resgatar seu código. Fale com nosso suporte.`,
+          );
+          return;
+        }
+
+        // Buscar se o usuário já existe
+        const { data: existingUser, error: findUserError } = await supabaseClient
+          .rpc('find_user_by_normalized_phone', { phone_query: phoneNumber })
+          .maybeSingle() as any;
+
+        let userId = existingUser?.id;
+
+        if (existingUser) {
+          // Atualizar usuário existente
+          const { error: updateUserError } = await supabaseClient
+            .from('users')
+            .update({
+              asaas_subscription_id: asaasSubscriptionId,
+              subscription_tier: planTier,
+              plan_tier: planTier,
+              asaas_customer_id: asaasCustomerId,
+              subscription_expires_at: expiresAt.toISOString(),
+              origin: 'web', // Marca a origem do faturamento como web
+              wa_chatid: chatId,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', existingUser.id);
+
+          if (updateUserError) {
+            this.logger.error(`Erro ao atualizar plano do usuário ${existingUser.id}: ${updateUserError.message}`);
+          }
+        } else {
+          // Criar novo usuário
+          const { data: newUser, error: createUserError } = await supabaseClient
+            .from('users')
+            .insert({
+              phone: phoneNumber,
+              wa_chatid: chatId,
+              name: pushName || `Cliente MarIA`,
+              subscription_tier: planTier,
+              plan_tier: planTier,
+              asaas_subscription_id: asaasSubscriptionId,
+              asaas_customer_id: asaasCustomerId,
+              subscription_expires_at: expiresAt.toISOString(),
+              origin: 'web', // Marca a origem como web
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .select()
+            .single() as any;
+
+          if (createUserError) {
+            this.logger.error(`Erro ao criar novo usuário para ${phoneNumber}: ${createUserError.message}`);
+            await this.uazapiService.sendMessage(
+              chatId,
+              `❌ Ocorreu um problema ao criar seu cadastro. Por favor, fale com o suporte.`,
+            );
+            return;
+          }
+
+          userId = newUser.id;
+        }
+
+        // Criar registro da assinatura
+        const amount = planTier === 'premium'
+          ? (billingCycle === 'annual' ? 322.8 : 29.9)
+          : (billingCycle === 'annual' ? 154.8 : 14.9);
+
+        const { error: insertSubError } = await supabaseClient
+          .from('subscriptions')
+          .insert({
+            user_id: userId,
+            tier: planTier,
+            amount: amount,
+            status: 'paid',
+            provider: 'asaas',
+            expires_at: expiresAt.toISOString(),
+            origin: 'web', // Origem da assinatura
+            created_at: new Date().toISOString(),
+          });
+
+        if (insertSubError) {
+          this.logger.error(`Erro ao inserir assinatura para usuário ${userId}: ${insertSubError.message}`);
+        }
+
+        // Enviar mensagem de boas-vindas / ativação concluída
+        const welcomeText = planTier === 'premium'
+          ? `🌟 *Sua assinatura Premium foi confirmada com sucesso!* \n\nSeja muito bem-vindo(a) à *MarIA Premium*, ${pushName}! Sua conta agora está ativa e com acesso ilimitado. Comece a interagir comigo agora mesmo! 🚀`
+          : `🎉 *Sua assinatura Básica foi confirmada com sucesso!* \n\nSeja muito bem-vindo(a) à *MarIA*, ${pushName}! Sua conta agora está ativa e pronta para uso. Comece a interagir comigo agora mesmo! 🚀`;
+
+        await this.uazapiService.sendMessage(chatId, welcomeText);
+        this.logger.log(`Usuário ${userId} ativado com sucesso usando código ${code}`);
+        return;
+      }
+
       const responseText = await this.aiService.processMessage(
         chatId,
         messageContent,
