@@ -21,6 +21,11 @@ No painel do Asaas:
 1. Vá em **Configurações > Integrações > Webhooks**
 2. Ative a URL de Webhook e aponte para: `https://sua-api-de-producao.com/payment/asaas/webhook`
 3. Marque os eventos de Assinatura e Pagamentos (especialmente `PAYMENT_CONFIRMED` e `SUBSCRIPTION_CANCELED`).
+4. Defina um **token de autenticação** no webhook e coloque o mesmo valor no `.env` do backend:
+   ```env
+   ASAAS_AUTH_TOKEN=seu_token_do_painel_asaas
+   ```
+   (também aceita `ASSAS_AUTH_TOKEN`). O Asaas envia esse token em cada POST no header `asaas-access-token`.
 
 ## 3. Gestão de Planos
 A nossa aplicação (`AsaasService`) já cria a Subscription de forma dinâmica na API deles com base nos IDs que o botão de "Assinar" do Frontend envia:
