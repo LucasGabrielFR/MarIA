@@ -5,11 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.1] - 2026-05-21
+### Added
+- **Editor Dinâmico de Botões no Fluxo de Assinatura:** O editor de flows automáticos (`/flows`) foi completamente refatorado com gerenciamento dinâmico de botões, permitindo adicionar, remover e editar IDs e textos de cada opção sem limitação estática.
+- **Preset "Preços Híbridos Otimizados":** Botão de atalho no editor de `Etapa 1: Escolha do Plano` que carrega automaticamente os 4 planos com preços compactados (ex: `Básico R$14,99/mês`, `Bás. Anual R$12,90`) otimizados para o limite de 20 caracteres do WhatsApp.
+- **Indicador de Modo de Envio (Nativo vs Híbrido):** Badge visual dinâmico que exibe `✅ Modo Botões Nativo` quando há ≤3 opções configuradas, ou `⚠️ Modo Híbrido (Texto)` quando o fluxo excede 3 botões — comunicando ao administrador que o sistema enviará automaticamente como lista numerada em texto.
+- **Validação Visual de Limite de Caracteres:** Cada campo de texto de botão exibe contador de caracteres em tempo real com alerta visual âmbar quando excede os 20 caracteres recomendados pelo WhatsApp.
+- **Script SQL de Atualização:** Novo script `update_subscription_flow_buttons.sql` para atualizar o banco de dados com os 4 botões de planos com preços incluídos via `jsonb_set`.
+
+### Changed
+- **Configuração Padrão dos Botões do Fluxo:** A configuração inicial do `subscription_flow` foi atualizada para incluir os 4 botões de plano com preços visíveis (`Básico R$14,99/mês`, `Bás. Anual R$12,90`, `Premium R$29,90/mês`, `Prem. Anual R$26,90`) + opção `Cancelar`. Como há 5 opções (excedendo o limite de 3 do WhatsApp nativo), o Uazapi Híbrido enviará automaticamente como lista numerada em texto.
+- **Correspondência de Botões no Backend:** O motor de fluxo (`handleFlowStep` em `ai.service.ts`) agora realiza correspondência dinâmica de respostas de usuário com os textos dos botões configurados no banco de dados, em vez de usar strings hardcoded. Isso garante que renomear botões no painel admin seja imediatamente refletido na lógica de processamento do bot.
+- **Seed SQL do `automatic_flows`:** Alterado `ON CONFLICT DO NOTHING` para `ON CONFLICT DO UPDATE` para garantir que re-execuções do script de migração atualizem o conteúdo ao invés de ignorar silenciosamente.
+
 ## [1.14.0] - 2026-05-20
 ### Added
 - **Fluxos Automáticos de Vendas (WhatsApp Híbrido):** Nova seção e página administrativa dedicada (`/flows` - `flows.tsx`) para controle, edição e parametrização dos textos de opções e botões de conversas estruturadas de vendas no bot WhatsApp.
 - **Tabela de Controle Dedicada (`automatic_flows`):** Nova estrutura relacional no banco de dados para isolar a configuração de fluxos automatizados da tabela de prompts genéricos. Equipado com Row Level Security (RLS) e políticas específicas que limitam alterações a superadmins autenticados.
-- **Sincronização em Lote com Asaas:** Novo botão "Sincronizar com o ASAAS" na aba financeira que dispara chamadas assíncronas para puxar todas as assinaturas ativas na API Asaas e mantê-las em conformidade exata no banco de dados local.
+- **Sincronização em Lote com o ASAAS:** Novo botão "Sincronizar com o ASAAS" na aba financeira que dispara chamadas assíncronas para puxar todas as assinaturas ativas na API Asaas e mantê-las em conformidade exata no banco de dados local.
 - **Ações de Alteração de Plano/Ciclo:** Botão visual inline ("Alterar Plano/Ciclo") na tabela de assinaturas financeiras que abre modal interativo para superadmins atualizarem o tier (Básico / Premium) ou ciclo (Mensal / Anual) do fiel diretamente nos servidores do Asaas e no banco local.
 - **Fallback Híbrido Uazapi:** Implementada conversão inteligente e fallback automático em `uazapi.service.ts` para anexar opções numeradas em formato texto caso o dispositivo/cliente do fiel não tenha suporte para botões interativos WhatsApp.
 

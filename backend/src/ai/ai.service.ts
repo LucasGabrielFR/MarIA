@@ -841,11 +841,32 @@ export class AiService implements OnModuleInit {
 
     if (stepId === 'select_plan') {
       // User replies to option select
-      const isOption1 = cleanMsg === '1' || cleanMsg.includes('básico mensal') || cleanMsg.includes('basico mensal');
-      const isOption2 = cleanMsg === '2' || cleanMsg.includes('básico anual') || cleanMsg.includes('basico anual');
-      const isOption3 = cleanMsg === '3' || cleanMsg.includes('premium mensal');
-      const isOption4 = cleanMsg === '4' || cleanMsg.includes('premium anual');
-      const isOption5 = cleanMsg === '5' || cleanMsg.includes('cancelar') || cleanMsg.includes('sair');
+      const selectStep = steps.select_plan || { buttons: [] };
+      const getBtnText = (id: string) => selectStep.buttons?.find((b: any) => b.id === id)?.text?.toLowerCase() || '';
+
+      const isOption1 = cleanMsg === '1' || 
+                        (getBtnText('1') && (cleanMsg === getBtnText('1') || cleanMsg.includes(getBtnText('1')) || getBtnText('1').includes(cleanMsg))) || 
+                        cleanMsg.includes('básico mensal') || 
+                        cleanMsg.includes('basico mensal');
+      
+      const isOption2 = cleanMsg === '2' || 
+                        (getBtnText('2') && (cleanMsg === getBtnText('2') || cleanMsg.includes(getBtnText('2')) || getBtnText('2').includes(cleanMsg))) || 
+                        cleanMsg.includes('básico anual') || 
+                        cleanMsg.includes('basico anual');
+      
+      const isOption3 = cleanMsg === '3' || 
+                        (getBtnText('3') && (cleanMsg === getBtnText('3') || cleanMsg.includes(getBtnText('3')) || getBtnText('3').includes(cleanMsg))) || 
+                        cleanMsg.includes('premium mensal');
+      
+      const isOption4 = cleanMsg === '4' || 
+                        (getBtnText('4') && (cleanMsg === getBtnText('4') || cleanMsg.includes(getBtnText('4')) || getBtnText('4').includes(cleanMsg))) || 
+                        cleanMsg.includes('premium anual');
+      
+      const isOption5 = cleanMsg === '5' || 
+                        (getBtnText('5') && (cleanMsg === getBtnText('5') || cleanMsg.includes(getBtnText('5')) || getBtnText('5').includes(cleanMsg))) || 
+                        cleanMsg.includes('cancelar') || 
+                        cleanMsg.includes('sair');
+
 
       if (isOption5) {
         await supabase.from('users').update({ status: 'active' }).eq('id', user.id);
@@ -926,9 +947,25 @@ export class AiService implements OnModuleInit {
 
     if (stepId === 'confirm_plan') {
       // User replies to confirmation
-      const isYes = cleanMsg === '1' || cleanMsg.includes('sim') || cleanMsg.includes('confirmar');
-      const isNo = cleanMsg === '2' || cleanMsg.includes('não') || cleanMsg.includes('nao') || cleanMsg.includes('voltar');
-      const isCancel = cleanMsg === '3' || cleanMsg.includes('cancelar') || cleanMsg.includes('sair');
+      const confirmStep = steps.confirm_plan || { buttons: [] };
+      const getConfirmBtnText = (id: string) => confirmStep.buttons?.find((b: any) => b.id === id)?.text?.toLowerCase() || '';
+
+      const isYes = cleanMsg === '1' || 
+                    (getConfirmBtnText('1') && (cleanMsg === getConfirmBtnText('1') || cleanMsg.includes(getConfirmBtnText('1')) || getConfirmBtnText('1').includes(cleanMsg))) || 
+                    cleanMsg.includes('sim') || 
+                    cleanMsg.includes('confirmar');
+      
+      const isNo = cleanMsg === '2' || 
+                   (getConfirmBtnText('2') && (cleanMsg === getConfirmBtnText('2') || cleanMsg.includes(getConfirmBtnText('2')) || getConfirmBtnText('2').includes(cleanMsg))) || 
+                   cleanMsg.includes('não') || 
+                   cleanMsg.includes('nao') || 
+                   cleanMsg.includes('voltar');
+      
+      const isCancel = cleanMsg === '3' || 
+                       (getConfirmBtnText('3') && (cleanMsg === getConfirmBtnText('3') || cleanMsg.includes(getConfirmBtnText('3')) || getConfirmBtnText('3').includes(cleanMsg))) || 
+                       cleanMsg.includes('cancelar') || 
+                       cleanMsg.includes('sair');
+
 
       if (isCancel) {
         await supabase.from('users').update({ status: 'active' }).eq('id', user.id);
