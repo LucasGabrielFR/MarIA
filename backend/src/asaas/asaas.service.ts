@@ -399,61 +399,18 @@ export class AsaasService {
       throw new BadRequestException('Ciclo inválido');
     }
 
-    const { customerId, userId } = await this.ensureAsaasCustomer(phone);
-    const { data: userRow } = userId
-      ? await this.supabase
-          .getClient()
-          .from('users')
-          .select('name')
-          .eq('id', userId)
-          .maybeSingle()
-      : { data: null };
-
-    const strategies: Array<{ name: string; run: () => Promise<string> }> = [
-      {
-        name: 'subscription',
-        run: () =>
-          this.createSubscriptionInvoiceUrl(
-            normalizedPlan,
-            normalizedCycle,
-            phone,
-            customerId,
-          ),
-      },
-      {
-        name: 'checkout',
-        run: () =>
-          this.createHostedCheckout(
-            normalizedPlan,
-            normalizedCycle,
-            phone,
-            customerId,
-            userRow?.name,
-          ),
-      },
-      {
-        name: 'paymentLink',
-        run: () =>
-          this.createRecurrentPaymentLink(normalizedPlan, normalizedCycle, phone),
-      },
-    ];
-
-    let lastError: Error | null = null;
-
-    for (const strategy of strategies) {
-      try {
-        const url = await strategy.run();
-        this.logger.log(`Checkout URL via ${strategy.name}: ${url}`);
-        return { url };
-      } catch (err) {
-        lastError = err instanceof Error ? err : new Error(String(err));
-        this.logger.warn(
-          `Asaas strategy "${strategy.name}" failed: ${lastError.message}`,
-        );
-      }
+    try {
+      const url = await this.createRecurrentPaymentLink(
+        normalizedPlan,
+        normalizedCycle,
+        phone,
+      );
+      this.logger.log(`Checkout URL via paymentLink (credit card only): ${url}`);
+      return { url };
+    } catch (err) {
+      this.logger.error(`Falha ao gerar link de pagamento recorrente Asaas: ${err.message}`);
+      throw err;
     }
-
-    throw lastError || new Error('Não foi possível gerar o link de pagamento');
   }
 
   async cancelSubscription(subscriptionId: string): Promise<void> {

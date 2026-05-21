@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.5] - 2026-05-21
+
+### Added
+- **Vinculação Dinâmica via Webhook (External Reference):** O webhook processa o ID do cliente criado de forma orgânica pelo Asaas durante o checkout, cruzando o telefone embutido no `externalReference` (`plan_cycle_phone`) e registrando o `asaas_customer_id` no banco local no exato momento da confirmação de pagamento.
+
+### Changed
+- **Geração Otimizada de Link de Pagamento Recorrente Exclusivo:** O método `createCheckoutUrl` foi refatorado para utilizar estritamente a estratégia de links de pagamento recorrentes (`paymentLink` com `chargeType: 'RECURRENT'`) configurados para cartão de crédito (`billingType: 'CREDIT_CARD'`). Isso elimina a criação prévia de clientes rascunho ("Cliente MarIA + Telefone") no painel do Asaas, permitindo que o cliente preencha seus próprios dados cadastrais diretamente na página segura e garantindo restrição exclusiva a pagamentos via cartão de crédito.
+
 ## [1.14.4] - 2026-05-21
 
 ### Added
