@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [1.14.6] - 2026-05-21
+
+### Added
+- **Vinculação Direta por Link de Pagamento (`paymentLink`):** Implementada a correspondência de transações pagas no Asaas diretamente ao usuário da MarIA por meio do ID único do link de pagamento (`paymentLink`). O ID do link gerado no checkout é agora armazenado na coluna `asaas_payment_link_id` do usuário e consultado prioritariamente no webhook de confirmação de pagamento (`PAYMENT_CONFIRMED`/`PAYMENT_RECEIVED`).
+
+### Fixed
+- **Erros de Compilação do TypeScript no Asaas Service:** Correção de 15 erros de compilação estrita em `asaas.service.ts` relacionados à inferência de tipo `never` na variável `user` e discrepâncias de retorno em chamadas de banco de dados (`maybeSingle()` do Supabase RPC). A variável foi explicitamente tipada como `any` e os retornos do RPC foram convertidos para contornar limitações de tipagem estática.
 
 ## [1.14.5] - 2026-05-21
 

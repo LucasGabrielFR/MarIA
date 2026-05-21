@@ -178,10 +178,8 @@ export class AsaasService {
 
     const { data: user } = await this.supabase
       .getClient()
-      .from('users')
-      .select('id, name, asaas_customer_id')
-      .eq('phone', normalizedPhone)
-      .maybeSingle();
+      .rpc('find_user_by_normalized_phone', { phone_query: phone })
+      .maybeSingle() as any;
 
     if (user?.asaas_customer_id) {
       return { customerId: user.asaas_customer_id, userId: user.id };
@@ -231,7 +229,7 @@ export class AsaasService {
     planId: PlanId,
     cycle: BillingCycle,
     phone: string,
-  ): Promise<string> {
+  ): Promise<{ url: string; id: string }> {
     const cfg = this.getPlanConfig(planId, cycle);
     const externalReference = this.buildExternalReference(planId, cycle, phone);
 
@@ -252,7 +250,7 @@ export class AsaasService {
       throw new Error('Asaas não retornou URL do link de pagamento');
     }
 
-    return link.url;
+    return { url: link.url, id: link.id };
   }
 
   /**
@@ -384,6 +382,7 @@ export class AsaasService {
     planId: string,
     cycle: string,
     phone: string,
+    userId?: string,
   ): Promise<{ url: string }> {
     if (!this.apiKey) {
       this.logger.warn('ASAAS_API_KEY/ASAAS_TOKEN not set. Returning dummy URL.');
@@ -400,11 +399,30 @@ export class AsaasService {
     }
 
     try {
-      const url = await this.createRecurrentPaymentLink(
+      const { url, id: linkId } = await this.createRecurrentPaymentLink(
         normalizedPlan,
         normalizedCycle,
         phone,
       );
+
+      let resolvedUserId = userId;
+      if (!resolvedUserId) {
+        const { data: matchedUser } = await this.supabase
+          .getClient()
+          .rpc('find_user_by_normalized_phone', { phone_query: phone })
+          .maybeSingle() as any;
+        resolvedUserId = matchedUser?.id;
+      }
+
+      if (resolvedUserId) {
+        await this.supabase
+          .getClient()
+          .from('users')
+          .update({ asaas_payment_link_id: linkId })
+          .eq('id', resolvedUserId);
+        this.logger.log(`Linked payment link ID ${linkId} to user ${resolvedUserId}`);
+      }
+
       this.logger.log(`Checkout URL via paymentLink (credit card only): ${url}`);
       return { url };
     } catch (err) {
@@ -438,22 +456,12 @@ export class AsaasService {
       const subscriptionId = payment.subscription;
       const customerId = payment.customer;
       const externalReference = payment.externalReference;
+      const paymentLinkId = payment.paymentLink;
 
       if (!subscriptionId) return { received: true };
 
       const parsed = this.parseExternalReference(externalReference);
       let planTier = parsed.planTier;
-      let phone = parsed.phone;
-
-      if (!phone && payment.customer) {
-        const { data: userByCustomer } = await this.supabase
-          .getClient()
-          .from('users')
-          .select('phone')
-          .eq('asaas_customer_id', customerId)
-          .maybeSingle();
-        phone = userByCustomer?.phone || null;
-      }
 
       if (planTier !== 'basic' && planTier !== 'premium') {
         if (payment.value >= 29.9) planTier = 'premium';
@@ -461,20 +469,57 @@ export class AsaasService {
       }
 
       const supabaseClient = this.supabase.getClient();
+      let user: any = null;
 
-      let { data: user } = await supabaseClient
-        .from('users')
-        .select('*')
-        .eq('asaas_customer_id', customerId)
-        .maybeSingle();
-
-      if (!user && phone) {
-        const { data: phoneUser } = await supabaseClient
+      // 1. Busca prioritária pelo ID do link de pagamento
+      if (paymentLinkId) {
+        const { data: matchedUser } = await supabaseClient
           .from('users')
           .select('*')
-          .eq('phone', this.normalizePhone(phone))
+          .eq('asaas_payment_link_id', paymentLinkId)
           .maybeSingle();
-        user = phoneUser;
+        user = matchedUser;
+        if (user) {
+          this.logger.log(`User ${user.id} matched via paymentLink ID: ${paymentLinkId}`);
+        }
+      }
+
+      // 2. Fallback pela referência existente do customerId
+      if (!user && customerId) {
+        const { data: matchedUser } = await supabaseClient
+          .from('users')
+          .select('*')
+          .eq('asaas_customer_id', customerId)
+          .maybeSingle();
+        user = matchedUser;
+        if (user) {
+          this.logger.log(`User ${user.id} matched via asaas_customer_id: ${customerId}`);
+        }
+      }
+
+      // 3. Fallback pela busca resiliente de telefone
+      if (!user) {
+        let phone = parsed.phone;
+
+        if (!phone && customerId) {
+          try {
+            const customer = await this.request(`/customers/${customerId}`, 'GET');
+            phone = this.normalizePhone(customer.mobilePhone || customer.phone || '');
+            this.logger.log(`Phone retrieved from Asaas Customer API: ${phone}`);
+          } catch (custErr) {
+            this.logger.warn(`Erro ao buscar dados do cliente ${customerId} no Asaas: ${custErr.message}`);
+          }
+        }
+
+        if (phone) {
+          const { data: matchedUser } = await supabaseClient
+            .rpc('find_user_by_normalized_phone', { phone_query: phone })
+            .maybeSingle();
+          user = matchedUser;
+          if (user) {
+            this.logger.log(`User ${user.id} matched via phone: ${phone}`);
+          }
+        }
       }
 
       if (user) {
@@ -602,11 +647,12 @@ export class AsaasService {
         const expiresAt = new Date(nextDueDate);
         expiresAt.setDate(expiresAt.getDate() + 1);
 
-        let { data: user } = await supabaseClient
+        const { data: dbUser } = await supabaseClient
           .from('users')
           .select('id, subscription_tier')
           .eq('asaas_customer_id', customerId)
           .maybeSingle();
+        let user: any = dbUser;
 
         // Se não encontrou por asaas_customer_id, tenta buscar pelo telefone do cliente no Asaas
         if (!user) {
@@ -615,10 +661,8 @@ export class AsaasService {
             const customerPhone = this.normalizePhone(customer.mobilePhone || customer.phone || '');
             if (customerPhone) {
               const { data: matchedUser } = await supabaseClient
-                .from('users')
-                .select('id, subscription_tier')
-                .eq('phone', customerPhone)
-                .maybeSingle();
+                .rpc('find_user_by_normalized_phone', { phone_query: customerPhone })
+                .maybeSingle() as any;
               
               if (matchedUser) {
                 user = matchedUser;

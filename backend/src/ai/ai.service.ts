@@ -1019,7 +1019,7 @@ export class AiService implements OnModuleInit {
         await supabase.from('users').update({ status: 'active' }).eq('id', user.id);
         try {
           const asaas = this.getAsaasService();
-          const checkout = await asaas.createCheckoutUrl(planId, cycle, user.phone);
+          const checkout = await asaas.createCheckoutUrl(planId, cycle, user.phone, user.id);
           return (
             `Perfeito! Aqui está o seu link de pagamento:\n\n` +
             `🔗 ${checkout.url}\n\n` +
@@ -1071,7 +1071,7 @@ export class AiService implements OnModuleInit {
           throw new Error('AsaasService not available');
         }
 
-        const checkout = await asaas.createCheckoutUrl(tier, cycle, user.phone);
+        const checkout = await asaas.createCheckoutUrl(tier, cycle, user.phone, user.id);
         const tierLabel = tier === 'basic' ? 'Básico' : 'Premium';
         const cycleLabel = isMonthly ? 'Mensal' : 'Anual';
 
