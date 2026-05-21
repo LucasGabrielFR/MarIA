@@ -81,42 +81,65 @@ export class UazapiController {
         return { status: 'missing_content' }; 
       }
 
-      this.logger.log(`Processing message from ${chatId}: "${messageContent}"`);
-
-      // Marcar como lido e enviar estado de "digitando"
-      await this.uazapiService.markRead(chatId);
-      await this.uazapiService.sendPresence(chatId, 'composing');
-
-      // Extrair nome e telefone para persistência se for novo usuário
       const pushName = messageData.senderName || payload.chat?.wa_name || payload.chat?.wa_contactName || 'Usuário';
       const phoneNumber = payload.chat?.phone || chatId.split('@')[0];
 
-      try {
-        const responseText = await this.aiService.processMessage(chatId, messageContent, pushName, phoneNumber);
-        
-        if (responseText) {
-          if (typeof responseText === 'object' && !Array.isArray(responseText) && (responseText as any).type === 'interactive') {
-            const interactive = responseText as any;
-            const buttons = Array.isArray(interactive.buttons) ? interactive.buttons : [];
-            await this.sleepForTyping(interactive.text);
-            await this.uazapiService.sendInteractiveMessage(chatId, interactive.text, buttons);
-          } else if (Array.isArray(responseText)) {
-            for (const text of responseText) {
-              await this.sleepForTyping(text);
-              await this.uazapiService.sendMessage(chatId, text);
-            }
-          } else {
-            await this.sleepForTyping(responseText as string);
-            await this.uazapiService.sendMessage(chatId, responseText as string);
-          }
-          this.logger.log(`Response sent to ${chatId}`);
-        }
-      } catch (error) {
-        this.logger.error(`Error processing message for ${chatId}: ${error.message}`);
-      }
+      // Responde ao webhook na hora; processamento em paralelo (sem fila sequencial).
+      void this.processMessageInBackground(chatId, messageContent, pushName, phoneNumber);
+
+      return { status: 'accepted' };
     }
 
     return { status: 'success' };
+  }
+
+  /**
+   * Processa mensagem fora da resposta HTTP — várias requisições rodam em paralelo no Node.js.
+   */
+  private async processMessageInBackground(
+    chatId: string,
+    messageContent: string,
+    pushName: string,
+    phoneNumber: string,
+  ): Promise<void> {
+    try {
+      this.logger.log(`Processing message from ${chatId}: "${messageContent}"`);
+
+      await this.uazapiService.markRead(chatId);
+      await this.uazapiService.sendPresence(chatId, 'composing');
+
+      const responseText = await this.aiService.processMessage(
+        chatId,
+        messageContent,
+        pushName,
+        phoneNumber,
+      );
+
+      if (!responseText) return;
+
+      if (
+        typeof responseText === 'object' &&
+        !Array.isArray(responseText) &&
+        (responseText as any).type === 'interactive'
+      ) {
+        const interactive = responseText as any;
+        const buttons = Array.isArray(interactive.buttons) ? interactive.buttons : [];
+        await this.sleepForTyping(interactive.text);
+        await this.uazapiService.sendInteractiveMessage(chatId, interactive.text, buttons);
+      } else if (Array.isArray(responseText)) {
+        for (const text of responseText) {
+          await this.sleepForTyping(text);
+          await this.uazapiService.sendMessage(chatId, text);
+        }
+      } else {
+        await this.sleepForTyping(responseText as string);
+        await this.uazapiService.sendMessage(chatId, responseText as string);
+      }
+
+      this.logger.log(`Response sent to ${chatId}`);
+    } catch (error) {
+      this.logger.error(`Error processing message for ${chatId}: ${error.message}`);
+    }
   }
 
   /**

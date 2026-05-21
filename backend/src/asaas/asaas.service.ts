@@ -172,7 +172,7 @@ export class AsaasService {
 
   /**
    * Link de pagamento recorrente (documentação: POST /v3/paymentLinks, chargeType RECURRENT).
-   * O cliente preenche dados e escolhe Pix/Cartão/Boleto na página do Asaas.
+   * billingType CREDIT_CARD restringe a página apenas a cartão de crédito.
    */
   private async createRecurrentPaymentLink(
     planId: PlanId,
@@ -186,11 +186,10 @@ export class AsaasService {
       name: cfg.linkName,
       description: cfg.description,
       value: cfg.value,
-      billingType: 'UNDEFINED',
+      billingType: 'CREDIT_CARD',
       chargeType: 'RECURRENT',
       subscriptionCycle: cfg.cycleAsaas,
       externalReference,
-      dueDateLimitDays: 10,
     };
 
     this.logger.log(`Creating Asaas payment link: ${JSON.stringify(payload)}`);
@@ -229,7 +228,7 @@ export class AsaasService {
       'https://maria.acutistech.com.br/?checkout=cancel';
 
     const payload: Record<string, unknown> = {
-      billingTypes: ['CREDIT_CARD', 'PIX'],
+      billingTypes: ['CREDIT_CARD'],
       chargeTypes: ['RECURRENT'],
       minutesToExpire: 1440,
       externalReference,
@@ -289,7 +288,7 @@ export class AsaasService {
 
     const subscriptionPayload = {
       customer: customerId,
-      billingType: 'UNDEFINED',
+      billingType: 'CREDIT_CARD',
       value: cfg.value,
       nextDueDate: this.formatDate(nextDue),
       cycle: cfg.cycleAsaas,
