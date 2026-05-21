@@ -27,24 +27,20 @@ interface FlowStep {
 
 type FlowStepKey = 'select_plan' | 'select_cycle';
 
+type FlowSteps = Record<FlowStepKey, FlowStep>;
+
 interface AutomaticFlow {
   id: string;
   key: string;
   name: string;
-  steps: {
-    select_plan: FlowStep;
-    select_cycle: FlowStep;
-    confirm_plan?: FlowStep;
-    [key: string]: FlowStep;
-  };
+  steps: FlowSteps;
   created_at: string;
   updated_at: string;
 }
 
-function normalizeFlowSteps(steps: AutomaticFlow['steps']): AutomaticFlow['steps'] {
+function normalizeFlowSteps(steps: Partial<FlowSteps> & { confirm_plan?: FlowStep }): FlowSteps {
   const selectCycle = steps.select_cycle || steps.confirm_plan || { text: '', buttons: [] };
   return {
-    ...steps,
     select_plan: steps.select_plan || { text: '', buttons: [] },
     select_cycle: selectCycle,
   };
