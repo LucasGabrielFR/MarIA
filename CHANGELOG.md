@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.15.1] - 2026-05-21
+
+### Fixed
+- **Bug da Rota de API no Checkout (Erro 404 Not Found):** Corrigido o erro crítico em que a Landing Page retornava status 404 ao tentar assinar um plano. Isso acontecia porque a API Route anterior do Next.js estava localizada em `/api/checkout`, e a configuração de proxy/Nginx em produção intercepta qualquer requisição iniciando com `/api` para o backend NestJS (onde o endpoint não existia).
+- **Renomeação da Rota do Next.js:** Movido o endpoint do Next.js de `/api/checkout` para `/checkout-session`, contornando a interceptação do proxy Nginx e permitindo que o Next.js lide com a rota de forma autônoma e faça a requisição server-side para o backend NestJS com sucesso.
+- **Chamadas de Status e Verificação Relativas:** Ajustadas as chamadas de polling e autenticação no cliente para utilizarem caminhos relativos com o prefixo `/api` (ex: `/api/payment/asaas/status/...`), as quais agora são interceptadas corretamente e encaminhadas de forma imediata pelo proxy Nginx para o backend NestJS tanto localmente (via regras de `rewrites` no `next.config.ts`) quanto em produção.
+
 ## [1.15.0] - 2026-05-21
 
 ### Added

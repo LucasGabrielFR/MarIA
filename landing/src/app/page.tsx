@@ -24,12 +24,11 @@ export default function Home() {
   useEffect(() => {
     if (subscribeStatus !== 'pending' || !sessionId) return;
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
     let pollInterval: NodeJS.Timeout;
 
     const checkStatus = async () => {
       try {
-        const res = await fetch(`${apiUrl}/payment/asaas/status/${sessionId}`);
+        const res = await fetch(`/api/payment/asaas/status/${sessionId}`);
         if (!res.ok) return;
 
         const data = await res.json();
@@ -55,7 +54,7 @@ export default function Home() {
       setErrorMessage('');
       setShowModal(true);
 
-      const response = await fetch('/api/checkout', {
+      const response = await fetch('/checkout-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

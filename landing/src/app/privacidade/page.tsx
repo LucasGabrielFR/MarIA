@@ -20,8 +20,7 @@ export default function PrivacyPolicy() {
     setLoading(true);
     setError("");
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
-      const response = await fetch(`${apiUrl}/admin/settings/public/privacy_policy`);
+      const response = await fetch(`/api/admin/settings/public/privacy_policy`);
       if (!response.ok) {
         throw new Error("Não foi possível carregar a Política de Privacidade no momento.");
       }

@@ -20,8 +20,7 @@ function VerifyContent() {
 
     const verifyToken = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
-        const response = await fetch(`${apiUrl}/customer/auth/verify`, {
+        const response = await fetch(`/api/customer/auth/verify`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

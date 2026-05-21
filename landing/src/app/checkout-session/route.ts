@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
       sessionId: data.sessionId,
     });
   } catch (error: any) {
-    console.error('Checkout API Route error:', error);
+    console.error('Checkout Session API Route error:', error);
     return NextResponse.json(
       { error: 'Internal server error during checkout session generation' },
       { status: 500 }

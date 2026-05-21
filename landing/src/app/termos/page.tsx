@@ -20,8 +20,7 @@ export default function TermsOfUse() {
     setLoading(true);
     setError("");
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
-      const response = await fetch(`${apiUrl}/admin/settings/public/terms_of_use`);
+      const response = await fetch(`/api/admin/settings/public/terms_of_use`);
       if (!response.ok) {
         throw new Error("Não foi possível carregar os Termos de Uso no momento.");
       }

@@ -16,8 +16,7 @@ export default function Login() {
     setSuccess(false);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
-      const response = await fetch(`${apiUrl}/customer/auth/magic-link`, {
+      const response = await fetch(`/api/customer/auth/magic-link`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
