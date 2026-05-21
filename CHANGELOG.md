@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.8] - 2026-05-21
+
+### Added
+- **Desativação Automática de Link de Pagamento no Webhook:** Nova funcionalidade de segurança que inativa e desabilita permanentemente o link de pagamento recorrente no Asaas (`deletePaymentLink`) assim que a confirmação de pagamento (`PAYMENT_CONFIRMED` ou `PAYMENT_RECEIVED`) é processada com sucesso. Isso impede que o cliente ou terceiros efetuem pagamentos duplicados ou adicionais indesejados através do mesmo link.
+- **Método de Exclusão de Link de Pagamento:** Implementado o método assíncrono `deletePaymentLink(linkId: string)` em `AsaasService` para disparar de forma isolada e com tratamento robusto de erros a requisição de inativação (`DELETE /v3/paymentLinks/{id}`) na API do Asaas.
+
 ## [1.14.7] - 2026-05-21
 
 ### Added

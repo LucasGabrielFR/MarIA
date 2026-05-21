@@ -448,6 +448,23 @@ export class AsaasService {
     }
   }
 
+  async deletePaymentLink(linkId: string): Promise<void> {
+    if (!this.apiKey) {
+      this.logger.warn('ASAAS_API_KEY/ASAAS_TOKEN not set. Skipping delete payment link.');
+      return;
+    }
+    try {
+      this.logger.log(`Deleting/disabling payment link ${linkId} in Asaas...`);
+      await this.request(`/paymentLinks/${linkId}`, 'DELETE');
+      this.logger.log(`Payment link ${linkId} deleted/disabled successfully.`);
+    } catch (error) {
+      this.logger.error(
+        `Error deleting/disabling payment link ${linkId}: ${error.message}`,
+      );
+      throw error;
+    }
+  }
+
   async handleWebhook(event: any) {
     this.logger.log(`Received Asaas Webhook: ${event.event}`);
 
@@ -616,6 +633,16 @@ export class AsaasService {
         }
       } else {
         this.logger.warn(`User not found for asaas_customer_id: ${customerId}`);
+      }
+
+      if (paymentLinkId) {
+        try {
+          await this.deletePaymentLink(paymentLinkId);
+        } catch (delErr) {
+          this.logger.error(
+            `Falha ao desabilitar o link de pagamento ${paymentLinkId}: ${delErr.message}`,
+          );
+        }
       }
     }
 
