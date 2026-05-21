@@ -1,11 +1,15 @@
 import { Injectable, Logger, ForbiddenException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
+import { AsaasService } from '../asaas/asaas.service';
 
 @Injectable()
 export class FinanceService {
   private readonly logger = new Logger(FinanceService.name);
 
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(
+    private readonly supabaseService: SupabaseService,
+    private readonly asaasService: AsaasService,
+  ) {}
 
   async getFinanceSummary(startDate?: string, endDate?: string) {
     const client = this.supabaseService.getClient();
@@ -222,6 +226,100 @@ export class FinanceService {
     }
 
     return { success: true };
+  }
+
+  async syncWithAsaas(adminEmail: string) {
+    await this.validateSuperAdmin(adminEmail);
+    const result = await this.asaasService.syncSubscriptions();
+    return { success: true, synced: result.synced };
+  }
+
+  async updateSubscriptionInAsaas(subscriptionId: string, tier: string, cycle: string, adminEmail: string) {
+    await this.validateSuperAdmin(adminEmail);
+
+    const supabase = this.supabaseService.getClient();
+    const { data: sub, error: fetchError } = await supabase
+      .from('subscriptions')
+      .select('*, users(*)')
+      .eq('id', subscriptionId)
+      .single();
+
+    if (fetchError || !sub) {
+      this.logger.error(`Erro ao buscar assinatura ${subscriptionId}: ${fetchError?.message}`);
+      throw new Error('Assinatura não encontrada');
+    }
+
+    const user = sub.users;
+    if (!user || !user.asaas_subscription_id) {
+      throw new Error('Usuário associado não possui assinatura no Asaas ativa.');
+    }
+
+    let value = 0;
+    let cycleAsaas = 'MONTHLY';
+    let description = '';
+
+    if (tier === 'basic') {
+      if (cycle === 'annual') {
+         value = 154.80;
+         cycleAsaas = 'YEARLY';
+         description = 'Plano Básico (Anual) - Atualizado';
+      } else {
+         value = 14.99;
+         cycleAsaas = 'MONTHLY';
+         description = 'Plano Básico (Mensal) - Atualizado';
+      }
+    } else if (tier === 'premium') {
+      if (cycle === 'annual') {
+         value = 322.80;
+         cycleAsaas = 'YEARLY';
+         description = 'Plano Premium (Anual) - Atualizado';
+      } else {
+         value = 29.90;
+         cycleAsaas = 'MONTHLY';
+         description = 'Plano Premium (Mensal) - Atualizado';
+      }
+    } else {
+      throw new Error('Tier inválido');
+    }
+
+    await this.asaasService.updateSubscription(user.asaas_subscription_id, {
+      value,
+      cycle: cycleAsaas,
+      description
+    });
+
+    const expiresAt = new Date();
+    if (cycle === 'annual') {
+      expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+    } else {
+      expiresAt.setMonth(expiresAt.getMonth() + 1);
+    }
+
+    await supabase.from('users').update({
+      subscription_tier: tier,
+      plan_tier: tier,
+      subscription_expires_at: expiresAt.toISOString(),
+      updated_at: new Date().toISOString()
+    }).eq('id', user.id);
+
+    const { data: updatedSub, error: updateError } = await supabase
+      .from('subscriptions')
+      .update({
+        tier: tier,
+        amount: value,
+        expires_at: expiresAt.toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', subscriptionId)
+      .select()
+      .single();
+
+    if (updateError) {
+      this.logger.error(`Erro ao atualizar assinatura no banco: ${updateError.message}`);
+      throw updateError;
+    }
+
+    return updatedSub;
   }
 }
 

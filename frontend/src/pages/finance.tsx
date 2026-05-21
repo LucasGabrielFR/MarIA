@@ -3,7 +3,7 @@ import { API_URL, apiRequest } from '../lib/api'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { MainLayout } from '../components/layout/main-layout'
-import { DollarSign, TrendingUp, CreditCard, AlertCircle, Calendar, Ban, Trash2, Loader2 } from 'lucide-react'
+import { DollarSign, TrendingUp, CreditCard, AlertCircle, Calendar, Ban, Trash2, Loader2, RefreshCw, ArrowUpCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -26,6 +26,13 @@ export default function FinancePage() {
   const [actionType, setActionType] = useState<'cancel' | 'delete' | null>(null);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Estados para alteração de plano (Update/Upgrade)
+  const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
+  const [editTier, setEditTier] = useState<'basic' | 'premium'>('basic');
+  const [editCycle, setEditCycle] = useState<'monthly' | 'annual'>('monthly');
+  const [updateLoading, setUpdateLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   // Estados para Filtro de Período
   const [activeFilter, setActiveFilter] = useState<'mes_atual' | 'ultima_semana' | '15_dias' | '30_dias' | '3_meses' | '6_meses' | 'ultimo_ano' | 'todo_periodo' | 'custom'>('mes_atual');
@@ -194,6 +201,51 @@ export default function FinancePage() {
     }
   };
 
+  const handleSyncAsaas = async () => {
+    setSyncing(true);
+    try {
+      const res = await apiRequest('/admin/finance/sync-asaas', {
+        method: 'POST',
+        headers: {
+          'x-admin-email': currentUser?.email || '',
+        }
+      });
+      toast.success(`Sincronização concluída! Assinaturas sincronizadas: ${res.synced}`);
+      await fetchFinanceData();
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || 'Erro ao sincronizar com o Asaas');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleUpdateSubscription = async () => {
+    if (!selectedSub) return;
+    setUpdateLoading(true);
+    try {
+      await apiRequest(`/admin/finance/subscriptions/${selectedSub.id}/update`, {
+        method: 'POST',
+        headers: {
+          'x-admin-email': currentUser?.email || '',
+        },
+        body: JSON.stringify({
+          tier: editTier,
+          cycle: editCycle
+        })
+      });
+      toast.success('Assinatura atualizada no Asaas com sucesso!');
+      await fetchFinanceData();
+      setIsUpdateDialogOpen(false);
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || 'Erro ao atualizar assinatura no Asaas');
+    } finally {
+      setUpdateLoading(false);
+      setSelectedSub(null);
+    }
+  };
+
   const handlePresetSelect = (preset: typeof activeFilter, label: string) => {
     setActiveFilter(preset);
     setActiveFilterLabel(label);
@@ -267,6 +319,14 @@ export default function FinancePage() {
               <span className="text-xs font-extrabold text-blue-700 bg-blue-50/70 border border-blue-100 px-3 py-1 rounded-full">{activeFilterLabel}</span>
             </div>
             <button 
+              onClick={handleSyncAsaas}
+              disabled={syncing}
+              className="flex items-center gap-2 text-emerald-700 text-sm font-bold bg-emerald-50 hover:bg-emerald-100/80 px-4 py-2 rounded-full transition-all border border-emerald-100 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:scale-100"
+            >
+              <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
+              {syncing ? 'Sincronizando...' : 'Sincronizar com o ASAAS'}
+            </button>
+            <button 
               onClick={() => setIsFilterDialogOpen(true)}
               className="flex items-center gap-2 text-primary text-sm font-bold bg-blue-50 hover:bg-blue-100/80 px-4 py-2 rounded-full transition-all border border-blue-100 hover:scale-105 active:scale-95"
             >
@@ -326,6 +386,23 @@ export default function FinancePage() {
                   {isSuperAdmin && (
                     <TableCell className="text-right pr-4 py-4">
                       <div className="flex gap-2 justify-end">
+                        <button 
+                          onClick={() => {
+                            setSelectedSub(sub);
+                            setEditTier(sub.tier === 'premium' ? 'premium' : 'basic');
+                            setEditCycle(sub.amount > 50 ? 'annual' : 'monthly');
+                            setIsUpdateDialogOpen(true);
+                          }}
+                          disabled={sub.status === 'canceled'}
+                          className={`p-2 rounded-xl transition-all ${
+                            sub.status === 'canceled' 
+                              ? 'opacity-40 cursor-not-allowed text-slate-300 bg-slate-50' 
+                              : 'text-blue-600 bg-blue-50 hover:bg-blue-100 hover:scale-105 active:scale-95'
+                          }`}
+                          title="Alterar Plano/Ciclo (Upgrade)"
+                        >
+                          <ArrowUpCircle className="h-4 w-4" />
+                        </button>
                         <button 
                           onClick={() => {
                             setSelectedSub(sub);
@@ -487,6 +564,107 @@ export default function FinancePage() {
                 </Button>
               </div>
             </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {isUpdateDialogOpen && (
+        <Dialog open={isUpdateDialogOpen} onOpenChange={setIsUpdateDialogOpen}>
+          <DialogContent className="sm:max-w-[460px] rounded-3xl border border-slate-100 shadow-2xl p-6 bg-white">
+            <DialogHeader className="space-y-3">
+              <DialogTitle className="text-xl font-extrabold text-slate-800 flex items-center gap-2">
+                <ArrowUpCircle className="h-5 w-5 text-blue-600" />
+                Alterar Plano / Ciclo (Upgrade)
+              </DialogTitle>
+              <DialogDescription className="text-sm font-medium text-slate-500 leading-relaxed">
+                Atualize o plano ou a recorrência da assinatura de <strong>{selectedSub?.users?.name || 'Sem nome'}</strong> diretamente no Asaas.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-6 my-4">
+              <div>
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Escolha o Plano</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setEditTier('basic')}
+                    className={`h-16 px-4 rounded-2xl border font-bold transition-all text-left flex flex-col justify-center gap-0.5 ${
+                      editTier === 'basic'
+                        ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm shadow-blue-50'
+                        : 'bg-slate-50/50 text-slate-600 border-slate-100 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="text-sm">Plano Básico</span>
+                    <span className="text-xs font-medium text-slate-400">R$ 14,99 / R$ 154,80</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditTier('premium')}
+                    className={`h-16 px-4 rounded-2xl border font-bold transition-all text-left flex flex-col justify-center gap-0.5 ${
+                      editTier === 'premium'
+                        ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm shadow-blue-50'
+                        : 'bg-slate-50/50 text-slate-600 border-slate-100 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="text-sm">Plano Premium</span>
+                    <span className="text-xs font-medium text-slate-400">R$ 29,90 / R$ 322,80</span>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Ciclo de Cobrança</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setEditCycle('monthly')}
+                    className={`h-14 px-4 rounded-2xl border font-bold transition-all text-left flex flex-col justify-center ${
+                      editCycle === 'monthly'
+                        ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm shadow-blue-50'
+                        : 'bg-slate-50/50 text-slate-600 border-slate-100 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="text-sm">Mensal</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditCycle('annual')}
+                    className={`h-14 px-4 rounded-2xl border font-bold transition-all text-left flex flex-col justify-center ${
+                      editCycle === 'annual'
+                        ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm shadow-blue-50'
+                        : 'bg-slate-50/50 text-slate-600 border-slate-100 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="text-sm">Anual (Economize)</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter className="mt-6 flex flex-row gap-3 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => setIsUpdateDialogOpen(false)}
+                disabled={updateLoading}
+                className="flex-1 sm:flex-none h-11 rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50 font-bold transition-all"
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleUpdateSubscription}
+                disabled={updateLoading}
+                className="flex-1 sm:flex-none h-11 rounded-xl text-white font-bold transition-all flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-100"
+              >
+                {updateLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Processando...
+                  </>
+                ) : (
+                  'Salvar Alterações'
+                )}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       )}

@@ -89,14 +89,18 @@ export class UazapiController {
         const responseText = await this.aiService.processMessage(chatId, messageContent, pushName, phoneNumber);
         
         if (responseText) {
-          if (Array.isArray(responseText)) {
+          if (typeof responseText === 'object' && !Array.isArray(responseText) && (responseText as any).type === 'interactive') {
+            const interactive = responseText as any;
+            await this.sleepForTyping(interactive.text);
+            await this.uazapiService.sendInteractiveMessage(chatId, interactive.text, interactive.buttons);
+          } else if (Array.isArray(responseText)) {
             for (const text of responseText) {
               await this.sleepForTyping(text);
               await this.uazapiService.sendMessage(chatId, text);
             }
           } else {
-            await this.sleepForTyping(responseText);
-            await this.uazapiService.sendMessage(chatId, responseText);
+            await this.sleepForTyping(responseText as string);
+            await this.uazapiService.sendMessage(chatId, responseText as string);
           }
           this.logger.log(`Response sent to ${chatId}`);
         }

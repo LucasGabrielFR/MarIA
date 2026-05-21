@@ -3,6 +3,7 @@ import LoginPage from './pages/login'
 import DashboardPage from './pages/dashboard'
 import UsersPage from './pages/users'
 import AiSettingsPage from './pages/ai-settings'
+import FlowsPage from './pages/flows'
 import DailyContentPage from './pages/daily-content'
 import WaUsersPage from './pages/wa-users'
 import PrayersPage from './pages/prayers'
@@ -19,6 +20,7 @@ function App() {
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/users" element={<UsersPage />} />
         <Route path="/ai-settings" element={<AiSettingsPage />} />
+        <Route path="/flows" element={<FlowsPage />} />
         <Route path="/prayers" element={<PrayersPage />} />
         <Route path="/daily-content" element={<DailyContentPage />} />
         <Route path="/wa-users" element={<WaUsersPage />} />

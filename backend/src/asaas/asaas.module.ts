@@ -2,9 +2,10 @@ import { Module } from '@nestjs/common';
 import { AsaasService } from './asaas.service';
 import { AsaasController } from './asaas.controller';
 import { SupabaseModule } from '../supabase/supabase.module';
+import { UazapiModule } from '../uazapi/uazapi.module';
 
 @Module({
-  imports: [SupabaseModule],
+  imports: [SupabaseModule, UazapiModule],
   controllers: [AsaasController],
   providers: [AsaasService],
   exports: [AsaasService],

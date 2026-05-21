@@ -45,5 +45,21 @@ export class FinanceController {
   ) {
     return this.financeService.deleteSubscription(id, adminEmail);
   }
+
+  @Post('sync-asaas')
+  syncWithAsaas(
+    @Headers('x-admin-email') adminEmail: string,
+  ) {
+    return this.financeService.syncWithAsaas(adminEmail);
+  }
+
+  @Post('subscriptions/:id/update')
+  updateSubscription(
+    @Param('id') id: string,
+    @Body() body: { tier: string; cycle: string },
+    @Headers('x-admin-email') adminEmail: string,
+  ) {
+    return this.financeService.updateSubscriptionInAsaas(id, body.tier, body.cycle, adminEmail);
+  }
 }
 

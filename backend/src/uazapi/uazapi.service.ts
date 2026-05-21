@@ -93,4 +93,40 @@ export class UazapiService {
       return false;
     }
   }
+
+  async sendInteractiveMessage(chatId: string, text: string, buttons: Array<{id: string, text: string}>): Promise<boolean> {
+    try {
+      this.logger.log(`Attempting to send interactive buttons to ${chatId}`);
+      
+      // Attempting to send using Uazapi's interactive buttons endpoint
+      const response = await fetch(`${this.apiUrl}/send/buttons`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'token': this.token,
+        },
+        body: JSON.stringify({
+          number: chatId,
+          text: text,
+          buttons: buttons.map(b => ({
+            buttonId: b.id,
+            buttonText: { displayText: b.text },
+            type: 1
+          }))
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        this.logger.warn(`UAZAPI /send/buttons failed (${response.status}: ${errorText}). Falling back to text message.`);
+        return this.sendMessage(chatId, text);
+      }
+
+      this.logger.log(`Interactive buttons sent successfully to ${chatId}`);
+      return true;
+    } catch (error) {
+      this.logger.warn(`Error sending interactive buttons: ${error.message}. Falling back to text message.`);
+      return this.sendMessage(chatId, text);
+    }
+  }
 }

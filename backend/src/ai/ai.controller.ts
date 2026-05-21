@@ -77,4 +77,37 @@ Descrição: ${data.description}`;
       throw error;
     }
   }
+
+  @Get('automatic-flows')
+  async getAutomaticFlows() {
+    const supabase = this.supabaseService.getClient();
+    const { data, error } = await supabase
+      .from('automatic_flows')
+      .select('*')
+      .order('key', { ascending: true });
+
+    if (error) throw error;
+    return data;
+  }
+
+  @Put('automatic-flows/:key')
+  async updateAutomaticFlow(
+    @Param('key') key: string,
+    @Body() updateData: { steps: any; name?: string }
+  ) {
+    const supabase = this.supabaseService.getClient();
+    const { data, error } = await supabase
+      .from('automatic_flows')
+      .update({
+        steps: updateData.steps,
+        ...(updateData.name && { name: updateData.name }),
+        updated_at: new Date().toISOString()
+      })
+      .eq('key', key)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
 }

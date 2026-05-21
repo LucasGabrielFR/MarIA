@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.0] - 2026-05-20
+### Added
+- **Fluxos Automáticos de Vendas (WhatsApp Híbrido):** Nova seção e página administrativa dedicada (`/flows` - `flows.tsx`) para controle, edição e parametrização dos textos de opções e botões de conversas estruturadas de vendas no bot WhatsApp.
+- **Tabela de Controle Dedicada (`automatic_flows`):** Nova estrutura relacional no banco de dados para isolar a configuração de fluxos automatizados da tabela de prompts genéricos. Equipado com Row Level Security (RLS) e políticas específicas que limitam alterações a superadmins autenticados.
+- **Sincronização em Lote com Asaas:** Novo botão "Sincronizar com o ASAAS" na aba financeira que dispara chamadas assíncronas para puxar todas as assinaturas ativas na API Asaas e mantê-las em conformidade exata no banco de dados local.
+- **Ações de Alteração de Plano/Ciclo:** Botão visual inline ("Alterar Plano/Ciclo") na tabela de assinaturas financeiras que abre modal interativo para superadmins atualizarem o tier (Básico / Premium) ou ciclo (Mensal / Anual) do fiel diretamente nos servidores do Asaas e no banco local.
+- **Fallback Híbrido Uazapi:** Implementada conversão inteligente e fallback automático em `uazapi.service.ts` para anexar opções numeradas em formato texto caso o dispositivo/cliente do fiel não tenha suporte para botões interativos WhatsApp.
+
+### Changed
+- **Upgrade de Assinatura & Proteção Contra Duplicidade (Anti-Double Charge):** O bot intercepta intenções de assinatura (`SUBSCRIBE`). Caso o usuário já possua o Plano Básico ativo e selecione o Premium, o fluxo alerta sobre o upgrade de plano. Ao receber a confirmação de pagamento do novo plano no webhook do Asaas, o sistema de forma atômica cancela a assinatura antiga e concede acesso ao novo plano, evitando cobranças duplicadas indevidas.
+
+### Fixed
+- **Compilação do TypeScript no Backend:** Resolvido o erro em `ai.service.ts` onde as queries no Postgrest Supabase referentes à tabela `automatic_flows` não possuíam o operador `.select('*')` explícito.
+- **Assinatura do Método processMessage:** Corrigido o tipo de retorno do método `processMessage` de `Promise<string | string[] | null>` para `Promise<any>`, permitindo o retorno de estruturas complexas para mensagens interativas com botões.
+
 ## [1.13.1] - 2026-05-19
 ### Fixed
 - **Autenticação em Gestão de Fiéis (x-admin-id):** Corrigido o envio do cabeçalho `'x-admin-id'` nas ações de exclusão de dados pessoais (`handleClearData`), atualização de assinaturas (`handleUpdateSubscription`) e salvamento de configurações operacionais (`handleSaveSettings`) na página `wa-users.tsx`, eliminando falhas de permissão ao executar essas tarefas como administrador ou superadmin.

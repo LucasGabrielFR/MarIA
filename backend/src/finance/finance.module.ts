@@ -2,9 +2,10 @@ import { Module } from '@nestjs/common';
 import { FinanceService } from './finance.service';
 import { FinanceController } from './finance.controller';
 import { SupabaseModule } from '../supabase/supabase.module';
+import { AsaasModule } from '../asaas/asaas.module';
 
 @Module({
-  imports: [SupabaseModule],
+  imports: [SupabaseModule, AsaasModule],
   providers: [FinanceService],
   controllers: [FinanceController],
   exports: [FinanceService],
