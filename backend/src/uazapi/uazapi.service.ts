@@ -94,41 +94,58 @@ export class UazapiService {
     }
   }
 
-  async sendInteractiveMessage(chatId: string, text: string, buttons: Array<{id: string, text: string}>): Promise<boolean> {
-    // Always attempt native WhatsApp buttons first, regardless of count.
-    // If WhatsApp rejects the request (e.g., >3 buttons), we fall back to plain text automatically.
+  async sendInteractiveMessage(
+    chatId: string,
+    text: string,
+    buttons: Array<{ id: string; text: string }>,
+  ): Promise<boolean> {
+    if (!buttons?.length) {
+      return this.sendMessage(chatId, text);
+    }
+
+    // UAZAPI usa POST /send/menu com type "button" e choices no formato "rótulo|id"
+    const choices = buttons.slice(0, 3).map((b) => {
+      const label = (b.text || b.id).trim();
+      const id = String(b.id || label).trim();
+      return label === id ? label : `${label}|${id}`;
+    });
+
     try {
-      this.logger.log(`Attempting to send ${buttons.length} native buttons to ${chatId}`);
-      const response = await fetch(`${this.apiUrl}/send/buttons`, {
+      this.logger.log(`Sending ${choices.length} menu buttons to ${chatId} via /send/menu`);
+      const response = await fetch(`${this.apiUrl}/send/menu`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'token': this.token,
+          token: this.token,
         },
         body: JSON.stringify({
           number: chatId,
-          text: text,
-          buttons: buttons.map(b => ({
-            buttonId: b.id,
-            buttonText: { displayText: b.text },
-            type: 1
-          }))
+          type: 'button',
+          text,
+          choices,
+          readchat: true,
         }),
       });
 
       if (response.ok) {
-        this.logger.log(`Native buttons sent successfully to ${chatId}`);
+        this.logger.log(`Menu buttons sent successfully to ${chatId}`);
         return true;
       }
 
       const errorText = await response.text();
-      this.logger.warn(`UAZAPI /send/buttons failed (${response.status}: ${errorText}). Falling back to text message.`);
+      this.logger.warn(
+        `UAZAPI /send/menu failed (${response.status}: ${errorText}). Falling back to text message.`,
+      );
     } catch (error) {
-      this.logger.warn(`Error sending native buttons: ${error.message}. Falling back to text message.`);
+      this.logger.warn(`Error sending menu buttons: ${error.message}. Falling back to text message.`);
     }
 
-    // Fallback: plain text (already contains numbered list 1️⃣, 2️⃣... from the DB)
-    return this.sendMessage(chatId, text);
+    const numbered = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣'];
+    const fallbackText =
+      text +
+      '\n\n' +
+      buttons.map((b, i) => `${numbered[i] || `${i + 1}.`} ${b.text}`).join('\n');
+    return this.sendMessage(chatId, fallbackText);
   }
 }
 

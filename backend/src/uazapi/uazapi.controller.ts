@@ -51,12 +51,18 @@ export class UazapiController {
       // Ignorar grupos
       if (chatId && chatId.includes('@g.us')) return { status: 'ignored_group' };
 
-      // O texto no formato UAZAPI vem em 'text' ou 'content'
-      const messageContent = messageData.text 
-        || messageData.content 
-        || messageData.message?.conversation 
-        || messageData.message?.extendedTextMessage?.text 
-        || '';
+      // Texto, clique em botão (buttonOrListid) ou resposta de lista/enquete
+      const messageContent = (
+        messageData.text ||
+        messageData.buttonOrListid ||
+        messageData.vote ||
+        (typeof messageData.content === 'string' ? messageData.content : '') ||
+        messageData.message?.conversation ||
+        messageData.message?.extendedTextMessage?.text ||
+        messageData.message?.buttonsResponseMessage?.selectedButtonId ||
+        messageData.message?.listResponseMessage?.singleSelectReply?.selectedRowId ||
+        ''
+      ).toString().trim();
 
       // Extrair o chatId
       if (!chatId) return { status: 'missing_chatid' };
@@ -91,8 +97,9 @@ export class UazapiController {
         if (responseText) {
           if (typeof responseText === 'object' && !Array.isArray(responseText) && (responseText as any).type === 'interactive') {
             const interactive = responseText as any;
+            const buttons = Array.isArray(interactive.buttons) ? interactive.buttons : [];
             await this.sleepForTyping(interactive.text);
-            await this.uazapiService.sendInteractiveMessage(chatId, interactive.text, interactive.buttons);
+            await this.uazapiService.sendInteractiveMessage(chatId, interactive.text, buttons);
           } else if (Array.isArray(responseText)) {
             for (const text of responseText) {
               await this.sleepForTyping(text);
