@@ -573,20 +573,18 @@ export default function Home() {
           <div className="bg-white max-w-lg w-full rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-slate-100 overflow-hidden relative p-8 md:p-10 flex flex-col items-center text-center animate-scale-up">
             
             {/* Botão de Fechar */}
-            {subscribeStatus !== 'success' && (
-              <button 
-                onClick={() => {
-                  setShowModal(false);
-                  setSubscribeStatus('idle');
-                }}
-                className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-full transition-colors"
-                aria-label="Fechar modal"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            )}
+            <button 
+              onClick={() => {
+                setShowModal(false);
+                setSubscribeStatus('idle');
+              }}
+              className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-full transition-colors z-50"
+              aria-label="Fechar modal"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
 
             {/* ESTADO: CARREGANDO CHECKOUT */}
             {subscribeStatus === 'loading' && (

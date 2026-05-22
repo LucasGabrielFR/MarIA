@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.15.2] - 2026-05-21
+
+### Fixed
+- **Botão "X" de Fechamento do Modal de Confirmação:** Removido o condicional de ocultação do botão fechar e adicionada a classe `z-50` para garantir que o botão de "X" seja visível, destacado e plenamente funcional em todas as telas do modal de pagamento (incluindo a tela final de "Assinatura Confirmada!"). Isso permite ao usuário fechar a janela em qualquer etapa sem ficar preso na tela de sucesso.
+
 ## [1.15.1] - 2026-05-21
 
 ### Fixed
