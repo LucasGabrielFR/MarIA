@@ -512,6 +512,16 @@ export class AsaasService {
       await this.request(`/paymentLinks/${linkId}`, 'DELETE');
       this.logger.log(`Payment link ${linkId} deleted/disabled successfully.`);
     } catch (error) {
+      // Trata graciosamente a impossibilidade de exclusão devido a cobranças existentes
+      if (
+        error.message?.includes('Não é permitido remover links de pagamento com cobranças geradas') ||
+        error.response?.data?.errors?.[0]?.code === 'invalid_action'
+      ) {
+        this.logger.log(
+          `Link de pagamento ${linkId} não pôde ser deletado pois já possui cobranças geradas (comportamento padrão do Asaas).`,
+        );
+        return;
+      }
       this.logger.error(
         `Error deleting/disabling payment link ${linkId}: ${error.message}`,
       );
@@ -588,7 +598,7 @@ export class AsaasService {
           this.logger.error(`Falha ao disparar email de ativação: ${mailErr.message}`);
         }
 
-        if (paymentLinkId) {
+        if (event.event === 'PAYMENT_CONFIRMED' && paymentLinkId) {
           try {
             await this.deletePaymentLink(paymentLinkId);
           } catch (delErr) {
@@ -748,7 +758,7 @@ export class AsaasService {
         this.logger.warn(`User not found for asaas_customer_id: ${customerId}`);
       }
 
-      if (paymentLinkId) {
+      if (event.event === 'PAYMENT_CONFIRMED' && paymentLinkId) {
         try {
           await this.deletePaymentLink(paymentLinkId);
         } catch (delErr) {

@@ -9,7 +9,7 @@ export class MailService {
 
   constructor(private readonly configService: ConfigService) {
     const host = this.configService.get<string>('SMTP_HOST');
-    const port = this.configService.get<number>('SMTP_PORT') || 587;
+    const port = Number(this.configService.get('SMTP_PORT')) || 587;
     const user = this.configService.get<string>('SMTP_USER');
     const pass = this.configService.get<string>('SMTP_PASS');
 
@@ -21,6 +21,9 @@ export class MailService {
         auth: {
           user,
           pass,
+        },
+        tls: {
+          rejectUnauthorized: false,
         },
       });
       this.logger.log(`SMTP Mailer configurado com sucesso para o host ${host}:${port}`);
