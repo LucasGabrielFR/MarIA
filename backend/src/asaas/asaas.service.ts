@@ -504,26 +504,16 @@ export class AsaasService {
 
   async deletePaymentLink(linkId: string): Promise<void> {
     if (!this.apiKey) {
-      this.logger.warn('ASAAS_API_KEY/ASAAS_TOKEN not set. Skipping delete payment link.');
+      this.logger.warn('ASAAS_API_KEY/ASAAS_TOKEN not set. Skipping deactivate payment link.');
       return;
     }
     try {
-      this.logger.log(`Deleting/disabling payment link ${linkId} in Asaas...`);
-      await this.request(`/paymentLinks/${linkId}`, 'DELETE');
-      this.logger.log(`Payment link ${linkId} deleted/disabled successfully.`);
+      this.logger.log(`Disabling payment link ${linkId} in Asaas (setting active: false)...`);
+      await this.request(`/paymentLinks/${linkId}`, 'PUT', { active: false });
+      this.logger.log(`Payment link ${linkId} disabled successfully.`);
     } catch (error) {
-      // Trata graciosamente a impossibilidade de exclusão devido a cobranças existentes
-      if (
-        error.message?.includes('Não é permitido remover links de pagamento com cobranças geradas') ||
-        error.response?.data?.errors?.[0]?.code === 'invalid_action'
-      ) {
-        this.logger.log(
-          `Link de pagamento ${linkId} não pôde ser deletado pois já possui cobranças geradas (comportamento padrão do Asaas).`,
-        );
-        return;
-      }
       this.logger.error(
-        `Error deleting/disabling payment link ${linkId}: ${error.message}`,
+        `Error disabling payment link ${linkId}: ${error.message}`,
       );
       throw error;
     }

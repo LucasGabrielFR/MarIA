@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.15.3] - 2026-05-21
+
+### Fixed
+- **Inativação de Links de Pagamento Confirmados no Asaas:** Corrigido o erro da API do Asaas (`invalid_action: Não é permitido remover links de pagamento com cobranças geradas.`) ao tentar remover o link de pagamento temporário do faturamento após a confirmação. O método `deletePaymentLink` foi reformulado para utilizar uma requisição `PUT /v3/paymentLinks/{id}` enviando `{ active: false }` ao invés de um método `DELETE`, permitindo que o Asaas inative o link com sucesso e impeça pagamentos adicionais duplicados mesmo contendo cobranças existentes em seu histórico.
+
 ## [1.15.2] - 2026-05-21
 
 ### Fixed
