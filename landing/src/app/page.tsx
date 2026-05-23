@@ -48,6 +48,25 @@ export default function Home() {
     return () => clearInterval(pollInterval);
   }, [subscribeStatus, sessionId]);
 
+  // Recuperação de sessão pós-redirecionamento se retornar com ?checkout=success
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const searchParams = new URLSearchParams(window.location.search);
+    const isCheckoutSuccess = searchParams.get('checkout') === 'success';
+    const savedSessionId = localStorage.getItem('maria_checkout_session_id');
+
+    if (isCheckoutSuccess && savedSessionId) {
+      setSessionId(savedSessionId);
+      setSubscribeStatus('pending');
+      setShowModal(true);
+
+      // Limpa os parâmetros da URL para evitar reabertura automática ao atualizar
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
+    }
+  }, []);
+
   const handleSubscribe = async (planId: string, cycle: string) => {
     try {
       setSubscribeStatus('loading');
@@ -70,6 +89,7 @@ export default function Home() {
 
       setCheckoutUrl(data.url);
       setSessionId(data.sessionId);
+      localStorage.setItem('maria_checkout_session_id', data.sessionId);
       setSubscribeStatus('pending');
 
       // Abre a URL do Asaas em uma nova aba
@@ -577,6 +597,7 @@ export default function Home() {
               onClick={() => {
                 setShowModal(false);
                 setSubscribeStatus('idle');
+                localStorage.removeItem('maria_checkout_session_id');
               }}
               className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-full transition-colors z-50"
               aria-label="Fechar modal"
@@ -638,6 +659,7 @@ export default function Home() {
                     onClick={() => {
                       setShowModal(false);
                       setSubscribeStatus('idle');
+                      localStorage.removeItem('maria_checkout_session_id');
                     }}
                     className="text-xs text-slate-400 hover:text-slate-600 hover:underline transition-colors py-2"
                   >
@@ -737,6 +759,7 @@ export default function Home() {
                     onClick={() => {
                       setShowModal(false);
                       setSubscribeStatus('idle');
+                      localStorage.removeItem('maria_checkout_session_id');
                     }}
                     className="px-6 py-3 bg-slate-100 text-slate-700 rounded-full font-bold text-sm hover:bg-slate-200 transition-colors"
                   >

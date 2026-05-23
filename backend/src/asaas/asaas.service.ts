@@ -249,6 +249,10 @@ export class AsaasService {
     const cfg = this.getPlanConfig(planId, cycle);
     const externalReference = this.buildExternalReference(planId, cycle, phone);
 
+    const successUrl =
+      process.env.ASAAS_CHECKOUT_SUCCESS_URL ||
+      'https://maria.acutistech.com.br/?checkout=success';
+
     const payload = {
       name: cfg.linkName,
       description: cfg.description,
@@ -257,6 +261,10 @@ export class AsaasService {
       chargeType: 'RECURRENT',
       subscriptionCycle: cfg.cycleAsaas,
       externalReference,
+      callback: {
+        successUrl,
+        autoRedirect: true,
+      },
     };
 
     this.logger.log(`Creating Asaas payment link: ${JSON.stringify(payload)}`);
