@@ -792,6 +792,14 @@ export class AsaasService {
           })
           .eq('id', user.id);
 
+        // Reset message count upon plan change/upgrade
+        await supabaseClient
+          .from('messages')
+          .update({ is_llm: false })
+          .eq('user_id', user.id)
+          .eq('role', 'user')
+          .eq('is_llm', true);
+
         await supabaseClient.from('subscriptions').insert({
           user_id: user.id,
           tier: planTier,
@@ -875,13 +883,12 @@ export class AsaasService {
         .getClient()
         .from('users')
         .update({
-          subscription_tier: 'free',
-          plan_tier: 'free',
+          asaas_subscription_id: null,
           updated_at: new Date().toISOString(),
         })
         .eq('asaas_subscription_id', subscriptionId);
 
-      this.logger.log(`Downgraded subscription ${subscriptionId} to free`);
+      this.logger.log(`Canceled subscription ${subscriptionId} in database (access kept until expiration)`);
     }
 
     return { received: true };

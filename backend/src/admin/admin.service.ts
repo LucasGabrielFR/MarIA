@@ -754,6 +754,14 @@ export class AdminService {
 
     if (error) throw error;
 
+    // Reset message count upon manual plan update (upgrade/downgrade)
+    await supabase
+      .from('messages')
+      .update({ is_llm: false })
+      .eq('user_id', userId)
+      .eq('role', 'user')
+      .eq('is_llm', true);
+
     await this.logActivity(
       requester.id,
       requester.email,

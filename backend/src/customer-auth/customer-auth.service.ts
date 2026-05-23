@@ -302,27 +302,18 @@ export class CustomerAuthService {
       }
     }
 
-    // 3. Update database: Mark all active 'paid' subscriptions as 'canceled'
-    await this.supabaseService
-      .getClient()
-      .from('subscriptions')
-      .update({ status: 'canceled', updated_at: new Date().toISOString() })
-      .eq('user_id', userId)
-      .eq('status', 'paid');
-
-    // 4. Update user state: Downgrade to free immediately (following our standard cancellation flow)
+    // 3. Keep current active paid subscriptions in the database as 'paid' because the period is already paid for!
+    // Instead, we only update the user's local record to set asaas_subscription_id to null (stopping future recurrence management),
+    // but preserving subscription_tier, plan_tier, and subscription_expires_at so they keep their active access until the period naturally expires.
     const { data: updatedUser, error: updateError } = await this.supabaseService
       .getClient()
       .from('users')
       .update({
-        subscription_tier: 'free',
-        plan_tier: 'free',
         asaas_subscription_id: null,
-        subscription_expires_at: null,
         updated_at: new Date().toISOString(),
       })
       .eq('id', userId)
-      .select('id, name, phone, subscription_tier')
+      .select('id, name, phone, subscription_tier, subscription_expires_at')
       .single();
 
     if (updateError) {
@@ -332,18 +323,12 @@ export class CustomerAuthService {
       throw new Error('Falha ao atualizar cadastro do assinante.');
     }
 
+    const portalData = await this.getCustomerPortalDataByPhone(updatedUser.phone);
+
     return {
       success: true,
-      message: 'Assinatura cancelada com sucesso.',
-      user: {
-        id: updatedUser.id,
-        name: updatedUser.name || 'Assinante MarIA',
-        phone: updatedUser.phone,
-        subscription_tier: updatedUser.subscription_tier,
-        subscription_expires_at: null,
-        asaas_subscription_id: null,
-      },
-      invoices: [],
+      message: 'Assinatura cancelada com sucesso. Seu acesso continuará ativo até a data de expiração.',
+      ...portalData,
     };
   }
 
@@ -432,6 +417,14 @@ export class CustomerAuthService {
         updated_at: new Date().toISOString(),
       })
       .eq('id', user.id);
+
+    // Reset message count upon plan change (upgrade/downgrade)
+    await supabase
+      .from('messages')
+      .update({ is_llm: false })
+      .eq('user_id', user.id)
+      .eq('role', 'user')
+      .eq('is_llm', true);
 
     // Update active 'paid' subscription record in our database
     const activeSub = user.subscriptions?.find((s: any) => s.status === 'paid');

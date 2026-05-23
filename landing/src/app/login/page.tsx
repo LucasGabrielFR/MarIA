@@ -186,8 +186,8 @@ export default function Login() {
         throw new Error(data.message || "Erro ao cancelar assinatura.");
       }
       setUser(data.user);
-      setInvoices([]);
-      setSuccess("Assinatura cancelada com sucesso.");
+      setInvoices(data.invoices || []);
+      setSuccess("Assinatura cancelada com sucesso. Seu acesso continuará ativo até o vencimento.");
       setShowCancelConfirm(false);
     } catch (err: any) {
       setError(err.message);
@@ -447,7 +447,7 @@ export default function Login() {
                 </p>
               </div>
               <div className="mt-4 flex flex-wrap gap-2.5">
-                {user.subscription_tier !== "free" ? (
+                {user.subscription_tier !== "free" && user.asaas_subscription_id ? (
                   <>
                     <button
                       onClick={() => {
@@ -466,6 +466,10 @@ export default function Login() {
                       Cancelar Assinatura
                     </button>
                   </>
+                ) : user.subscription_tier !== "free" ? (
+                  <span className="text-xs text-amber-600 font-bold bg-amber-50 px-4 py-2 rounded-full border border-amber-200">
+                    Cancelada (Válida até {formatDate(user.subscription_expires_at)})
+                  </span>
                 ) : (
                   <Link
                     href="/#pricing"

@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.2] - 2026-05-23
+
+### Added
+- **Reset de Mensagens no Upgrade/Downgrade:** Implementada a redefinição automática (zeragem) da contagem de mensagens consumidas do usuário (alterando o status `is_llm` de suas mensagens do mês para `false`) sempre que um upgrade ou downgrade for efetuado, tanto via Self-Service no Portal quanto via webhook do Asaas ou atualização manual do painel administrativo. Isso garante que o usuário inicie o novo ciclo com o limite de mensagens totalmente renovado ao ser cobrado o valor cheio.
+
+### Changed
+- **Vigência de Assinatura Cancelada:** Reformulado o fluxo de cancelamento de plano. Ao cancelar, a recorrência futura é desativada no Asaas e o campo `asaas_subscription_id` local é limpo, porém o acesso (plano ativo e expiração `subscription_expires_at`) é mantido integralmente ativo no banco de dados local até a data final do ciclo atual que já foi pago.
+- **Interface e Dashboard do Assinante:** Atualizada a Landing Page para exibir um badge elegante de "Cancelada (Válida até DD/MM/AAAA)" e ocultar os botões de controle de faturamento caso o plano tenha sido cancelado, além de preservar e renderizar todo o histórico de faturas do cliente na tabela mesmo após o cancelamento.
+
 ## [1.16.1] - 2026-05-23
 
 ### Added
