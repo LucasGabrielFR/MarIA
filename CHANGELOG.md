@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.0] - 2026-05-23
+
+### Added
+- **Fluxo de Autenticação por Código via WhatsApp:** Substituído o fluxo legado de "magic link" por um sistema interativo de envio de código numérico de 6 dígitos via WhatsApp e confirmação direta na Landing Page.
+- **Máscara de Entrada de Telefone Inteligente:** Implementada máscara de input em React no formato brasileiro `(xx) xxxxx-xxxx` na tela de login da Landing Page.
+- **Painel do Assinante (Dashboard Cliente):** Nova interface premium e moderna com efeito de glassmorphism e micro-animações integrada à Landing Page que permite aos fiéis autenticados visualizarem os dados de seu plano, data de próximo vencimento, e histórico completo de faturas anteriores.
+- **Auto-Autenticação e Persistência de Sessão:** Suporte a salvamento seguro do token de sessão no `localStorage` do navegador para manter o cliente conectado automaticamente e realizar revalidação em tempo real a cada carregamento de página.
+- **Gestão de Assinaturas Auto-Serviço:** Botões seguros para auto-cancelamento da cobrança recorrente no Asaas (com modal de dupla confirmação) e alteração direta de plano (upgrade de Básico para Premium ou modificação de ciclo Mensal/Anual) diretamente pelo painel do assinante.
+- **Endpoints de Portal e Sessão no Backend:** Novos endpoints seguros no controlador NestJS `CustomerAuthController` sob `/api/customer/auth/*` e `/api/customer/subscription/*` para envio de códigos de 6 dígitos, validação, gerenciamento de tokens de sessão hexadecimais de 32 bytes (com expiração de 1 hora) e cancelamento/alteração de planos com o AsaasService.
+
+### Changed
+- **Compatibilidade Retroativa de Endpoints:** O prefixo do controlador NestJS foi alterado para `/customer` agrupando as rotas da área do assinante de forma ideal, porém preservando e remapeando os endpoints legados `/customer/auth/magic-link` e `/customer/auth/verify` para não quebrar integrações existentes.
+- **Mapeamento de Dependências:** Adicionado o `AsaasModule` nos imports do `CustomerAuthModule` do backend NestJS para permitir o uso seguro do `AsaasService` nas requisições do assinante.
+
 ## [1.15.3] - 2026-05-21
 
 ### Fixed
