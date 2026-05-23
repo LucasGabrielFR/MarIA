@@ -18,10 +18,12 @@ import { MailModule } from './mail/mail.module';
       isGlobal: true,
     }),
     ScheduleModule.forRoot(),
-    ThrottlerModule.forRoot([{
-      ttl: 60000,
-      limit: 10,
-    }]),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 10,
+      },
+    ]),
     SupabaseModule,
     AuthModule,
     AdminModule,

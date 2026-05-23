@@ -7,7 +7,7 @@ export class AuthService {
 
   async login(email: string, pass: string) {
     const supabase = this.supabaseService.getClient();
-    
+
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password: pass,
@@ -24,7 +24,9 @@ export class AuthService {
       .single();
 
     if (adminError || !admin) {
-      throw new UnauthorizedException('Você não possui acesso de administrador.');
+      throw new UnauthorizedException(
+        'Você não possui acesso de administrador.',
+      );
     }
 
     // Registrar log de auditoria
@@ -33,7 +35,7 @@ export class AuthService {
       admin_email: data.user.email,
       admin_name: admin.name,
       action: 'login',
-      details: { description: 'Efetuou login no painel administrativo.' }
+      details: { description: 'Efetuou login no painel administrativo.' },
     });
 
     return {
@@ -52,10 +54,11 @@ export class AuthService {
     const supabase = this.supabaseService.getClient();
 
     // 1. Efetua login temporário para validar a senha atual
-    const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
-      email,
-      password: pass,
-    });
+    const { data: loginData, error: loginError } =
+      await supabase.auth.signInWithPassword({
+        email,
+        password: pass,
+      });
 
     if (loginError) {
       throw new UnauthorizedException('Senha atual incorreta.');
@@ -78,17 +81,24 @@ export class AuthService {
       .single();
 
     if (adminError || !admin) {
-      throw new UnauthorizedException('Administrador não encontrado no sistema.');
+      throw new UnauthorizedException(
+        'Administrador não encontrado no sistema.',
+      );
     }
 
     // 4. Marca requires_password_change como falso
     const { error: dbError } = await supabase
       .from('admins')
-      .update({ requires_password_change: false, updated_at: new Date().toISOString() })
+      .update({
+        requires_password_change: false,
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', admin.id);
 
     if (dbError) {
-      throw new UnauthorizedException('Erro ao atualizar dados cadastrais do administrador.');
+      throw new UnauthorizedException(
+        'Erro ao atualizar dados cadastrais do administrador.',
+      );
     }
 
     // 5. Grava log de auditoria
@@ -97,7 +107,10 @@ export class AuthService {
       admin_email: admin.email,
       admin_name: admin.name,
       action: 'change_password',
-      details: { description: 'Redefiniu a senha de acesso com sucesso no primeiro login.' }
+      details: {
+        description:
+          'Redefiniu a senha de acesso com sucesso no primeiro login.',
+      },
     });
 
     return {

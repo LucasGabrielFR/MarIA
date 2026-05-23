@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Delete, Body, Query, Headers, Param } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Body,
+  Query,
+  Headers,
+  Param,
+} from '@nestjs/common';
 import { FinanceService } from './finance.service';
 
 @Controller('admin/finance')
@@ -20,14 +29,23 @@ export class FinanceController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
-    return this.financeService.getSubscriptions(limit, offset, startDate, endDate);
+    return this.financeService.getSubscriptions(
+      limit,
+      offset,
+      startDate,
+      endDate,
+    );
   }
 
   @Post('record-manual')
   recordManualPayment(
     @Body() body: { userId: string; tier: string; amount: number },
   ) {
-    return this.financeService.recordManualPayment(body.userId, body.tier, body.amount);
+    return this.financeService.recordManualPayment(
+      body.userId,
+      body.tier,
+      body.amount,
+    );
   }
 
   @Post('subscriptions/:id/cancel')
@@ -47,9 +65,7 @@ export class FinanceController {
   }
 
   @Post('sync-asaas')
-  syncWithAsaas(
-    @Headers('x-admin-email') adminEmail: string,
-  ) {
+  syncWithAsaas(@Headers('x-admin-email') adminEmail: string) {
     return this.financeService.syncWithAsaas(adminEmail);
   }
 
@@ -59,7 +75,11 @@ export class FinanceController {
     @Body() body: { tier: string; cycle: string },
     @Headers('x-admin-email') adminEmail: string,
   ) {
-    return this.financeService.updateSubscriptionInAsaas(id, body.tier, body.cycle, adminEmail);
+    return this.financeService.updateSubscriptionInAsaas(
+      id,
+      body.tier,
+      body.cycle,
+      adminEmail,
+    );
   }
 }
-

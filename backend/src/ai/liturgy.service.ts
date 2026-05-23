@@ -35,7 +35,7 @@ export class LiturgyService {
       }
       this.logger.log(`Fetching liturgy from ${url}...`);
       const response = await fetch(url);
-      
+
       if (!response.ok) {
         throw new Error(`Failed to fetch liturgy: ${response.statusText}`);
       }
@@ -53,14 +53,15 @@ export class LiturgyService {
       return 'Nenhuma celebração encontrada para hoje.';
     }
 
-    const principal = data.celebracoes.find(c => c.principal) || data.celebracoes[0];
+    const principal =
+      data.celebracoes.find((c) => c.principal) || data.celebracoes[0];
     let formatted = `LITURGIA DE HOJE (${data.data})\n`;
     formatted += `Celebração: ${principal.liturgia}\n`;
     formatted += `Cor Litúrgica: ${principal.cor}\n\n`;
 
-    principal.leituras.forEach(leitura => {
+    principal.leituras.forEach((leitura) => {
       formatted += `--- ${leitura.rotulo} ---\n`;
-      leitura.opcoes.forEach(opcao => {
+      leitura.opcoes.forEach((opcao) => {
         formatted += `Referência: ${opcao.referencia}\n`;
         formatted += `Título: ${opcao.titulo}\n`;
         if (opcao.refrao) {

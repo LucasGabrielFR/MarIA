@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { ConfigService } from '@nestjs/config';
 
@@ -7,11 +11,13 @@ export class AdminService {
   constructor(
     private readonly supabaseService: SupabaseService,
     private readonly configService: ConfigService,
-  ) { }
+  ) {}
 
   async getRequesterAdmin(adminId: string) {
     if (!adminId) {
-      throw new UnauthorizedException('Identificação do administrador ausente nas requisições.');
+      throw new UnauthorizedException(
+        'Identificação do administrador ausente nas requisições.',
+      );
     }
     const supabase = this.supabaseService.getClient();
     const { data, error } = await supabase
@@ -20,12 +26,20 @@ export class AdminService {
       .eq('id', adminId)
       .single();
     if (error || !data) {
-      throw new UnauthorizedException('Administrador não autenticado ou inexistente.');
+      throw new UnauthorizedException(
+        'Administrador não autenticado ou inexistente.',
+      );
     }
     return data;
   }
 
-  async logActivity(adminId: string, email: string, name: string, action: string, details: any = {}) {
+  async logActivity(
+    adminId: string,
+    email: string,
+    name: string,
+    action: string,
+    details: any = {},
+  ) {
     const supabase = this.supabaseService.getClient();
     const { error } = await supabase.from('activity_logs').insert({
       admin_id: adminId,
@@ -59,14 +73,16 @@ export class AdminService {
     // Busca usuários com seus contextos
     const { data: users, error } = await supabase
       .from('users')
-      .select(`
+      .select(
+        `
         *,
         user_contexts (
           general_summary,
           interests,
           updated_at
         )
-      `)
+      `,
+      )
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -74,7 +90,9 @@ export class AdminService {
     // Busca agregação de tokens por usuário
     const { data: usageData } = await supabase
       .from('usage_logs')
-      .select('user_id, model, total_tokens, prompt_tokens, completion_tokens, created_at');
+      .select(
+        'user_id, model, total_tokens, prompt_tokens, completion_tokens, created_at',
+      );
 
     // Busca mensagens dos últimos 30 dias para calcular frequência
     const thirtyDaysAgo = new Date();
@@ -85,80 +103,101 @@ export class AdminService {
       .gte('created_at', thirtyDaysAgo.toISOString());
 
     // Mapeia os dados de uso para cada usuário
-    const usersWithMetrics = await Promise.all(users.map(async (user) => {
-      const userUsage = usageData?.filter(u => u.user_id === user.id) || [];
-      const tokenMetrics: Record<string, { total: number, prompt: number, completion: number }> = {};
+    const usersWithMetrics = await Promise.all(
+      users.map(async (user) => {
+        const userUsage = usageData?.filter((u) => u.user_id === user.id) || [];
+        const tokenMetrics: Record<
+          string,
+          { total: number; prompt: number; completion: number }
+        > = {};
 
-      userUsage.forEach((curr: any) => {
-        const model = curr.model || 'unknown';
-        if (!tokenMetrics[model]) {
-          tokenMetrics[model] = { total: 0, prompt: 0, completion: 0 };
-        }
-        tokenMetrics[model].total += curr.total_tokens || 0;
-        tokenMetrics[model].prompt += curr.prompt_tokens || 0;
-        tokenMetrics[model].completion += curr.completion_tokens || 0;
-      });
+        userUsage.forEach((curr: any) => {
+          const model = curr.model || 'unknown';
+          if (!tokenMetrics[model]) {
+            tokenMetrics[model] = { total: 0, prompt: 0, completion: 0 };
+          }
+          tokenMetrics[model].total += curr.total_tokens || 0;
+          tokenMetrics[model].prompt += curr.prompt_tokens || 0;
+          tokenMetrics[model].completion += curr.completion_tokens || 0;
+        });
 
-      // Cálculo de custos por usuário (estimado)
-      const modelPrices: Record<string, number> = {
-        'openai/gpt-4o-mini': 0.0000006,
-        'openai/gpt-4o': 0.000010,
-        'google/gemini-2.5-flash-lite': 0.0000002,
-        'magisterium-expert': 0.000001,
-      };
+        // Cálculo de custos por usuário (estimado)
+        const modelPrices: Record<string, number> = {
+          'openai/gpt-4o-mini': 0.0000006,
+          'openai/gpt-4o': 0.00001,
+          'google/gemini-2.5-flash-lite': 0.0000002,
+          'magisterium-expert': 0.000001,
+        };
 
-      const userCostUsd = userUsage.reduce((acc: number, curr: any) => {
-        const price = modelPrices[curr.model || ''] || modelPrices['openai/gpt-4o-mini'];
-        return acc + (curr.total_tokens * price);
-      }, 0);
+        const userCostUsd = userUsage.reduce((acc: number, curr: any) => {
+          const price =
+            modelPrices[curr.model || ''] || modelPrices['openai/gpt-4o-mini'];
+          return acc + curr.total_tokens * price;
+        }, 0);
 
-      const userBreakdown = Object.entries(tokenMetrics).map(([model, data]) => ({
-        model,
-        tokens: data.total,
-        promptTokens: data.prompt,
-        completionTokens: data.completion,
-        costUsd: Number((data.total * (modelPrices[model] || modelPrices['openai/gpt-4o-mini'])).toFixed(4))
-      }));
+        const userBreakdown = Object.entries(tokenMetrics).map(
+          ([model, data]) => ({
+            model,
+            tokens: data.total,
+            promptTokens: data.prompt,
+            completionTokens: data.completion,
+            costUsd: Number(
+              (
+                data.total *
+                (modelPrices[model] || modelPrices['openai/gpt-4o-mini'])
+              ).toFixed(4),
+            ),
+          }),
+        );
 
-      // Contagem de Mensagens (Separação por Role)
-      const { count: userMsgCount } = await supabase
-        .from('messages')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('role', 'user');
+        // Contagem de Mensagens (Separação por Role)
+        const { count: userMsgCount } = await supabase
+          .from('messages')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('role', 'user');
 
-      const { count: assistantMsgCount } = await supabase
-        .from('messages')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('role', 'assistant');
+        const { count: assistantMsgCount } = await supabase
+          .from('messages')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('role', 'assistant');
 
-      const totalMessages = (userMsgCount || 0) + (assistantMsgCount || 0);
+        const totalMessages = (userMsgCount || 0) + (assistantMsgCount || 0);
 
-      // Determinação de Perfil de Engajamento (Mantendo lógica baseada em atividade recente)
-      const userMessages = recentMessages?.filter(m => m.user_id === user.id) || [];
-      const uniqueDays = new Set(userMessages.map(m => new Date(m.created_at).toDateString())).size;
-      const frequency = Math.round((uniqueDays / 30) * 100);
+        // Determinação de Perfil de Engajamento (Mantendo lógica baseada em atividade recente)
+        const userMessages =
+          recentMessages?.filter((m) => m.user_id === user.id) || [];
+        const uniqueDays = new Set(
+          userMessages.map((m) => new Date(m.created_at).toDateString()),
+        ).size;
+        const frequency = Math.round((uniqueDays / 30) * 100);
 
-      let engagement = 'Inativo';
-      if (frequency >= 70) engagement = 'Super Engajado';
-      else if (frequency >= 30) engagement = 'Engajado';
-      else if (frequency >= 5) engagement = 'Ocasional';
+        let engagement = 'Inativo';
+        if (frequency >= 70) engagement = 'Super Engajado';
+        else if (frequency >= 30) engagement = 'Engajado';
+        else if (frequency >= 5) engagement = 'Ocasional';
 
-      return {
-        ...user,
-        context: Array.isArray(user.user_contexts) ? user.user_contexts[0] : (user.user_contexts || null),
-        metrics: {
-          total_tokens: Object.values(tokenMetrics).reduce((a: any, b: any) => a + b.total, 0),
-          total_cost_usd: Number(userCostUsd.toFixed(4)),
-          breakdown: userBreakdown,
-          total_messages: totalMessages || 0,
-          total_user_messages: userMsgCount || 0,
-          total_assistant_messages: assistantMsgCount || 0,
-          engagement
-        }
-      };
-    }));
+        return {
+          ...user,
+          context: Array.isArray(user.user_contexts)
+            ? user.user_contexts[0]
+            : user.user_contexts || null,
+          metrics: {
+            total_tokens: Object.values(tokenMetrics).reduce(
+              (a: any, b: any) => a + b.total,
+              0,
+            ),
+            total_cost_usd: Number(userCostUsd.toFixed(4)),
+            breakdown: userBreakdown,
+            total_messages: totalMessages || 0,
+            total_user_messages: userMsgCount || 0,
+            total_assistant_messages: assistantMsgCount || 0,
+            engagement,
+          },
+        };
+      }),
+    );
 
     return usersWithMetrics;
   }
@@ -198,14 +237,16 @@ export class AdminService {
     // 4. Conversas Recentes (Agrupadas por Usuário Único)
     const { data: recentMessagesRaw } = await supabase
       .from('messages')
-      .select(`
+      .select(
+        `
         id,
         content,
         role,
         created_at,
         user_id,
         users (name, status)
-      `)
+      `,
+      )
       .order('created_at', { ascending: false })
       .limit(50); // Pegamos mais para garantir diversidade após o filtro
 
@@ -220,7 +261,7 @@ export class AdminService {
           status: m.users?.status === 'active' ? 'Ativo' : 'Triagem',
           content: m.content,
           time: m.created_at,
-          role: m.role
+          role: m.role,
         });
       }
     });
@@ -234,26 +275,32 @@ export class AdminService {
       .eq('is_active', true);
 
     // Preços por 1M tokens (USD)
-    const modelPrices: Record<string, { input: number, output: number, label: string }> = {
-      'openai/gpt-4o-mini': { input: 0.15, output: 0.60, label: 'GPT-4o Mini' },
-      'openai/gpt-4o': { input: 2.50, output: 10.00, label: 'GPT-4o (Cron)' },
-      'google/gemini-2.5-flash-lite': { input: 0.10, output: 0.40, label: 'Gemini Flash' },
-      'magisterium-expert': { input: 1.00, output: 1.00, label: 'Magisterium' },
+    const modelPrices: Record<
+      string,
+      { input: number; output: number; label: string }
+    > = {
+      'openai/gpt-4o-mini': { input: 0.15, output: 0.6, label: 'GPT-4o Mini' },
+      'openai/gpt-4o': { input: 2.5, output: 10.0, label: 'GPT-4o (Cron)' },
+      'google/gemini-2.5-flash-lite': {
+        input: 0.1,
+        output: 0.4,
+        label: 'Gemini Flash',
+      },
+      'magisterium-expert': { input: 1.0, output: 1.0, label: 'Magisterium' },
     };
 
     let totalTokens = 0;
     let totalCostUsd = 0;
     const breakdown: Record<string, any> = {};
 
-    usageLogs?.forEach(log => {
+    usageLogs?.forEach((log) => {
       const modelKey = log.model || 'openai/gpt-4o-mini';
       totalTokens += log.total_tokens || 0;
 
       const prices = modelPrices[modelKey] || modelPrices['openai/gpt-4o-mini'];
-      const cost = (
+      const cost =
         (log.prompt_tokens || 0) * (prices.input / 1000000) +
-        (log.completion_tokens || 0) * (prices.output / 1000000)
-      );
+        (log.completion_tokens || 0) * (prices.output / 1000000);
       totalCostUsd += cost;
 
       if (!breakdown[modelKey]) {
@@ -301,14 +348,14 @@ export class AdminService {
       health: {
         database: 'Connected',
         prompts: `${activePrompts?.length || 0} ativos`,
-        status: 'Healthy'
-      }
+        status: 'Healthy',
+      },
     };
   }
 
   async getDailyStats(startDate?: string, endDate?: string) {
     const supabase = this.supabaseService.getClient();
-    
+
     let query = supabase
       .from('usage_logs')
       .select('created_at, total_tokens, cost, model');
@@ -325,7 +372,9 @@ export class AdminService {
       query = query.lte('created_at', endDate);
     }
 
-    const { data, error } = await query.order('created_at', { ascending: true });
+    const { data, error } = await query.order('created_at', {
+      ascending: true,
+    });
 
     if (error) throw error;
 
@@ -351,17 +400,23 @@ export class AdminService {
     return Object.values(dailyStats);
   }
 
-  async getUsageLogs(page: number = 1, limit: number = 50, startDate?: string, endDate?: string) {
+  async getUsageLogs(
+    page: number = 1,
+    limit: number = 50,
+    startDate?: string,
+    endDate?: string,
+  ) {
     const supabase = this.supabaseService.getClient();
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
-    let query = supabase
-      .from('usage_logs')
-      .select(`
+    let query = supabase.from('usage_logs').select(
+      `
         *,
         users (name, wa_chatid)
-      `, { count: 'exact' });
+      `,
+      { count: 'exact' },
+    );
 
     if (startDate) {
       query = query.gte('created_at', startDate);
@@ -378,14 +433,17 @@ export class AdminService {
     return { data, count, page, limit };
   }
 
-  async getWebhookLogs(page: number = 1, limit: number = 50, startDate?: string, endDate?: string) {
+  async getWebhookLogs(
+    page: number = 1,
+    limit: number = 50,
+    startDate?: string,
+    endDate?: string,
+  ) {
     const supabase = this.supabaseService.getClient();
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
-    let query = supabase
-      .from('webhook_logs')
-      .select('*', { count: 'exact' });
+    let query = supabase.from('webhook_logs').select('*', { count: 'exact' });
 
     if (startDate) {
       query = query.gte('created_at', startDate);
@@ -447,7 +505,11 @@ export class AdminService {
       requester.email,
       requester.name,
       'update_setting',
-      { key, value, description: `Alterou a configuração do sistema "${key}" para "${value}".` }
+      {
+        key,
+        value,
+        description: `Alterou a configuração do sistema "${key}" para "${value}".`,
+      },
     );
 
     return data;
@@ -461,7 +523,9 @@ export class AdminService {
 
       if (!response.ok) {
         if (response.status === 403 || response.status === 429) {
-          console.warn('AwesomeAPI: Quota exceeded ou Rate limited. Mantendo taxa atual.');
+          console.warn(
+            'AwesomeAPI: Quota exceeded ou Rate limited. Mantendo taxa atual.',
+          );
           return { success: false, error: 'Quota exceeded' };
         }
         throw new Error(`AwesomeAPI error: ${response.status}`);
@@ -474,7 +538,7 @@ export class AdminService {
 
       const bid = data.USDBRL.bid;
       const supabase = this.supabaseService.getClient();
-      
+
       const { data: updateData, error } = await supabase
         .from('system_settings')
         .update({ value: bid, updated_at: new Date() })
@@ -491,7 +555,10 @@ export class AdminService {
           requester.email,
           requester.name,
           'sync_exchange',
-          { rate: bid, description: `Sincronizou a taxa de câmbio USD-BRL manualmente para R$ ${bid}.` }
+          {
+            rate: bid,
+            description: `Sincronizou a taxa de câmbio USD-BRL manualmente para R$ ${bid}.`,
+          },
         );
       }
 
@@ -516,7 +583,8 @@ export class AdminService {
 
         return (
           modalities.includes('text->text') ||
-          (inputModalities.includes('text') && outputModalities.includes('text'))
+          (inputModalities.includes('text') &&
+            outputModalities.includes('text'))
         );
       });
 
@@ -526,9 +594,9 @@ export class AdminService {
         description: model.description,
         context_length: model.context_length,
         pricing: {
-          prompt: model.pricing?.prompt || "0",
-          completion: model.pricing?.completion || "0"
-        }
+          prompt: model.pricing?.prompt || '0',
+          completion: model.pricing?.completion || '0',
+        },
       }));
     } catch (error) {
       console.error('Erro ao buscar modelos do OpenRouter:', error);
@@ -551,7 +619,10 @@ export class AdminService {
       requester.email,
       requester.name,
       'clear_cache',
-      { description: 'Limpou o cache semântico de respostas de IA (Magistério).' }
+      {
+        description:
+          'Limpou o cache semântico de respostas de IA (Magistério).',
+      },
     );
 
     return { success: true };
@@ -571,13 +642,14 @@ export class AdminService {
     const isEnabled = current?.value === 'true';
     const newValue = !isEnabled;
 
-    const { error } = await supabase
-      .from('system_settings')
-      .upsert({
+    const { error } = await supabase.from('system_settings').upsert(
+      {
         key: 'maintenance_mode',
         value: String(newValue),
-        updated_at: new Date()
-      }, { onConflict: 'key' });
+        updated_at: new Date(),
+      },
+      { onConflict: 'key' },
+    );
 
     if (error) throw error;
 
@@ -586,10 +658,10 @@ export class AdminService {
       requester.email,
       requester.name,
       'toggle_maintenance',
-      { 
-        enabled: newValue, 
-        description: `${newValue ? 'Ativou' : 'Desativou'} o Modo de Manutenção do sistema.` 
-      }
+      {
+        enabled: newValue,
+        description: `${newValue ? 'Ativou' : 'Desativou'} o Modo de Manutenção do sistema.`,
+      },
     );
 
     return { success: true, enabled: newValue };
@@ -625,9 +697,9 @@ export class AdminService {
     // 3. Resetar status do usuário para 'disabled'
     const { error: userError } = await supabase
       .from('users')
-      .update({ 
+      .update({
         status: 'disabled',
-        expectations: null
+        expectations: null,
       })
       .eq('id', userId);
 
@@ -638,18 +710,23 @@ export class AdminService {
       requester.email,
       requester.name,
       'clear_user_data',
-      { 
+      {
         target_user_id: userId,
         target_user_name: targetUser?.name || 'Desconhecido',
         target_user_phone: targetUser?.phone || 'Desconhecido',
-        description: `Excluiu permanentemente o histórico e análise pastoral do fiel ${targetUser?.name || 'Desconhecido'} (${targetUser?.phone || 'Desconhecido'}).` 
-      }
+        description: `Excluiu permanentemente o histórico e análise pastoral do fiel ${targetUser?.name || 'Desconhecido'} (${targetUser?.phone || 'Desconhecido'}).`,
+      },
     );
 
     return { success: true };
   }
 
-  async updateUserSubscription(adminId: string, userId: string, tier: string, expiresAt: string | null) {
+  async updateUserSubscription(
+    adminId: string,
+    userId: string,
+    tier: string,
+    expiresAt: string | null,
+  ) {
     const requester = await this.getRequesterAdmin(adminId);
     const supabase = this.supabaseService.getClient();
 
@@ -662,8 +739,10 @@ export class AdminService {
 
     const updateData: any = {
       subscription_tier: tier,
-      subscription_expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
-      updated_at: new Date()
+      subscription_expires_at: expiresAt
+        ? new Date(expiresAt).toISOString()
+        : null,
+      updated_at: new Date(),
     };
 
     const { data, error } = await supabase
@@ -680,20 +759,25 @@ export class AdminService {
       requester.email,
       requester.name,
       'update_subscription',
-      { 
+      {
         target_user_id: userId,
         target_user_name: targetUser?.name || 'Desconhecido',
         old_tier: targetUser?.subscription_tier,
         new_tier: tier,
         expires_at: expiresAt,
-        description: `Alterou a assinatura do fiel ${targetUser?.name || 'Desconhecido'} para o plano ${tier.toUpperCase()}${expiresAt ? ` (Expira em: ${new Date(expiresAt).toLocaleDateString('pt-BR')})` : ''}.` 
-      }
+        description: `Alterou a assinatura do fiel ${targetUser?.name || 'Desconhecido'} para o plano ${tier.toUpperCase()}${expiresAt ? ` (Expira em: ${new Date(expiresAt).toLocaleDateString('pt-BR')})` : ''}.`,
+      },
     );
 
     return { success: true, data };
   }
 
-  async updateUserSettings(adminId: string, userId: string, isPaused: boolean, monthlyLimitBrl: number | null) {
+  async updateUserSettings(
+    adminId: string,
+    userId: string,
+    isPaused: boolean,
+    monthlyLimitBrl: number | null,
+  ) {
     const requester = await this.getRequesterAdmin(adminId);
     const supabase = this.supabaseService.getClient();
 
@@ -707,7 +791,7 @@ export class AdminService {
     const updateData: any = {
       is_paused: isPaused,
       monthly_limit_brl: monthlyLimitBrl,
-      updated_at: new Date()
+      updated_at: new Date(),
     };
 
     const { data, error } = await supabase
@@ -724,35 +808,45 @@ export class AdminService {
       requester.email,
       requester.name,
       'update_user_settings',
-      { 
+      {
         target_user_id: userId,
         target_user_name: targetUser?.name || 'Desconhecido',
         is_paused: isPaused,
         monthly_limit_brl: monthlyLimitBrl,
-        description: `Atualizou configurações do fiel ${targetUser?.name || 'Desconhecido'}: ${isPaused ? 'Pausou o bot' : 'Ativou o bot'}, Limite de Bônus: ${monthlyLimitBrl !== null ? `R$ ${monthlyLimitBrl}` : 'Sem limite'}.` 
-      }
+        description: `Atualizou configurações do fiel ${targetUser?.name || 'Desconhecido'}: ${isPaused ? 'Pausou o bot' : 'Ativou o bot'}, Limite de Bônus: ${monthlyLimitBrl !== null ? `R$ ${monthlyLimitBrl}` : 'Sem limite'}.`,
+      },
     );
 
     return { success: true, data };
   }
 
-  async createAdmin(requesterId: string, email: string, name: string, role: string) {
+  async createAdmin(
+    requesterId: string,
+    email: string,
+    name: string,
+    role: string,
+  ) {
     const requester = await this.getRequesterAdmin(requesterId);
     if (requester.role !== 'superadmin') {
-      throw new UnauthorizedException('Apenas superadministradores podem convidar novos administradores.');
+      throw new UnauthorizedException(
+        'Apenas superadministradores podem convidar novos administradores.',
+      );
     }
 
     const supabase = this.supabaseService.getClient();
 
     // 1. Cria usuário no Supabase Auth
-    const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
-      email,
-      password: 'MarIA123',
-      email_confirm: true,
-    });
+    const { data: authUser, error: authError } =
+      await supabase.auth.admin.createUser({
+        email,
+        password: 'MarIA123',
+        email_confirm: true,
+      });
 
     if (authError) {
-      throw new BadRequestException(`Erro ao criar usuário no Supabase Auth: ${authError.message}`);
+      throw new BadRequestException(
+        `Erro ao criar usuário no Supabase Auth: ${authError.message}`,
+      );
     }
 
     // 2. Insere na tabela public.admins
@@ -767,7 +861,9 @@ export class AdminService {
     if (dbError) {
       // Rollback se falhar
       await supabase.auth.admin.deleteUser(authUser.user.id);
-      throw new BadRequestException(`Erro ao salvar perfil do administrador no banco: ${dbError.message}`);
+      throw new BadRequestException(
+        `Erro ao salvar perfil do administrador no banco: ${dbError.message}`,
+      );
     }
 
     // 3. Grava log de atividade
@@ -780,17 +876,25 @@ export class AdminService {
         target_email: email,
         target_name: name,
         target_role: role,
-        description: `Convidou o administrador ${name} (${email}) com o cargo ${role}.`
-      }
+        description: `Convidou o administrador ${name} (${email}) com o cargo ${role}.`,
+      },
     );
 
     return { success: true, user: { id: authUser.user.id, email, name, role } };
   }
 
-  async updateAdmin(requesterId: string, targetId: string, name: string, role: string, password?: string) {
+  async updateAdmin(
+    requesterId: string,
+    targetId: string,
+    name: string,
+    role: string,
+    password?: string,
+  ) {
     const requester = await this.getRequesterAdmin(requesterId);
     if (requester.role !== 'superadmin') {
-      throw new UnauthorizedException('Apenas superadministradores podem editar administradores.');
+      throw new UnauthorizedException(
+        'Apenas superadministradores podem editar administradores.',
+      );
     }
 
     const supabase = this.supabaseService.getClient();
@@ -808,11 +912,16 @@ export class AdminService {
 
     // 2. Atualiza no Supabase Auth (se senha informada)
     if (password && password.trim() !== '') {
-      const { error: authError } = await supabase.auth.admin.updateUserById(targetId, {
-        password: password,
-      });
+      const { error: authError } = await supabase.auth.admin.updateUserById(
+        targetId,
+        {
+          password: password,
+        },
+      );
       if (authError) {
-        throw new BadRequestException(`Erro ao redefinir senha no Supabase Auth: ${authError.message}`);
+        throw new BadRequestException(
+          `Erro ao redefinir senha no Supabase Auth: ${authError.message}`,
+        );
       }
     }
 
@@ -822,12 +931,14 @@ export class AdminService {
       .update({
         name,
         role,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
       .eq('id', targetId);
 
     if (dbError) {
-      throw new BadRequestException(`Erro ao atualizar perfil do administrador: ${dbError.message}`);
+      throw new BadRequestException(
+        `Erro ao atualizar perfil do administrador: ${dbError.message}`,
+      );
     }
 
     // 4. Grava log de auditoria
@@ -835,7 +946,7 @@ export class AdminService {
       target_email: targetAdmin.email,
       target_name: name,
       target_role: role,
-      description: `Editou o administrador ${name} (${targetAdmin.email}).`
+      description: `Editou o administrador ${name} (${targetAdmin.email}).`,
     };
     if (password) {
       changes.password_changed = true;
@@ -847,7 +958,7 @@ export class AdminService {
       requester.email,
       requester.name,
       'edit_admin',
-      changes
+      changes,
     );
 
     return { success: true };
@@ -856,11 +967,15 @@ export class AdminService {
   async deleteAdmin(requesterId: string, targetId: string) {
     const requester = await this.getRequesterAdmin(requesterId);
     if (requester.role !== 'superadmin') {
-      throw new UnauthorizedException('Apenas superadministradores podem excluir administradores.');
+      throw new UnauthorizedException(
+        'Apenas superadministradores podem excluir administradores.',
+      );
     }
 
     if (requester.id === targetId) {
-      throw new BadRequestException('Você não pode excluir o seu próprio usuário administrador.');
+      throw new BadRequestException(
+        'Você não pode excluir o seu próprio usuário administrador.',
+      );
     }
 
     const supabase = this.supabaseService.getClient();
@@ -879,7 +994,9 @@ export class AdminService {
     // 2. Exclui no Supabase Auth
     const { error: authError } = await supabase.auth.admin.deleteUser(targetId);
     if (authError) {
-      throw new BadRequestException(`Erro ao remover do Supabase Auth: ${authError.message}`);
+      throw new BadRequestException(
+        `Erro ao remover do Supabase Auth: ${authError.message}`,
+      );
     }
 
     // 3. Exclui da tabela public.admins
@@ -889,7 +1006,9 @@ export class AdminService {
       .eq('id', targetId);
 
     if (dbError) {
-      throw new BadRequestException(`Erro ao excluir perfil do banco de dados: ${dbError.message}`);
+      throw new BadRequestException(
+        `Erro ao excluir perfil do banco de dados: ${dbError.message}`,
+      );
     }
 
     // 4. Grava log
@@ -901,8 +1020,8 @@ export class AdminService {
       {
         target_email: targetAdmin.email,
         target_name: targetAdmin.name,
-        description: `Excluiu permanentemente o acesso do administrador ${targetAdmin.name} (${targetAdmin.email}).`
-      }
+        description: `Excluiu permanentemente o acesso do administrador ${targetAdmin.name} (${targetAdmin.email}).`,
+      },
     );
 
     return { success: true };
@@ -911,7 +1030,9 @@ export class AdminService {
   async getAdminActivities(requesterId: string, targetId?: string) {
     const requester = await this.getRequesterAdmin(requesterId);
     if (requester.role !== 'superadmin') {
-      throw new UnauthorizedException('Apenas superadministradores podem visualizar logs de auditoria.');
+      throw new UnauthorizedException(
+        'Apenas superadministradores podem visualizar logs de auditoria.',
+      );
     }
 
     const supabase = this.supabaseService.getClient();

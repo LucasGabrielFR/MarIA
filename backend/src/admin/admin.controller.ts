@@ -1,4 +1,14 @@
-import { Controller, Get, Param, Query, Patch, Body, Post, Headers, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Query,
+  Patch,
+  Body,
+  Post,
+  Headers,
+  Delete,
+} from '@nestjs/common';
 import { AdminService } from './admin.service';
 
 @Controller('admin')
@@ -28,7 +38,7 @@ export class AdminController {
   @Get('stats/daily')
   async getDailyStats(
     @Query('startDate') startDate: string,
-    @Query('endDate') endDate: string
+    @Query('endDate') endDate: string,
   ) {
     return this.adminService.getDailyStats(startDate, endDate);
   }
@@ -38,13 +48,13 @@ export class AdminController {
     @Query('page') page: number,
     @Query('limit') limit: number,
     @Query('startDate') startDate: string,
-    @Query('endDate') endDate: string
+    @Query('endDate') endDate: string,
   ) {
     return this.adminService.getUsageLogs(
       Number(page) || 1,
       Number(limit) || 50,
       startDate,
-      endDate
+      endDate,
     );
   }
 
@@ -53,13 +63,13 @@ export class AdminController {
     @Query('page') page: number,
     @Query('limit') limit: number,
     @Query('startDate') startDate: string,
-    @Query('endDate') endDate: string
+    @Query('endDate') endDate: string,
   ) {
     return this.adminService.getWebhookLogs(
       Number(page) || 1,
       Number(limit) || 50,
       startDate,
-      endDate
+      endDate,
     );
   }
 
@@ -75,9 +85,9 @@ export class AdminController {
 
   @Patch('settings/:key')
   async updateSystemSetting(
-    @Param('key') key: string, 
+    @Param('key') key: string,
     @Body('value') value: string,
-    @Headers('x-admin-id') adminId: string
+    @Headers('x-admin-id') adminId: string,
   ) {
     return this.adminService.updateSystemSetting(adminId, key, value);
   }
@@ -105,7 +115,7 @@ export class AdminController {
   @Post('wa-users/:id/clear-data')
   async clearUserData(
     @Param('id') id: string,
-    @Headers('x-admin-id') adminId: string
+    @Headers('x-admin-id') adminId: string,
   ) {
     return this.adminService.clearUserData(adminId, id);
   }
@@ -115,9 +125,14 @@ export class AdminController {
     @Param('id') id: string,
     @Body('tier') tier: string,
     @Body('expiresAt') expiresAt: string | null,
-    @Headers('x-admin-id') adminId: string
+    @Headers('x-admin-id') adminId: string,
   ) {
-    return this.adminService.updateUserSubscription(adminId, id, tier, expiresAt);
+    return this.adminService.updateUserSubscription(
+      adminId,
+      id,
+      tier,
+      expiresAt,
+    );
   }
 
   @Post('wa-users/:id/settings')
@@ -125,33 +140,49 @@ export class AdminController {
     @Param('id') id: string,
     @Body('isPaused') isPaused: boolean,
     @Body('monthlyLimitBrl') monthlyLimitBrl: number | null,
-    @Headers('x-admin-id') adminId: string
+    @Headers('x-admin-id') adminId: string,
   ) {
-    return this.adminService.updateUserSettings(adminId, id, isPaused, monthlyLimitBrl);
+    return this.adminService.updateUserSettings(
+      adminId,
+      id,
+      isPaused,
+      monthlyLimitBrl,
+    );
   }
 
   // Admins CRUD & Activity logs
   @Post('admins')
   async createAdmin(
     @Headers('x-admin-id') adminId: string,
-    @Body() body: { email: string; name: string; role: string }
+    @Body() body: { email: string; name: string; role: string },
   ) {
-    return this.adminService.createAdmin(adminId, body.email, body.name, body.role);
+    return this.adminService.createAdmin(
+      adminId,
+      body.email,
+      body.name,
+      body.role,
+    );
   }
 
   @Patch('admins/:id')
   async updateAdmin(
     @Headers('x-admin-id') adminId: string,
     @Param('id') id: string,
-    @Body() body: { name: string; role: string; password?: string }
+    @Body() body: { name: string; role: string; password?: string },
   ) {
-    return this.adminService.updateAdmin(adminId, id, body.name, body.role, body.password);
+    return this.adminService.updateAdmin(
+      adminId,
+      id,
+      body.name,
+      body.role,
+      body.password,
+    );
   }
 
   @Delete('admins/:id')
   async deleteAdmin(
     @Headers('x-admin-id') adminId: string,
-    @Param('id') id: string
+    @Param('id') id: string,
   ) {
     return this.adminService.deleteAdmin(adminId, id);
   }
@@ -159,7 +190,7 @@ export class AdminController {
   @Get('activities')
   async getAdminActivities(
     @Headers('x-admin-id') adminId: string,
-    @Query('targetId') targetId?: string
+    @Query('targetId') targetId?: string,
   ) {
     return this.adminService.getAdminActivities(adminId, targetId);
   }

@@ -24,7 +24,9 @@ export class SaintService {
     }
 
     // 2. Fallback: scraping em tempo real (dia ainda não indexado)
-    this.logger.warn(`[FALLBACK] Sem dados no BD para ${day}/${month} — tentando scraping...`);
+    this.logger.warn(
+      `[FALLBACK] Sem dados no BD para ${day}/${month} — tentando scraping...`,
+    );
     return this.getSaintsFromScraping(month, day);
   }
 
@@ -44,7 +46,10 @@ export class SaintService {
 
   // ── Fonte Primária: Banco de Dados ──────────────────────────────────────────
 
-  private async getSaintsFromDatabase(month: number, day: number): Promise<SaintDetail[]> {
+  private async getSaintsFromDatabase(
+    month: number,
+    day: number,
+  ): Promise<SaintDetail[]> {
     try {
       const supabase = this.supabaseService.getClient();
       const { data, error } = await supabase
@@ -62,7 +67,10 @@ export class SaintService {
 
       return data.map((saint) => ({
         title: saint.name,
-        content: saint.full_description || saint.short_description || 'Sem descrição disponível.',
+        content:
+          saint.full_description ||
+          saint.short_description ||
+          'Sem descrição disponível.',
       }));
     } catch (err) {
       this.logger.error('[DB] Exceção ao buscar santos', err);
@@ -72,7 +80,10 @@ export class SaintService {
 
   // ── Fallback: Scraping em Tempo Real ────────────────────────────────────────
 
-  private async getSaintsFromScraping(month: number, day: number): Promise<SaintDetail[]> {
+  private async getSaintsFromScraping(
+    month: number,
+    day: number,
+  ): Promise<SaintDetail[]> {
     try {
       const mm = String(month).padStart(2, '0');
       const dd = String(day).padStart(2, '0');
@@ -89,7 +100,10 @@ export class SaintService {
       for (const saint of saints) {
         if (saint.detailUrl) {
           const detailHtml = await (await fetch(saint.detailUrl)).text();
-          results.push({ title: saint.title, content: this.extractFullBiography(detailHtml) });
+          results.push({
+            title: saint.title,
+            content: this.extractFullBiography(detailHtml),
+          });
         } else {
           results.push({ title: saint.title, content: saint.teaserContent });
         }
@@ -97,22 +111,39 @@ export class SaintService {
 
       return results.length > 0
         ? results
-        : [{ title: 'Santo do Dia', content: 'Não foi possível obter os dados dos santos no momento.' }];
+        : [
+            {
+              title: 'Santo do Dia',
+              content: 'Não foi possível obter os dados dos santos no momento.',
+            },
+          ];
     } catch (error) {
       this.logger.error('[SCRAPING] Erro no fallback', error);
-      return [{ title: 'Santo do Dia', content: 'Não foi possível obter os dados dos santos no momento.' }];
+      return [
+        {
+          title: 'Santo do Dia',
+          content: 'Não foi possível obter os dados dos santos no momento.',
+        },
+      ];
     }
   }
 
   // ── Parsers HTML (fallback only) ────────────────────────────────────────────
 
-  private parseSaintList(html: string): Array<{ title: string; teaserContent: string; detailUrl?: string }> {
-    const saints: Array<{ title: string; teaserContent: string; detailUrl?: string }> = [];
+  private parseSaintList(
+    html: string,
+  ): Array<{ title: string; teaserContent: string; detailUrl?: string }> {
+    const saints: Array<{
+      title: string;
+      teaserContent: string;
+      detailUrl?: string;
+    }> = [];
 
     // Estrutura Vatican News (verificada maio/2026):
     // <div class="section__head"><h2>Nome</h2></div>
     // <div class="section__wrapper"><div class="section__content"><p>Desc</p></div></div>
-    const headRegex = /<div[^>]+class="[^"]*section__head[^"]*"[^>]*>([\s\S]+?)<\/div>/g;
+    const headRegex =
+      /<div[^>]+class="[^"]*section__head[^"]*"[^>]*>([\s\S]+?)<\/div>/g;
     let headMatch: RegExpExecArray | null;
 
     while ((headMatch = headRegex.exec(html)) !== null) {
@@ -140,7 +171,10 @@ export class SaintService {
           if (linkMatch) {
             detailUrl = `${this.baseUrl}${linkMatch[1]}`;
           } else {
-            const text = pm[1].replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim();
+            const text = pm[1]
+              .replace(/<[^>]+>/g, '')
+              .replace(/&nbsp;/g, ' ')
+              .trim();
             if (text) teaserContent += text + ' ';
           }
         }
@@ -153,7 +187,9 @@ export class SaintService {
   }
 
   private extractFullBiography(html: string): string {
-    const contentMatch = html.match(/<div[^>]+class="[^"]*section__content[^"]*"[^>]*>([\s\S]+?)<\/div>/);
+    const contentMatch = html.match(
+      /<div[^>]+class="[^"]*section__content[^"]*"[^>]*>([\s\S]+?)<\/div>/,
+    );
     if (contentMatch) {
       return contentMatch[1]
         .replace(/<br\s*\/?>/gi, '\n')

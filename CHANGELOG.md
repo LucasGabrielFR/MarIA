@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.1] - 2026-05-23
+
+### Added
+- **Expiração de Códigos de Ativação (Segurança):** Implementado tempo de expiração padrão de 1 hora para os códigos de ativação gerados após checkout bem-sucedido no gateway de pagamentos Asaas.
+- **Validação Automática de Expiração no WhatsApp:** O webhook do Uazapi agora verifica se o código de ativação recebido do usuário já expirou. Caso tenha expirado, atualiza o status do código para `expired` no banco de dados, bloqueia o resgate e envia uma resposta amigável instruindo o cliente a entrar em contato com o suporte técnico para emissão de um novo token.
+
 ## [1.16.0] - 2026-05-23
 
 ### Added

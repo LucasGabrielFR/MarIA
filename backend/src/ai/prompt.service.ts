@@ -14,7 +14,7 @@ export class PromptService implements OnModuleInit {
   private readonly logger = new Logger(PromptService.name);
   private promptCache: Map<string, string> = new Map();
 
-  constructor(private readonly supabaseService: SupabaseService) { }
+  constructor(private readonly supabaseService: SupabaseService) {}
 
   async onModuleInit() {
     await this.refreshCache();

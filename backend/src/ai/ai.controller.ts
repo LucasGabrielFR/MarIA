@@ -1,4 +1,12 @@
-import { Controller, Get, Put, Post, Body, Param, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Put,
+  Post,
+  Body,
+  Param,
+  UseGuards,
+} from '@nestjs/common';
 import { PromptService, AiPrompt } from './prompt.service';
 import { SupabaseService } from '../supabase/supabase.service';
 import { AiService } from './ai.service';
@@ -8,7 +16,7 @@ export class AiController {
   constructor(
     private readonly promptService: PromptService,
     private readonly supabaseService: SupabaseService,
-    private readonly aiService: AiService
+    private readonly aiService: AiService,
   ) {}
 
   @Get()
@@ -26,18 +34,21 @@ export class AiController {
   @Put(':key')
   async updatePrompt(
     @Param('key') key: string,
-    @Body() updateData: { content: string; description?: string; is_active?: boolean }
+    @Body()
+    updateData: { content: string; description?: string; is_active?: boolean },
   ) {
     const supabase = this.supabaseService.getClient();
-    
+
     // Update in database
     const { data, error } = await supabase
       .from('ai_prompts')
       .update({
         content: updateData.content,
         ...(updateData.description && { description: updateData.description }),
-        ...(updateData.is_active !== undefined && { is_active: updateData.is_active }),
-        updated_at: new Date().toISOString()
+        ...(updateData.is_active !== undefined && {
+          is_active: updateData.is_active,
+        }),
+        updated_at: new Date().toISOString(),
       })
       .eq('key', key)
       .select()
@@ -51,17 +62,21 @@ export class AiController {
     return data;
   }
   @Post('generate')
-  async generatePrompt(@Body() data: { key: string; description: string; currentContent?: string }) {
+  async generatePrompt(
+    @Body() data: { key: string; description: string; currentContent?: string },
+  ) {
     // Garante que o cache está atualizado para pegar novos geradores ou mudanças neles
     await this.promptService.refreshCache();
 
     // Decide qual prompt gerador usar baseado na chave
     const isGuide = data.key.startsWith('guide_');
-    const generatorKey = isGuide ? 'generator_prayer_guide' : 'generator_system_prompt';
-    
+    const generatorKey = isGuide
+      ? 'generator_prayer_guide'
+      : 'generator_system_prompt';
+
     // Busca a instrução do gerador no banco (via service)
     const systemPrompt = this.promptService.getPrompt(generatorKey);
-    
+
     let userMessage = `Gere o conteúdo solicitado para a MarIA:
 Chave (Identificador): ${data.key}
 Descrição: ${data.description}`;
@@ -71,7 +86,13 @@ Descrição: ${data.description}`;
     }
 
     try {
-      const response = await this.aiService.callOpenRouter(systemPrompt, userMessage, false, [], 'openai/gpt-4o');
+      const response = await this.aiService.callOpenRouter(
+        systemPrompt,
+        userMessage,
+        false,
+        [],
+        'openai/gpt-4o',
+      );
       return { content: response.content.trim() };
     } catch (error) {
       throw error;
@@ -93,7 +114,7 @@ Descrição: ${data.description}`;
   @Put('automatic-flows/:key')
   async updateAutomaticFlow(
     @Param('key') key: string,
-    @Body() updateData: { steps: any; name?: string }
+    @Body() updateData: { steps: any; name?: string },
   ) {
     const supabase = this.supabaseService.getClient();
     const { data, error } = await supabase
@@ -101,7 +122,7 @@ Descrição: ${data.description}`;
       .update({
         steps: updateData.steps,
         ...(updateData.name && { name: updateData.name }),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
       .eq('key', key)
       .select()

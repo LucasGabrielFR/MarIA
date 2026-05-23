@@ -15,7 +15,23 @@ import { AdminModule } from '../admin/admin.module';
 @Module({
   imports: [ConfigModule, SupabaseModule, AdminModule],
   controllers: [AiController, DailyCacheController],
-  providers: [AiService, PromptService, MagisteriumService, LiturgyService, SaintService, CronService, EmbeddingService],
-  exports: [AiService, PromptService, MagisteriumService, LiturgyService, SaintService, CronService, EmbeddingService],
+  providers: [
+    AiService,
+    PromptService,
+    MagisteriumService,
+    LiturgyService,
+    SaintService,
+    CronService,
+    EmbeddingService,
+  ],
+  exports: [
+    AiService,
+    PromptService,
+    MagisteriumService,
+    LiturgyService,
+    SaintService,
+    CronService,
+    EmbeddingService,
+  ],
 })
 export class AiModule {}

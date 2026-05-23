@@ -40,8 +40,12 @@ export class AsaasController {
       (req.headers['Asaas-Access-Token'] as string);
 
     if (!received || received !== expectedToken) {
-      this.logger.warn('Webhook Asaas rejeitado: token de autorização inválido ou ausente.');
-      throw new UnauthorizedException('Token de autorização do webhook inválido');
+      this.logger.warn(
+        'Webhook Asaas rejeitado: token de autorização inválido ou ausente.',
+      );
+      throw new UnauthorizedException(
+        'Token de autorização do webhook inválido',
+      );
     }
   }
 
@@ -49,7 +53,7 @@ export class AsaasController {
   async createCheckoutLink(
     @Body('planId') planId: string,
     @Body('cycle') cycle: string,
-    @Body('phone') phone: string
+    @Body('phone') phone: string,
   ) {
     if (!planId || !cycle || !phone) {
       throw new BadRequestException('planId, cycle and phone are required');
@@ -60,7 +64,7 @@ export class AsaasController {
   @Post('checkout-web')
   async createWebCheckout(
     @Body('planId') planId: string,
-    @Body('cycle') cycle: string
+    @Body('cycle') cycle: string,
   ) {
     if (!planId || !cycle) {
       throw new BadRequestException('planId and cycle are required');

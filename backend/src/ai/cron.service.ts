@@ -20,7 +20,7 @@ export class CronService {
     private readonly magisteriumService: MagisteriumService,
     private readonly promptService: PromptService,
     private readonly supabaseService: SupabaseService,
-  ) { }
+  ) {}
 
   @Cron('5 0 * * *', { timeZone: 'America/Sao_Paulo' }) // Todo dia 00:05
   async syncExchangeRate() {
@@ -36,7 +36,9 @@ export class CronService {
     for (let i = 0; i < 7; i++) {
       const targetDate = new Date();
       targetDate.setDate(targetDate.getDate() + i);
-      const dateStr = targetDate.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+      const dateStr = targetDate.toLocaleDateString('sv-SE', {
+        timeZone: 'America/Sao_Paulo',
+      });
 
       this.logger.log(`Processando dia: ${dateStr}`);
       try {
@@ -58,15 +60,26 @@ export class CronService {
   }
 
   async generateLiturgy(date: string, forceOverride: boolean) {
-    if (!forceOverride && await this.checkExists('liturgy', date)) return;
+    if (!forceOverride && (await this.checkExists('liturgy', date))) return;
 
     this.logger.log(`Gerando liturgia para ${date}...`);
     const rawLiturgy = await this.liturgyService.getDailyLiturgy(date);
-    const formattedDate = new Date(date + 'T12:00:00').toLocaleDateString('pt-BR');
+    const formattedDate = new Date(date + 'T12:00:00').toLocaleDateString(
+      'pt-BR',
+    );
     const promptTemplate = this.promptService.getPrompt('generator_liturgy');
-    const prompt = promptTemplate.replace(/{{formattedDate}}/g, formattedDate) + '\n\n' + rawLiturgy;
+    const prompt =
+      promptTemplate.replace(/{{formattedDate}}/g, formattedDate) +
+      '\n\n' +
+      rawLiturgy;
 
-    const result = await this.aiService.callOpenRouter(prompt, `Gere o roteiro litúrgico formatado do dia ${date}.`, false, [], 'openai/gpt-4o');
+    const result = await this.aiService.callOpenRouter(
+      prompt,
+      `Gere o roteiro litúrgico formatado do dia ${date}.`,
+      false,
+      [],
+      'openai/gpt-4o',
+    );
     if (result.usage) {
       await this.aiService.logUsage(null, result.usage, 'openai/gpt-4o');
     }
@@ -74,19 +87,32 @@ export class CronService {
   }
 
   async generateSaint(date: string, forceOverride: boolean) {
-    if (!forceOverride && await this.checkExists('saint', date)) return;
+    if (!forceOverride && (await this.checkExists('saint', date))) return;
 
     this.logger.log(`Gerando santo do dia para ${date} via Vatican News...`);
 
     // Busca dados brutos do Vatican News (pode retornar múltiplos santos)
     const saints = await this.saintService.getSaintOfDay(date);
-    const formattedDate = new Date(date + 'T12:00:00').toLocaleDateString('pt-BR');
+    const formattedDate = new Date(date + 'T12:00:00').toLocaleDateString(
+      'pt-BR',
+    );
 
     const promptTemplate = this.promptService.getPrompt('generator_saint');
-    const rawData = saints.map(s => `SANTO: ${s.title}\nBIOGRAFIA: ${s.content}`).join('\n\n---\n\n');
-    const prompt = promptTemplate.replace(/{{formattedDate}}/g, formattedDate) + '\n\n' + rawData;
+    const rawData = saints
+      .map((s) => `SANTO: ${s.title}\nBIOGRAFIA: ${s.content}`)
+      .join('\n\n---\n\n');
+    const prompt =
+      promptTemplate.replace(/{{formattedDate}}/g, formattedDate) +
+      '\n\n' +
+      rawData;
 
-    const result = await this.aiService.callOpenRouter(prompt, `Gere a hagiografia formatada do dia ${date}.`, false, [], 'openai/gpt-4o');
+    const result = await this.aiService.callOpenRouter(
+      prompt,
+      `Gere a hagiografia formatada do dia ${date}.`,
+      false,
+      [],
+      'openai/gpt-4o',
+    );
     if (result.usage) {
       await this.aiService.logUsage(null, result.usage, 'openai/gpt-4o');
     }
@@ -94,33 +120,51 @@ export class CronService {
   }
 
   async generateRosary(date: string, forceOverride: boolean) {
-    if (!forceOverride && await this.checkExists('rosary', date)) return;
+    if (!forceOverride && (await this.checkExists('rosary', date))) return;
 
     this.logger.log(`Gerando mistérios do terço para ${date}...`);
-    
+
     const targetDate = new Date(date + 'T12:00:00');
     const dayOfWeek = targetDate.getDay();
     let mysteryType = '';
-    
+
     switch (dayOfWeek) {
-      case 1: case 6: mysteryType = 'Gozosos'; break;
-      case 2: case 5: mysteryType = 'Dolorosos'; break;
-      case 3: case 0: mysteryType = 'Gloriosos'; break;
-      case 4: mysteryType = 'Luminosos'; break;
+      case 1:
+      case 6:
+        mysteryType = 'Gozosos';
+        break;
+      case 2:
+      case 5:
+        mysteryType = 'Dolorosos';
+        break;
+      case 3:
+      case 0:
+        mysteryType = 'Gloriosos';
+        break;
+      case 4:
+        mysteryType = 'Luminosos';
+        break;
     }
 
     const formattedDate = targetDate.toLocaleDateString('pt-BR');
 
     let prompt = this.promptService.getPrompt('generator_rosary');
-    prompt = prompt.replace(/{{mysteryType}}/g, mysteryType).replace(/{{formattedDate}}/g, formattedDate);
+    prompt = prompt
+      .replace(/{{mysteryType}}/g, mysteryType)
+      .replace(/{{formattedDate}}/g, formattedDate);
 
-    const result = await this.aiService.callOpenRouter(prompt, `Gere os Mistérios ${mysteryType} do dia ${date}.`, false, [], 'openai/gpt-4o');
+    const result = await this.aiService.callOpenRouter(
+      prompt,
+      `Gere os Mistérios ${mysteryType} do dia ${date}.`,
+      false,
+      [],
+      'openai/gpt-4o',
+    );
     if (result.usage) {
       await this.aiService.logUsage(null, result.usage, 'openai/gpt-4o');
     }
     await this.saveToCache('rosary', date, result.content);
   }
-
 
   private async checkExists(type: string, date: string): Promise<boolean> {
     const supabase = this.supabaseService.getClient();
@@ -136,18 +180,30 @@ export class CronService {
 
   private async saveToCache(type: string, date: string, content: string) {
     const supabase = this.supabaseService.getClient();
-    this.logger.log(`Tentando salvar no banco: [${type}] para a data [${date}]...`);
+    this.logger.log(
+      `Tentando salvar no banco: [${type}] para a data [${date}]...`,
+    );
 
-    const { data, error } = await supabase.from('daily_cache').upsert({
-      type,
-      cache_date: date,
-      content,
-    }, { onConflict: 'type, cache_date' }).select();
+    const { data, error } = await supabase
+      .from('daily_cache')
+      .upsert(
+        {
+          type,
+          cache_date: date,
+          content,
+        },
+        { onConflict: 'type, cache_date' },
+      )
+      .select();
 
     if (error) {
-      this.logger.error(`ERRO NO SUPABASE AO SALVAR ${type}: ${JSON.stringify(error)}`);
+      this.logger.error(
+        `ERRO NO SUPABASE AO SALVAR ${type}: ${JSON.stringify(error)}`,
+      );
     } else {
-      this.logger.log(`SUCESSO AO SALVAR ${type}: ${data?.[0]?.id || 'Registro atualizado'}`);
+      this.logger.log(
+        `SUCESSO AO SALVAR ${type}: ${data?.[0]?.id || 'Registro atualizado'}`,
+      );
     }
   }
 }

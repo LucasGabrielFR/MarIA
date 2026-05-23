@@ -26,7 +26,9 @@ export class MailService {
           rejectUnauthorized: false,
         },
       });
-      this.logger.log(`SMTP Mailer configurado com sucesso para o host ${host}:${port}`);
+      this.logger.log(
+        `SMTP Mailer configurado com sucesso para o host ${host}:${port}`,
+      );
     } else {
       this.logger.warn(
         'Serviço de Mail desativado: Variáveis SMTP (SMTP_HOST, SMTP_USER, SMTP_PASS) não configuradas no .env.',
@@ -45,7 +47,9 @@ export class MailService {
     const supportEmail = 'maria@acutistech.com.br';
     const activationLink = `https://wa.me/5562981949980?text=Quero%20ativar%20minha%20MarIA:%20${code}`;
 
-    const from = this.configService.get<string>('SMTP_FROM') || '"MarIA" <no-reply@maria.acutistech.com.br>';
+    const from =
+      this.configService.get<string>('SMTP_FROM') ||
+      '"MarIA" <no-reply@maria.acutistech.com.br>';
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -251,7 +255,9 @@ export class MailService {
       this.logger.log(`E-mail de ativação enviado com sucesso para ${to}.`);
       return true;
     } catch (error) {
-      this.logger.error(`Falha ao enviar e-mail de ativação para ${to}: ${error.message}`);
+      this.logger.error(
+        `Falha ao enviar e-mail de ativação para ${to}: ${error.message}`,
+      );
       return false;
     }
   }

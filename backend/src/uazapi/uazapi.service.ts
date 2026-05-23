@@ -18,7 +18,7 @@ export class UazapiService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'token': this.token,
+          token: this.token,
         },
         body: JSON.stringify({
           number: chatId,
@@ -28,7 +28,9 @@ export class UazapiService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        this.logger.error(`Failed to send message via UAZAPI: ${response.status} - ${errorText}`);
+        this.logger.error(
+          `Failed to send message via UAZAPI: ${response.status} - ${errorText}`,
+        );
         return false;
       }
 
@@ -46,7 +48,7 @@ export class UazapiService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'token': this.token,
+          token: this.token,
         },
         body: JSON.stringify({
           number: chatId,
@@ -56,24 +58,31 @@ export class UazapiService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        this.logger.error(`Failed to mark chat as read via UAZAPI: ${response.status} - ${errorText}`);
+        this.logger.error(
+          `Failed to mark chat as read via UAZAPI: ${response.status} - ${errorText}`,
+        );
         return false;
       }
 
       return true;
     } catch (error) {
-      this.logger.error(`Error marking chat as read via UAZAPI: ${error.message}`);
+      this.logger.error(
+        `Error marking chat as read via UAZAPI: ${error.message}`,
+      );
       return false;
     }
   }
 
-  async sendPresence(chatId: string, presence: 'composing' | 'recording' | 'paused' = 'composing'): Promise<boolean> {
+  async sendPresence(
+    chatId: string,
+    presence: 'composing' | 'recording' | 'paused' = 'composing',
+  ): Promise<boolean> {
     try {
       const response = await fetch(`${this.apiUrl}/message/presence`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'token': this.token,
+          token: this.token,
         },
         body: JSON.stringify({
           number: chatId,
@@ -83,7 +92,9 @@ export class UazapiService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        this.logger.error(`Failed to send presence via UAZAPI: ${response.status} - ${errorText}`);
+        this.logger.error(
+          `Failed to send presence via UAZAPI: ${response.status} - ${errorText}`,
+        );
         return false;
       }
 
@@ -111,7 +122,9 @@ export class UazapiService {
     });
 
     try {
-      this.logger.log(`Sending ${choices.length} menu buttons to ${chatId} via /send/menu`);
+      this.logger.log(
+        `Sending ${choices.length} menu buttons to ${chatId} via /send/menu`,
+      );
       const response = await fetch(`${this.apiUrl}/send/menu`, {
         method: 'POST',
         headers: {
@@ -137,15 +150,18 @@ export class UazapiService {
         `UAZAPI /send/menu failed (${response.status}: ${errorText}). Falling back to text message.`,
       );
     } catch (error) {
-      this.logger.warn(`Error sending menu buttons: ${error.message}. Falling back to text message.`);
+      this.logger.warn(
+        `Error sending menu buttons: ${error.message}. Falling back to text message.`,
+      );
     }
 
     const numbered = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣'];
     const fallbackText =
       text +
       '\n\n' +
-      buttons.map((b, i) => `${numbered[i] || `${i + 1}.`} ${b.text}`).join('\n');
+      buttons
+        .map((b, i) => `${numbered[i] || `${i + 1}.`} ${b.text}`)
+        .join('\n');
     return this.sendMessage(chatId, fallbackText);
   }
 }
-

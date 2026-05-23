@@ -11,4 +11,3 @@ import { AsaasModule } from '../asaas/asaas.module';
   controllers: [CustomerAuthController],
 })
 export class CustomerAuthModule {}
-

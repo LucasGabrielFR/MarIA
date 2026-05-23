@@ -1,4 +1,13 @@
-import { Controller, Post, Body, BadRequestException, UseGuards, Get, Query, Headers } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  BadRequestException,
+  UseGuards,
+  Get,
+  Query,
+  Headers,
+} from '@nestjs/common';
 import { CustomerAuthService } from './customer-auth.service';
 import { ThrottlerGuard, Throttle } from '@nestjs/throttler';
 
@@ -14,7 +23,7 @@ export class CustomerAuthController {
     if (!phone) {
       throw new BadRequestException('O número de telefone é obrigatório.');
     }
-    
+
     const sanitizedPhone = phone.replace(/\D/g, '');
     if (sanitizedPhone.length < 10) {
       throw new BadRequestException('Número de telefone inválido.');
@@ -81,9 +90,10 @@ export class CustomerAuthController {
 
   private extractToken(authHeader: string): string {
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new BadRequestException('Sessão expirada ou não autenticada. Faça login novamente.');
+      throw new BadRequestException(
+        'Sessão expirada ou não autenticada. Faça login novamente.',
+      );
     }
     return authHeader.substring(7).trim();
   }
 }
-

@@ -77,7 +77,19 @@ export class AsaasService {
   }
 
   private normalizePhone(phone: string): string {
-    return (phone || '').replace(/\D/g, '');
+    let sanitized = (phone || '').replace(/\D/g, '');
+    if (sanitized.length === 10 || sanitized.length === 11) {
+      sanitized = '55' + sanitized;
+    }
+    if (sanitized.startsWith('55') && sanitized.length >= 4) {
+      const ddi = '55';
+      const ddd = sanitized.slice(2, 4);
+      const number = sanitized.slice(4);
+      if (number.length === 8) {
+        sanitized = ddi + ddd + '9' + number;
+      }
+    }
+    return sanitized;
   }
 
   private buildExternalReference(
@@ -111,8 +123,12 @@ export class AsaasService {
     const result = await response.json();
 
     if (!response.ok) {
-      this.logger.error(`Asaas API error [${method} ${endpoint}]: ${JSON.stringify(result)}`);
-      throw new Error(result?.errors?.[0]?.description || 'Erro na integração com Asaas');
+      this.logger.error(
+        `Asaas API error [${method} ${endpoint}]: ${JSON.stringify(result)}`,
+      );
+      throw new Error(
+        result?.errors?.[0]?.description || 'Erro na integração com Asaas',
+      );
     }
 
     return result;
@@ -149,18 +165,26 @@ export class AsaasService {
     return { planTier: parts[0] || 'basic', phone: null, sessionId: null };
   }
 
-  private async findAsaasCustomerByPhone(phone: string): Promise<string | null> {
+  private async findAsaasCustomerByPhone(
+    phone: string,
+  ): Promise<string | null> {
     const normalizedPhone = this.normalizePhone(phone);
     if (!normalizedPhone) return null;
 
     try {
       // Tenta buscar com o telefone normalizado
-      let response = await this.request(`/customers?mobilePhone=${normalizedPhone}`, 'GET');
+      let response = await this.request(
+        `/customers?mobilePhone=${normalizedPhone}`,
+        'GET',
+      );
       if (response.data && response.data.length > 0) {
         return response.data[0].id;
       }
 
-      response = await this.request(`/customers?phone=${normalizedPhone}`, 'GET');
+      response = await this.request(
+        `/customers?phone=${normalizedPhone}`,
+        'GET',
+      );
       if (response.data && response.data.length > 0) {
         return response.data[0].id;
       }
@@ -168,19 +192,27 @@ export class AsaasService {
       // Se o telefone começa com 55 (DDI Brasil), tenta buscar também sem o 55
       if (normalizedPhone.startsWith('55') && normalizedPhone.length > 10) {
         const phoneWithoutDDI = normalizedPhone.substring(2);
-        
-        response = await this.request(`/customers?mobilePhone=${phoneWithoutDDI}`, 'GET');
+
+        response = await this.request(
+          `/customers?mobilePhone=${phoneWithoutDDI}`,
+          'GET',
+        );
         if (response.data && response.data.length > 0) {
           return response.data[0].id;
         }
 
-        response = await this.request(`/customers?phone=${phoneWithoutDDI}`, 'GET');
+        response = await this.request(
+          `/customers?phone=${phoneWithoutDDI}`,
+          'GET',
+        );
         if (response.data && response.data.length > 0) {
           return response.data[0].id;
         }
       }
     } catch (err) {
-      this.logger.warn(`Erro ao buscar cliente no Asaas por telefone: ${err.message}`);
+      this.logger.warn(
+        `Erro ao buscar cliente no Asaas por telefone: ${err.message}`,
+      );
     }
 
     return null;
@@ -192,10 +224,10 @@ export class AsaasService {
   ): Promise<{ customerId: string; userId?: string }> {
     const normalizedPhone = this.normalizePhone(phone);
 
-    const { data: user } = await this.supabase
+    const { data: user } = (await this.supabase
       .getClient()
       .rpc('find_user_by_normalized_phone', { phone_query: phone })
-      .maybeSingle() as any;
+      .maybeSingle()) as any;
 
     if (user?.asaas_customer_id) {
       return { customerId: user.asaas_customer_id, userId: user.id };
@@ -205,7 +237,7 @@ export class AsaasService {
     const existingCustomerId = await this.findAsaasCustomerByPhone(phone);
     if (existingCustomerId) {
       this.logger.log(
-        `Cliente existente encontrado no Asaas: ${existingCustomerId} para o telefone ${normalizedPhone}`
+        `Cliente existente encontrado no Asaas: ${existingCustomerId} para o telefone ${normalizedPhone}`,
       );
       if (user?.id) {
         await this.supabase
@@ -371,8 +403,14 @@ export class AsaasService {
       externalReference,
     };
 
-    this.logger.log(`Creating Asaas subscription: ${JSON.stringify(subscriptionPayload)}`);
-    const subscription = await this.request('/subscriptions', 'POST', subscriptionPayload);
+    this.logger.log(
+      `Creating Asaas subscription: ${JSON.stringify(subscriptionPayload)}`,
+    );
+    const subscription = await this.request(
+      '/subscriptions',
+      'POST',
+      subscriptionPayload,
+    );
     this.logger.log(`Subscription created: ${subscription.id}`);
 
     let invoiceUrl: string | null = null;
@@ -407,8 +445,13 @@ export class AsaasService {
     cycle: string,
   ): Promise<{ url: string; sessionId: string }> {
     if (!this.apiKey) {
-      this.logger.warn('ASAAS_API_KEY/ASAAS_TOKEN not set. Returning dummy URL.');
-      return { url: 'https://sandbox.asaas.com/checkout/dummy', sessionId: 'dummy_session' };
+      this.logger.warn(
+        'ASAAS_API_KEY/ASAAS_TOKEN not set. Returning dummy URL.',
+      );
+      return {
+        url: 'https://sandbox.asaas.com/checkout/dummy',
+        sessionId: 'dummy_session',
+      };
     }
 
     const normalizedPlan = planId as PlanId;
@@ -432,7 +475,9 @@ export class AsaasService {
         phoneOrSession,
       );
 
-      this.logger.log(`Web Checkout URL via paymentLink (sessionId: ${sessionId}): ${url}`);
+      this.logger.log(
+        `Web Checkout URL via paymentLink (sessionId: ${sessionId}): ${url}`,
+      );
       return { url, sessionId };
     } catch (err) {
       this.logger.error(`Falha ao gerar checkout web Asaas: ${err.message}`);
@@ -447,7 +492,9 @@ export class AsaasService {
     userId?: string,
   ): Promise<{ url: string }> {
     if (!this.apiKey) {
-      this.logger.warn('ASAAS_API_KEY/ASAAS_TOKEN not set. Returning dummy URL.');
+      this.logger.warn(
+        'ASAAS_API_KEY/ASAAS_TOKEN not set. Returning dummy URL.',
+      );
       return { url: 'https://sandbox.asaas.com/checkout/dummy' };
     }
 
@@ -469,10 +516,10 @@ export class AsaasService {
 
       let resolvedUserId = userId;
       if (!resolvedUserId) {
-        const { data: matchedUser } = await this.supabase
+        const { data: matchedUser } = (await this.supabase
           .getClient()
           .rpc('find_user_by_normalized_phone', { phone_query: phone })
-          .maybeSingle() as any;
+          .maybeSingle()) as any;
         resolvedUserId = matchedUser?.id;
       }
 
@@ -482,26 +529,36 @@ export class AsaasService {
           .from('users')
           .update({ asaas_payment_link_id: linkId })
           .eq('id', resolvedUserId);
-        this.logger.log(`Linked payment link ID ${linkId} to user ${resolvedUserId}`);
+        this.logger.log(
+          `Linked payment link ID ${linkId} to user ${resolvedUserId}`,
+        );
       }
 
-      this.logger.log(`Checkout URL via paymentLink (credit card only): ${url}`);
+      this.logger.log(
+        `Checkout URL via paymentLink (credit card only): ${url}`,
+      );
       return { url };
     } catch (err) {
-      this.logger.error(`Falha ao gerar link de pagamento recorrente Asaas: ${err.message}`);
+      this.logger.error(
+        `Falha ao gerar link de pagamento recorrente Asaas: ${err.message}`,
+      );
       throw err;
     }
   }
 
   async cancelSubscription(subscriptionId: string): Promise<void> {
     if (!this.apiKey) {
-      this.logger.warn('ASAAS_API_KEY not set. Skipping cancellation in sandbox.');
+      this.logger.warn(
+        'ASAAS_API_KEY not set. Skipping cancellation in sandbox.',
+      );
       return;
     }
     try {
       this.logger.log(`Cancelling subscription ${subscriptionId} in Asaas...`);
       await this.request(`/subscriptions/${subscriptionId}`, 'DELETE');
-      this.logger.log(`Subscription ${subscriptionId} cancelled successfully in Asaas.`);
+      this.logger.log(
+        `Subscription ${subscriptionId} cancelled successfully in Asaas.`,
+      );
     } catch (error) {
       this.logger.error(
         `Error cancelling subscription ${subscriptionId} in Asaas: ${error.message}`,
@@ -512,11 +569,15 @@ export class AsaasService {
 
   async deletePaymentLink(linkId: string): Promise<void> {
     if (!this.apiKey) {
-      this.logger.warn('ASAAS_API_KEY/ASAAS_TOKEN not set. Skipping deactivate payment link.');
+      this.logger.warn(
+        'ASAAS_API_KEY/ASAAS_TOKEN not set. Skipping deactivate payment link.',
+      );
       return;
     }
     try {
-      this.logger.log(`Disabling payment link ${linkId} in Asaas (setting active: false)...`);
+      this.logger.log(
+        `Disabling payment link ${linkId} in Asaas (setting active: false)...`,
+      );
       await this.request(`/paymentLinks/${linkId}`, 'PUT', { active: false });
       this.logger.log(`Payment link ${linkId} disabled successfully.`);
     } catch (error) {
@@ -530,7 +591,10 @@ export class AsaasService {
   async handleWebhook(event: any) {
     this.logger.log(`Received Asaas Webhook: ${event.event}`);
 
-    if (event.event === 'PAYMENT_CONFIRMED' || event.event === 'PAYMENT_RECEIVED') {
+    if (
+      event.event === 'PAYMENT_CONFIRMED' ||
+      event.event === 'PAYMENT_RECEIVED'
+    ) {
       const payment = event.payment;
       const subscriptionId = payment.subscription;
       const customerId = payment.customer;
@@ -558,11 +622,16 @@ export class AsaasService {
         let customerEmail = '';
         if (customerId) {
           try {
-            const customer = await this.request(`/customers/${customerId}`, 'GET');
+            const customer = await this.request(
+              `/customers/${customerId}`,
+              'GET',
+            );
             customerEmail = customer.email;
             this.logger.log(`E-mail do cliente Asaas: ${customerEmail}`);
           } catch (custErr) {
-            this.logger.warn(`Erro ao buscar dados do cliente ${customerId} no Asaas: ${custErr.message}`);
+            this.logger.warn(
+              `Erro ao buscar dados do cliente ${customerId} no Asaas: ${custErr.message}`,
+            );
           }
         }
 
@@ -571,7 +640,11 @@ export class AsaasService {
         }
 
         // Gerar código único legível de ativação
-        const code = 'MARIA-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+        const code =
+          'MARIA-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+
+        const expiresAt = new Date();
+        expiresAt.setHours(expiresAt.getHours() + 1);
 
         await supabaseClient.from('activation_codes').insert({
           code,
@@ -582,8 +655,11 @@ export class AsaasService {
           asaas_subscription_id: subscriptionId,
           asaas_customer_id: customerId,
           status: 'pending',
+          expires_at: expiresAt.toISOString(),
         });
-        this.logger.log(`Código de ativação ${code} criado para sessão ${parsed.sessionId}`);
+        this.logger.log(
+          `Código de ativação ${code} criado para sessão ${parsed.sessionId}`,
+        );
 
         try {
           await this.mail.sendActivationEmail(
@@ -593,14 +669,18 @@ export class AsaasService {
             parsed.cycle || 'monthly',
           );
         } catch (mailErr) {
-          this.logger.error(`Falha ao disparar email de ativação: ${mailErr.message}`);
+          this.logger.error(
+            `Falha ao disparar email de ativação: ${mailErr.message}`,
+          );
         }
 
         if (event.event === 'PAYMENT_CONFIRMED' && paymentLinkId) {
           try {
             await this.deletePaymentLink(paymentLinkId);
           } catch (delErr) {
-            this.logger.error(`Falha ao desabilitar o link de pagamento ${paymentLinkId}: ${delErr.message}`);
+            this.logger.error(
+              `Falha ao desabilitar o link de pagamento ${paymentLinkId}: ${delErr.message}`,
+            );
           }
         }
 
@@ -618,7 +698,9 @@ export class AsaasService {
           .maybeSingle();
         user = matchedUser;
         if (user) {
-          this.logger.log(`User ${user.id} matched via paymentLink ID: ${paymentLinkId}`);
+          this.logger.log(
+            `User ${user.id} matched via paymentLink ID: ${paymentLinkId}`,
+          );
         }
       }
 
@@ -631,7 +713,9 @@ export class AsaasService {
           .maybeSingle();
         user = matchedUser;
         if (user) {
-          this.logger.log(`User ${user.id} matched via asaas_customer_id: ${customerId}`);
+          this.logger.log(
+            `User ${user.id} matched via asaas_customer_id: ${customerId}`,
+          );
         }
       }
 
@@ -641,11 +725,20 @@ export class AsaasService {
 
         if (!phone && customerId) {
           try {
-            const customer = await this.request(`/customers/${customerId}`, 'GET');
-            phone = this.normalizePhone(customer.mobilePhone || customer.phone || '');
-            this.logger.log(`Phone retrieved from Asaas Customer API: ${phone}`);
+            const customer = await this.request(
+              `/customers/${customerId}`,
+              'GET',
+            );
+            phone = this.normalizePhone(
+              customer.mobilePhone || customer.phone || '',
+            );
+            this.logger.log(
+              `Phone retrieved from Asaas Customer API: ${phone}`,
+            );
           } catch (custErr) {
-            this.logger.warn(`Erro ao buscar dados do cliente ${customerId} no Asaas: ${custErr.message}`);
+            this.logger.warn(
+              `Erro ao buscar dados do cliente ${customerId} no Asaas: ${custErr.message}`,
+            );
           }
         }
 
@@ -678,7 +771,9 @@ export class AsaasService {
 
         const expiresAt = new Date();
         const isAnnual =
-          parsed.cycle === 'annual' || payment.value > 100 || payment.value >= 154;
+          parsed.cycle === 'annual' ||
+          payment.value > 100 ||
+          payment.value >= 154;
         if (isAnnual) {
           expiresAt.setFullYear(expiresAt.getFullYear() + 1);
         } else {
@@ -711,31 +806,32 @@ export class AsaasService {
 
         try {
           // 1. Tenta carregar do fluxo automático (tabela automatic_flows)
-          const { data: flowData } = await supabaseClient
+          const { data: flowData } = (await supabaseClient
             .from('automatic_flows')
             .select('steps')
             .eq('key', 'subscription_flow')
-            .maybeSingle() as any;
+            .maybeSingle()) as any;
 
           let welcomeMsg = flowData?.steps?.payment_confirmed?.text;
 
           // 2. Fallback para ai_prompts
           if (!welcomeMsg) {
             const promptKey = `welcome_${planTier}`;
-            const { data: promptData } = await supabaseClient
+            const { data: promptData } = (await supabaseClient
               .from('ai_prompts')
               .select('content')
               .eq('key', promptKey)
               .eq('is_active', true)
-              .maybeSingle() as any;
+              .maybeSingle()) as any;
             welcomeMsg = promptData?.content;
           }
 
           // 3. Fallback estático de segurança
           if (!welcomeMsg) {
-            welcomeMsg = planTier === 'premium'
-              ? '🌟 *Sua assinatura Premium foi confirmada com sucesso!* Seja muito bem-vindo!'
-              : '🎉 *Sua assinatura Básica foi confirmada com sucesso!* Seja muito bem-vindo!';
+            welcomeMsg =
+              planTier === 'premium'
+                ? '🌟 *Sua assinatura Premium foi confirmada com sucesso!* Seja muito bem-vindo!'
+                : '🎉 *Sua assinatura Básica foi confirmada com sucesso!* Seja muito bem-vindo!';
           }
 
           // 4. Substituição de placeholders e tratamento de quebras de linha (\n literais)
@@ -767,8 +863,12 @@ export class AsaasService {
       }
     }
 
-    if (event.event === 'SUBSCRIPTION_DELETED' || event.event === 'SUBSCRIPTION_CANCELED') {
-      const subscriptionId = event.payment?.subscription || event.subscription?.id;
+    if (
+      event.event === 'SUBSCRIPTION_DELETED' ||
+      event.event === 'SUBSCRIPTION_CANCELED'
+    ) {
+      const subscriptionId =
+        event.payment?.subscription || event.subscription?.id;
       if (!subscriptionId) return { received: true };
 
       await this.supabase
@@ -795,9 +895,14 @@ export class AsaasService {
 
     try {
       this.logger.log('Iniciando sincronização de assinaturas com o Asaas...');
-      const response = await this.request('/subscriptions?status=ACTIVE&limit=100', 'GET');
+      const response = await this.request(
+        '/subscriptions?status=ACTIVE&limit=100',
+        'GET',
+      );
       const activeSubs = response.data || [];
-      this.logger.log(`Obtidas ${activeSubs.length} assinaturas ativas do Asaas.`);
+      this.logger.log(
+        `Obtidas ${activeSubs.length} assinaturas ativas do Asaas.`,
+      );
 
       let syncedCount = 0;
       const supabaseClient = this.supabase.getClient();
@@ -809,7 +914,10 @@ export class AsaasService {
         const nextDueDate = sub.nextDueDate;
 
         let planTier = 'basic';
-        if (value >= 29.9 || sub.description?.toLowerCase().includes('premium')) {
+        if (
+          value >= 29.9 ||
+          sub.description?.toLowerCase().includes('premium')
+        ) {
           planTier = 'premium';
         }
 
@@ -826,13 +934,20 @@ export class AsaasService {
         // Se não encontrou por asaas_customer_id, tenta buscar pelo telefone do cliente no Asaas
         if (!user) {
           try {
-            const customer = await this.request(`/customers/${customerId}`, 'GET');
-            const customerPhone = this.normalizePhone(customer.mobilePhone || customer.phone || '');
+            const customer = await this.request(
+              `/customers/${customerId}`,
+              'GET',
+            );
+            const customerPhone = this.normalizePhone(
+              customer.mobilePhone || customer.phone || '',
+            );
             if (customerPhone) {
-              const { data: matchedUser } = await supabaseClient
-                .rpc('find_user_by_normalized_phone', { phone_query: customerPhone })
-                .maybeSingle() as any;
-              
+              const { data: matchedUser } = (await supabaseClient
+                .rpc('find_user_by_normalized_phone', {
+                  phone_query: customerPhone,
+                })
+                .maybeSingle()) as any;
+
               if (matchedUser) {
                 user = matchedUser;
                 // Vincula imediatamente o asaas_customer_id no nosso banco
@@ -840,11 +955,15 @@ export class AsaasService {
                   .from('users')
                   .update({ asaas_customer_id: customerId })
                   .eq('id', user.id);
-                this.logger.log(`Vinculado cliente Asaas ${customerId} ao usuário ${user.id} pelo telefone.`);
+                this.logger.log(
+                  `Vinculado cliente Asaas ${customerId} ao usuário ${user.id} pelo telefone.`,
+                );
               }
             }
           } catch (custErr) {
-            this.logger.warn(`Erro ao buscar dados do cliente ${customerId} para vincular por telefone: ${custErr.message}`);
+            this.logger.warn(
+              `Erro ao buscar dados do cliente ${customerId} para vincular por telefone: ${custErr.message}`,
+            );
           }
         }
 
@@ -884,7 +1003,9 @@ export class AsaasService {
         }
       }
 
-      this.logger.log(`Sincronização concluída. ${syncedCount} usuários atualizados.`);
+      this.logger.log(
+        `Sincronização concluída. ${syncedCount} usuários atualizados.`,
+      );
       return { synced: syncedCount };
     } catch (error) {
       this.logger.error(`Erro ao sincronizar com Asaas: ${error.message}`);
@@ -903,12 +1024,18 @@ export class AsaasService {
 
     try {
       this.logger.log(`Updating subscription ${subscriptionId} in Asaas...`);
-      const result = await this.request(`/subscriptions/${subscriptionId}`, 'POST', {
-        value: payload.value,
-        cycle: payload.cycle,
-        description: payload.description,
-      });
-      this.logger.log(`Subscription ${subscriptionId} updated successfully in Asaas.`);
+      const result = await this.request(
+        `/subscriptions/${subscriptionId}`,
+        'POST',
+        {
+          value: payload.value,
+          cycle: payload.cycle,
+          description: payload.description,
+        },
+      );
+      this.logger.log(
+        `Subscription ${subscriptionId} updated successfully in Asaas.`,
+      );
       return result;
     } catch (error) {
       this.logger.error(
@@ -929,7 +1056,9 @@ export class AsaasService {
       .maybeSingle();
 
     if (error) {
-      this.logger.error(`Erro ao consultar status da sessão ${sessionId}: ${error.message}`);
+      this.logger.error(
+        `Erro ao consultar status da sessão ${sessionId}: ${error.message}`,
+      );
       return { confirmed: false };
     }
 
