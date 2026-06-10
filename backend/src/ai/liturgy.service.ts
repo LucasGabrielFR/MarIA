@@ -34,7 +34,7 @@ export class LiturgyService {
         url = `${this.apiUrl}?dia=${parseInt(day, 10)}&mes=${parseInt(month, 10)}&ano=${year}`;
       }
       this.logger.log(`Fetching liturgy from ${url}...`);
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
 
       if (!response.ok) {
         throw new Error(`Failed to fetch liturgy: ${response.statusText}`);

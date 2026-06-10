@@ -1,4 +1,5 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import * as crypto from 'crypto';
 import { SupabaseService } from '../supabase/supabase.service';
 import { UazapiService } from '../uazapi/uazapi.service';
 
@@ -117,6 +118,7 @@ export class AsaasService {
         'User-Agent': 'MarIA/1.0',
       },
       ...(data && { body: JSON.stringify(data) }),
+      signal: AbortSignal.timeout(15_000),
     };
 
     const response = await fetch(url, options);
@@ -445,13 +447,9 @@ export class AsaasService {
     cycle: string,
   ): Promise<{ url: string; sessionId: string }> {
     if (!this.apiKey) {
-      this.logger.warn(
-        'ASAAS_API_KEY/ASAAS_TOKEN not set. Returning dummy URL.',
+      throw new Error(
+        'ASAAS_API_KEY/ASAAS_TOKEN não configurado — não é possível gerar URL de checkout',
       );
-      return {
-        url: 'https://sandbox.asaas.com/checkout/dummy',
-        sessionId: 'dummy_session',
-      };
     }
 
     const normalizedPlan = planId as PlanId;
@@ -465,8 +463,8 @@ export class AsaasService {
 
     try {
       const sessionId =
-        Math.random().toString(36).substring(2, 15) +
-        Math.random().toString(36).substring(2, 15);
+        crypto.randomBytes(8).toString('hex') +
+        crypto.randomBytes(8).toString('hex');
       const phoneOrSession = `web_session_${sessionId}`;
 
       const { url } = await this.createRecurrentPaymentLink(
@@ -492,10 +490,9 @@ export class AsaasService {
     userId?: string,
   ): Promise<{ url: string }> {
     if (!this.apiKey) {
-      this.logger.warn(
-        'ASAAS_API_KEY/ASAAS_TOKEN not set. Returning dummy URL.',
+      throw new Error(
+        'ASAAS_API_KEY/ASAAS_TOKEN não configurado — não é possível gerar URL de checkout',
       );
-      return { url: 'https://sandbox.asaas.com/checkout/dummy' };
     }
 
     const normalizedPlan = planId as PlanId;
@@ -639,9 +636,21 @@ export class AsaasService {
           customerEmail = payment.email || 'suporte@maria.acutistech.com.br';
         }
 
+        // Deduplicação: ignorar se código de ativação para esta sessão já existe
+        const { data: existingCode } = await supabaseClient
+          .from('activation_codes')
+          .select('id')
+          .eq('session_id', parsed.sessionId)
+          .maybeSingle();
+        if (existingCode) {
+          this.logger.warn(
+            `Webhook duplicado ignorado para sessão ${parsed.sessionId}`,
+          );
+          return { received: true };
+        }
+
         // Gerar código único legível de ativação
-        const code =
-          'MARIA-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+        const code = 'MARIA-' + crypto.randomBytes(3).toString('hex').toUpperCase();
 
         const expiresAt = new Date();
         expiresAt.setHours(expiresAt.getHours() + 1);
@@ -800,15 +809,30 @@ export class AsaasService {
           .eq('role', 'user')
           .eq('is_llm', true);
 
-        await supabaseClient.from('subscriptions').insert({
-          user_id: user.id,
-          tier: planTier,
-          amount: payment.value,
-          status: 'paid',
-          provider: 'asaas',
-          expires_at: expiresAt.toISOString(),
-          created_at: new Date().toISOString(),
-        });
+        // Deduplicação: inserir em subscriptions apenas se não existir registro recente (5 min)
+        const dedupeWindow = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+        const { data: existingSub } = await supabaseClient
+          .from('subscriptions')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('provider', 'asaas')
+          .gte('created_at', dedupeWindow)
+          .maybeSingle();
+        if (!existingSub) {
+          await supabaseClient.from('subscriptions').insert({
+            user_id: user.id,
+            tier: planTier,
+            amount: payment.value,
+            status: 'paid',
+            provider: 'asaas',
+            expires_at: expiresAt.toISOString(),
+            created_at: new Date().toISOString(),
+          });
+        } else {
+          this.logger.warn(
+            `Webhook duplicado ignorado: subscription recente já existe para user ${user.id}`,
+          );
+        }
 
         this.logger.log(`Updated user ${user.id} to plan ${planTier}.`);
 
@@ -1033,7 +1057,7 @@ export class AsaasService {
       this.logger.log(`Updating subscription ${subscriptionId} in Asaas...`);
       const result = await this.request(
         `/subscriptions/${subscriptionId}`,
-        'POST',
+        'PUT',
         {
           value: payload.value,
           cycle: payload.cycle,

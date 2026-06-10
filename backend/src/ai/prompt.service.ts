@@ -45,7 +45,12 @@ export class PromptService implements OnModuleInit {
   }
 
   getPrompt(key: string): string {
-    return this.promptCache.get(key) || '';
+    const value = this.promptCache.get(key);
+    if (!value) {
+      this.logger.warn(`Prompt não encontrado para chave: "${key}"`);
+      return '';
+    }
+    return value;
   }
 
   getCorePersona(): string {

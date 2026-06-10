@@ -24,6 +24,7 @@ export class UazapiService {
           number: chatId,
           text: text,
         }),
+        signal: AbortSignal.timeout(10_000),
       });
 
       if (!response.ok) {
@@ -54,6 +55,7 @@ export class UazapiService {
           number: chatId,
           read: true,
         }),
+        signal: AbortSignal.timeout(10_000),
       });
 
       if (!response.ok) {
@@ -88,6 +90,7 @@ export class UazapiService {
           number: chatId,
           presence: presence,
         }),
+        signal: AbortSignal.timeout(10_000),
       });
 
       if (!response.ok) {
@@ -138,6 +141,7 @@ export class UazapiService {
           choices,
           readchat: true,
         }),
+        signal: AbortSignal.timeout(10_000),
       });
 
       if (response.ok) {

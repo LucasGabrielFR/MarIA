@@ -52,11 +52,18 @@ export class CronService {
   }
 
   async generateAllForDay(date: string, forceOverride: boolean = false) {
-    await Promise.all([
-      this.generateLiturgy(date, forceOverride),
-      this.generateSaint(date, forceOverride),
-      this.generateRosary(date, forceOverride),
-    ]);
+    const tasks: Array<{ name: string; fn: () => Promise<void> }> = [
+      { name: 'liturgy', fn: () => this.generateLiturgy(date, forceOverride) },
+      { name: 'saint', fn: () => this.generateSaint(date, forceOverride) },
+      { name: 'rosary', fn: () => this.generateRosary(date, forceOverride) },
+    ];
+    for (const task of tasks) {
+      try {
+        await task.fn();
+      } catch (err) {
+        this.logger.error(`Falha ao gerar ${task.name} para ${date}: ${err.message}`);
+      }
+    }
   }
 
   async generateLiturgy(date: string, forceOverride: boolean) {

@@ -8,6 +8,10 @@ import { SupabaseService } from '../supabase/supabase.service';
 export class UazapiController {
   private readonly logger = new Logger(UazapiController.name);
 
+  // Per-user sequential lock: garante que mensagens do mesmo chatId
+  // são processadas uma de cada vez, evitando race conditions em estado/DB.
+  private readonly userLocks = new Map<string, Promise<void>>();
+
   constructor(
     private readonly aiService: AiService,
     private readonly uazapiService: UazapiService,
@@ -42,7 +46,7 @@ export class UazapiController {
       }
 
       // Ignorar mensagens enviadas pelo próprio bot
-      const fromMe = messageData.fromMe;
+      const fromMe = messageData.fromMe ?? messageData.key?.fromMe ?? false;
       if (fromMe) return { status: 'ignored_from_me' };
 
       // Extrair o chatId
@@ -115,18 +119,36 @@ export class UazapiController {
         }
       }
 
-      // Responde ao webhook na hora; processamento em paralelo (sem fila sequencial).
-      void this.processMessageInBackground(
-        chatId,
-        messageContent,
-        pushName,
-        phoneNumber,
+      // Responde ao webhook imediatamente; processa em background com lock por chatId
+      // para garantir que mensagens do mesmo usuário sejam sequenciais.
+      void this.enqueueForUser(chatId, () =>
+        this.processMessageInBackground(chatId, messageContent, pushName, phoneNumber),
       );
 
       return { status: 'accepted' };
     }
 
     return { status: 'success' };
+  }
+
+  /**
+   * Enfileira o processamento de uma mensagem por chatId.
+   * Cada usuário tem sua própria fila: a próxima tarefa só inicia quando a anterior termina.
+   * Usuários diferentes não se bloqueiam entre si.
+   */
+  private enqueueForUser(chatId: string, task: () => Promise<void>): Promise<void> {
+    const previous = this.userLocks.get(chatId) ?? Promise.resolve();
+    const next = previous.then(() => task()).catch(() => {/* erros tratados dentro de task */});
+    this.userLocks.set(chatId, next);
+
+    // Limpa o lock quando a tarefa terminar para não vazar memória em usuários inativos.
+    next.finally(() => {
+      if (this.userLocks.get(chatId) === next) {
+        this.userLocks.delete(chatId);
+      }
+    });
+
+    return next;
   }
 
   /**

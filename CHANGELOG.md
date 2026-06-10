@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.6] - 2026-06-10
+
+### Fixed
+
+- **Condição de Corrida em Mensagens Simultâneas (Crítico):** Implementada fila de processamento por usuário (`enqueueForUser`) no `UazapiController` via encadeamento de Promises. Mensagens do mesmo número enviadas em sequência rápida agora são processadas uma a uma, eliminando respostas duplicadas, estados corrompidos e sobreposição de contexto no banco de dados.
+
+- **Crash em Resposta Inválida do OpenRouter (Crítico):** O método `callOpenRouter` em `ai.service.ts` passou a usar encadeamento opcional (`choices?.[0]?.message?.content`) com verificação explícita de tipo. Respostas da API sem `choices` agora lançam erro descritivo em vez de propagar `undefined` silenciosamente pelo pipeline.
+
+- **Timeout Ausente em Todas as Chamadas Externas (Crítico):** Adicionado `AbortSignal.timeout()` em todos os pontos de saída HTTP da aplicação — `callOpenRouter` (30 s), `magisterium.service.ts` (30 s), `asaas.service.ts` método `request()` (15 s), `liturgy.service.ts` (10 s) e todos os métodos de `uazapi.service.ts` (10 s cada). Elimina travamentos indefinidos que paralisavam workers do NestJS em caso de lentidão ou queda de serviços externos.
+
+- **Falha Silenciosa ao Persistir Mensagem no Banco (Crítico):** O método `saveMessage` em `ai.service.ts` agora captura o objeto `error` do Supabase e lança exceção explícita se o insert falhar ou se o `id` não for retornado, tornando o retorno não-nulo (`string`) e evitando propagação de `undefined` para os estados subsequentes do fluxo.
+
+- **Formato Incorreto de `chatId` no Envio de Código de Verificação:** O método `requestVerificationCode` em `customer-auth.service.ts` agora usa `user.wa_chatid` quando disponível, com fallback para `${user.phone}@s.whatsapp.net`, garantindo compatibilidade com o formato UAZAPI (`número@s.whatsapp.net`) em vez de enviar um número de telefone nu que a API rejeita silenciosamente.
+
+- **Acúmulo de Códigos de Verificação Não Utilizados:** Antes de inserir um novo código na tabela `magic_links`, o sistema deleta todos os registros anteriores não utilizados (`used = false`) do mesmo usuário, prevenindo acúmulo de tokens expirados e possíveis ataques de enumeração.
+
+- **Método HTTP Incorreto em `updateSubscription` (Alto):** Corrigido o uso de `'POST'` para `'PUT'` na chamada à API do Asaas (`/subscriptions/{id}`). O Asaas exige `PUT` para atualização de assinatura existente; `POST` criava recursos novos em vez de atualizar, causando falha silenciosa nas alterações de plano.
+
+- **Ausência de Deduplicação no Webhook do Asaas (Alto):** Adicionada verificação de idempotência em dois pontos do `handleWebhook`: (1) para o fluxo web, consulta se já existe registro em `activation_codes` para o `session_id` antes de inserir novo código; (2) para o fluxo de usuário, verifica se existe registro em `subscriptions` criado nos últimos 5 minutos antes de inserir. Previne cobranças duplicadas e criação múltipla de assinaturas em caso de reenvio de webhook pelo Asaas.
+
+- **Falha em Cascata na Geração de Conteúdo Diário (Alto):** O método `generateAllForDay` em `cron.service.ts` substituiu `Promise.all([...])` por um laço `for...of` com `try/catch` individual por tarefa (liturgia, santo, rosário). Uma falha isolada em um tipo de conteúdo não aborta mais a geração dos demais.
+
+- **`isSubscribeRequest` Interceptando Consultas de Gerenciamento (Alto):** Adicionada verificação `isManagementQuery` em `ai.service.ts` que exclui do gatilho de fluxo de assinatura mensagens contendo termos de gerenciamento ("cancelar", "minha assinatura", "fatura", "vencimento", "portal", etc.). Usuários que perguntavam sobre seu plano ou cancelamento eram incorretamente direcionados ao fluxo de venda.
+
+- **Promoção de Status Antes da Conclusão da IA (Médio):** No estado `triage_presentation_subscription`, o `update({ status: 'active' })` agora ocorre somente após `callOpenRouter` completar com sucesso, em paralelo com `saveMessage`. Anteriormente o status era promovido antes da chamada à IA, deixando o usuário em `active` mesmo em caso de falha do LLM.
+
+- **Ausência de Log para Prompts Ausentes (Médio):** O método `getPrompt` em `prompt.service.ts` emite `Logger.warn` quando a chave solicitada não existe no cache, facilitando a identificação de prompts não carregados do banco em vez de retornar string vazia silenciosamente.
+
+- **URL Dummy Retornada Silenciosamente Sem `ASAAS_API_KEY` (Médio):** Os métodos `createWebCheckoutSession` e `createCheckoutUrl` em `asaas.service.ts` agora lançam `Error` quando `apiKey` não está configurado, em vez de retornar `https://sandbox.asaas.com/checkout/dummy`. Isso expõe imediatamente a má configuração de ambiente em vez de propagar um link inválido para o usuário.
+
+- **Fallback Ausente na Detecção de `fromMe` (Baixo):** A verificação de mensagens enviadas pelo próprio bot em `uazapi.controller.ts` passou a usar `messageData.fromMe ?? messageData.key?.fromMe ?? false`, cobrindo payloads alternativos do UAZAPI que encapsulam o campo dentro de `key`.
+
+- **Geração de Códigos com `Math.random` (Baixo — Segurança):** Substituído `Math.random().toString(36)` por `crypto.randomBytes()` em todos os pontos de `asaas.service.ts`: geração de `sessionId` para checkout web e geração do código de ativação `MARIA-XXXXXX`. `Math.random` não é criptograficamente seguro e pode produzir colisões previsíveis.
+
+### Added
+
+- **Documentação Técnica Completa:** Criado `docs/DOCUMENTATION.md` e `docs/DOCUMENTATION.pdf` com documentação abrangente do sistema incluindo: arquitetura geral, diagramas de fluxo, schema do banco de dados, mapeamento de endpoints REST, webhooks Asaas e UAZAPI, análise de requisitos funcionais e não-funcionais, e matriz de dependências externas.
+
 ## [1.16.5] - 2026-05-24
 
 ### Changed

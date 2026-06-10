@@ -156,7 +156,15 @@ export class CustomerAuthService {
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + 15); // Code is valid for 15 minutes
 
-    // 3. Save code to magic_links table using user_id column
+    // 3. Limpa códigos antigos não utilizados deste usuário para não acumular lixo
+    await this.supabaseService
+      .getClient()
+      .from('magic_links')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('used', false);
+
+    // Salva o novo código
     const { error: insertError } = await this.supabaseService
       .getClient()
       .from('magic_links')
@@ -174,10 +182,11 @@ export class CustomerAuthService {
       throw new Error('Falha ao gerar o código de verificação.');
     }
 
-    // 4. Send via WhatsApp
+    // 4. Send via WhatsApp — usa wa_chatid se disponível, senão monta o JID do número
     const message = `Olá! Recebemos uma solicitação para acessar a sua área de assinante MarIA. 🕊️\n\nSeu código de verificação é:\n\n*${code}*\n\nInsira este código na tela de login para gerenciar sua assinatura. Este código expira em 15 minutos.\n\nSe você não solicitou este acesso, apenas ignore esta mensagem.`;
 
-    const sent = await this.uazapiService.sendMessage(user.phone, message);
+    const targetChatId = user.wa_chatid || `${user.phone}@s.whatsapp.net`;
+    const sent = await this.uazapiService.sendMessage(targetChatId, message);
 
     if (!sent) {
       throw new Error(

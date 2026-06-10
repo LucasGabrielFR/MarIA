@@ -123,6 +123,7 @@ export class AiService implements OnModuleInit {
             response_format: isJsonMode ? { type: 'json_object' } : undefined,
             temperature: isJsonMode ? 0.1 : 0.7,
           }),
+          signal: AbortSignal.timeout(30_000),
         },
       );
 
@@ -131,8 +132,15 @@ export class AiService implements OnModuleInit {
         throw new Error(`OpenRouter API error: ${JSON.stringify(data)}`);
       }
 
+      const content = data.choices?.[0]?.message?.content;
+      if (typeof content !== 'string') {
+        throw new Error(
+          `OpenRouter retornou resposta inválida (sem choices): ${JSON.stringify(data)}`,
+        );
+      }
+
       return {
-        content: data.choices[0].message.content,
+        content,
         usage: data.usage,
       };
     } catch (error) {
@@ -377,6 +385,8 @@ export class AiService implements OnModuleInit {
 
   /**
    * Salva uma mensagem no banco de dados.
+   * Lança exceção se o insert falhar — evita que userMessageId fique undefined
+   * e subsequentes .eq('id', undefined) atualizem registros errados.
    */
   private async saveMessage(
     userId: string,
@@ -385,13 +395,19 @@ export class AiService implements OnModuleInit {
     isLlm = false,
   ): Promise<string> {
     const supabase = this.supabaseService.getClient();
-    const { data: msg } = await supabase
+    const { data: msg, error } = await supabase
       .from('messages')
       .insert({ user_id: userId, role, content, is_llm: isLlm })
       .select('id')
       .single();
 
-    return msg?.id;
+    if (error || !msg?.id) {
+      throw new Error(
+        `Falha ao salvar mensagem no banco: ${error?.message ?? 'id não retornado'}`,
+      );
+    }
+
+    return msg.id;
   }
 
   /**
@@ -683,11 +699,10 @@ export class AiService implements OnModuleInit {
       );
       if (usage) await this.logUsage(userId, usage, this.model);
 
-      await supabase
-        .from('users')
-        .update({ status: 'active' })
-        .eq('id', userId);
-      await this.saveMessage(userId, 'assistant', response, true);
+      await Promise.all([
+        supabase.from('users').update({ status: 'active' }).eq('id', userId),
+        this.saveMessage(userId, 'assistant', response, true),
+      ]);
       return response;
     }
 
@@ -697,14 +712,25 @@ export class AiService implements OnModuleInit {
 
     // Interceptar intenção de assinatura / upgrade
     const lowerMsg = message.toLowerCase().trim();
+    const isManagementQuery =
+      lowerMsg.includes('cancelar') ||
+      lowerMsg.includes('minha assinatura') ||
+      lowerMsg.includes('meu plano') ||
+      lowerMsg.includes('gerenciar') ||
+      lowerMsg.includes('portal') ||
+      lowerMsg.includes('renovar') ||
+      lowerMsg.includes('vencimento') ||
+      lowerMsg.includes('fatura') ||
+      lowerMsg.includes('cobrança');
     const isSubscribeRequest =
-      lowerMsg.includes('assinar') ||
-      lowerMsg.includes('assinatura') ||
-      lowerMsg.includes('planos') ||
-      lowerMsg.includes('mudar plano') ||
-      lowerMsg.includes('upgrade') ||
-      lowerMsg === 'quero assinar' ||
-      intent === 'SUBSCRIBE';
+      !isManagementQuery &&
+      (lowerMsg.includes('assinar') ||
+        lowerMsg.includes('assinatura') ||
+        lowerMsg.includes('planos') ||
+        lowerMsg.includes('mudar plano') ||
+        lowerMsg.includes('upgrade') ||
+        lowerMsg === 'quero assinar' ||
+        intent === 'SUBSCRIBE');
 
     if (isSubscribeRequest) {
       const userTier = user.subscription_tier || 'free';

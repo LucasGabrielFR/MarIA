@@ -49,6 +49,7 @@ export class MagisteriumService {
           messages: messagesPayload,
           temperature: 0.1,
         }),
+        signal: AbortSignal.timeout(30_000),
       });
 
       if (!response.ok) {
