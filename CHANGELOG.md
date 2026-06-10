@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.5] - 2026-05-24
+
+### Changed
+- **Instruções no Modal de Checkout:** Adicionada orientação explícita no modal "Aguardando Pagamento" da Landing Page informando que, além da exibição em tempo real na tela, um e-mail contendo os dados de acesso e ativação será disparado automaticamente após a confirmação do pagamento, com um lembrete para verificação da pasta de spam.
+
+## [1.16.4] - 2026-05-24
+
+### Added
+- **Política de Privacidade Oficial:** Criação e redação completa do documento de Política de Privacidade da MarIA em Markdown. Detalha de forma transparente e em total conformidade com a LGPD a coleta de dados de identificação e contato (WhatsApp ID, e-mail de faturamento do Asaas), o armazenamento temporário de históricos de mensagens e a geração automática de resumos de contextos devocionais/pastorais. Esclarece a total segurança de dados financeiros processados diretamente pelo gateway Asaas (sem armazenamento local de cartões), políticas restritas de não comercialização de dados com fins publicitários e a segurança via Row Level Security (RLS) no Supabase.
+- **Semeador de Configurações de Privacidade:** Implementação e execução do script de semente de dados `seed_privacy_policy.ts` na pasta `backend/scripts`, persistindo com sucesso a Política de Privacidade oficial na tabela `system_settings` sob a chave pública `privacy_policy`.
+
+## [1.16.3] - 2026-05-24
+
+### Added
+- **Termos de Uso Oficiais:** Criação e redação completa dos Termos de Uso formais da aplicação MarIA em Markdown (compatíveis com o renderizador da Landing Page). O documento aborda de forma robusta e transparente a natureza devocional da IA (frisando que não substitui sacramentos católicos nem aconselhamento de sacerdotes reais), as diretrizes de uso pessoal (vedação a bots e automações), regras de segurança maternal contra violações e LGPD (incluindo direitos de privacidade, armazenamento para personalização pastoral e canal de suporte oficial `maria@acutistech.com.br`).
+- **Semeador de Configurações de Termos:** Implementação e execução do script de semente de dados `seed_terms_of_use.ts` na pasta `backend/scripts`, persistindo com sucesso os Termos de Uso oficiais na tabela `system_settings` sob a chave pública `terms_of_use`.
+
 ## [1.16.2] - 2026-05-23
 
 ### Added

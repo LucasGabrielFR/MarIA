@@ -646,6 +646,7 @@ export default function Home() {
                     <li>Preencha seu Nome, E-mail e CPF de forma segura no checkout.</li>
                     <li><strong>Não feche esta aba</strong> enquanto realiza o pagamento.</li>
                     <li>Seu código de ativação aparecerá aqui assim que o pagamento for concluído!</li>
+                    <li>Enviaremos também um e-mail com os dados de acesso/ativação (caso não encontre, verifique a pasta de spam).</li>
                   </ul>
                 </div>
                 <div className="flex flex-col gap-3 w-full sm:w-auto">
