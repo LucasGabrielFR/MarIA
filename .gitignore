@@ -3,7 +3,7 @@ node_modules/
 .pnp
 .pnp.js
 .agents/
-
+.claude/
 # Build artifacts
 dist/
 build/
