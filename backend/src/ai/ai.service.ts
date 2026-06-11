@@ -18,7 +18,7 @@ export class AiService implements OnModuleInit {
   private readonly logger = new Logger(AiService.name);
   private readonly openRouterApiKey: string;
   private model: string = 'openai/gpt-4o-mini';
-  private bridgeModel: string = 'google/gemini-2.0-flash-lite-001';
+  private bridgeModel: string = 'google/gemini-2.5-flash-lite';
 
   private asaasService: AsaasService;
 
@@ -35,10 +35,10 @@ export class AiService implements OnModuleInit {
       this.configService.get<string>('OPENROUTER_API_KEY') || '';
     // Inicializar com variáveis de ambiente se disponíveis, caso contrário usar defaults
     this.model =
-      this.configService.get<string>('MAIN_MODEL') || 'openai/gpt-4o-mini';
+      this.configService.get<string>('OPENROUTER_GPT_MODEL') || 'openai/gpt-4o-mini';
     this.bridgeModel =
-      this.configService.get<string>('BRIDGE_MODEL') ||
-      'google/gemini-2.0-flash-lite-001';
+      this.configService.get<string>('OPENROUTER_BRIDGE_MODEL') ||
+      'google/gemini-2.5-flash-lite';
   }
 
   async onModuleInit() {
@@ -157,7 +157,7 @@ export class AiService implements OnModuleInit {
   ): Promise<{ intent: string; rules: string[] }> {
     const bridgeModel = await this.getSystemSetting(
       'bridge_model',
-      'google/gemini-2.0-flash-lite-001',
+      this.configService.get<string>('OPENROUTER_BRIDGE_MODEL') || 'google/gemini-2.5-flash-lite',
     );
     const routerPrompt = this.promptService.getPrompt('intent_router');
     if (!routerPrompt) return { intent: 'CASUAL', rules: [] };
@@ -595,7 +595,7 @@ export class AiService implements OnModuleInit {
       );
       await supabase
         .from('users')
-        .update({ status: 'triage_intro' })
+        .update({ status: 'triage_intro', name: null })
         .eq('id', userId);
       userStatus = 'triage_intro';
       user.status = 'triage_intro';
@@ -634,7 +634,7 @@ export class AiService implements OnModuleInit {
       ).replace('{{message}}', message);
       const { content: extractedName } = await this.callOpenRouter(
         extractionNamePrompt,
-        '',
+        `Mensagem do usuário: ${message}`,
         false,
       );
 
@@ -800,11 +800,11 @@ export class AiService implements OnModuleInit {
     let cachedResponse: string | null = null;
     const mainModel = await this.getSystemSetting(
       'main_model',
-      'openai/gpt-4o-mini',
+      this.configService.get<string>('OPENROUTER_GPT_MODEL') || 'openai/gpt-4o-mini',
     );
     const bridgeModel = await this.getSystemSetting(
       'bridge_model',
-      'google/gemini-2.0-flash-lite-001',
+      this.configService.get<string>('OPENROUTER_BRIDGE_MODEL') || 'google/gemini-2.5-flash-lite',
     );
     const targetDate = await this.extractTargetDate(message, bridgeModel);
 
@@ -903,7 +903,8 @@ export class AiService implements OnModuleInit {
 
     const history = await this.getChatHistory(userId);
     const summary = user.general_summary || 'Sem resumo.';
-    const fullSystemPrompt = `${corePersona}\n\nCONTEXTO:\n${summary}\n\nINTENÇÃO:\n${intentContext}\n\nResponda com amor maternal.`;
+    const userNameContext = user.name ? `O nome do usuário com quem você está falando é: ${user.name}. Use esse nome se for natural no diálogo.` : '';
+    const fullSystemPrompt = `${corePersona}\n\nCONTEXTO:\n${summary}\n${userNameContext}\n\nINTENÇÃO:\n${intentContext}\n\nResponda com amor maternal.`;
 
     const { content: response, usage } = await this.callOpenRouter(
       fullSystemPrompt,

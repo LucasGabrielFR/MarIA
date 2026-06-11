@@ -615,7 +615,7 @@ CREATE INDEX idx_magisterium_embedding        ON magisterium_cache USING ivfflat
 | Chave | Tipo | Descrição |
 |-------|------|-----------|
 | `main_model` | string | Modelo LLM principal (ex: openai/gpt-4o-mini) |
-| `bridge_model` | string | Modelo de intent routing (ex: google/gemini-2.0-flash-lite) |
+| `bridge_model` | string | Modelo de intent routing (ex: google/gemini-2.5-flash-lite) |
 | `maintenance_mode` | boolean (string) | Ativar modo de manutenção |
 | `brl_rate` | number (string) | Taxa de câmbio USD→BRL |
 
@@ -848,7 +848,7 @@ salvar activation_codes (status: pending, expires: 48h)
 | Uso | Modelo Padrão | Variável de Configuração |
 |-----|--------------|--------------------------|
 | Processamento principal | `openai/gpt-4o-mini` | `main_model` (system_settings) |
-| Intent routing | `google/gemini-2.0-flash-lite-001` | `bridge_model` (system_settings) |
+| Intent routing | `google/gemini-2.5-flash-lite` | `bridge_model` (system_settings) |
 | Geração de cache (CRON) | Configurável | `cron_model` (system_settings) |
 | Geração de prompts (admin) | `openai/gpt-4o` | Fixo no serviço |
 
@@ -1197,7 +1197,7 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ... # Chave para operações privilegiadas
 # OpenRouter (LLM)
 OPENROUTER_API_KEY=sk-or-...
 MAIN_MODEL=openai/gpt-4o-mini    # Sobrescrito por system_settings.main_model
-BRIDGE_MODEL=google/gemini-2.0-flash-lite-001
+BRIDGE_MODEL=google/gemini-2.5-flash-lite
 
 # Magisterium AI
 MAGISTERIUM_API_KEY=...
