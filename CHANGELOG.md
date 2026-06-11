@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.7] - 2026-06-10
+
+### Added
+
+- **Suporte Oficial a Docker:** Implementação completa de `Dockerfile` otimizados para os três principais serviços (`backend`, `frontend`, `landing`) utilizando build multi-estágio para redução drástica do tamanho das imagens de produção.
+- **Orquestração com Docker Compose:** Criação de `docker-compose.yml` na raiz do projeto para subir todo o ambiente de forma unificada e simples, com mapeamento correto de portas e injeção de variáveis de ambiente.
+- **Otimização Next.js para Docker:** Configuração `output: 'standalone'` adicionada em `next.config.ts` na Landing Page para gerar builds otimizados, excluindo dependências não utilizadas.
+- **Nginx para o Painel Administrativo:** Configuração dedicada de Nginx (`nginx.conf`) para o frontend, garantindo que as rotas SPA do React funcionem adequadamente no subdiretório `/admin`.
+
 ## [1.16.6] - 2026-06-10
 
 ### Fixed

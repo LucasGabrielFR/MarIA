@@ -70,11 +70,24 @@ Na raiz do projeto, você pode usar um dos seguintes comandos:
 
 Isso iniciará o Vite (Frontend) na porta padrão e o NestJS (Backend) com hot-reload.
 
-### Execução em Servidor (VPS)
-Para realizar o deploy em um servidor VPS (Linux), fornecemos scripts automatizados baseados no `pm2` para gerenciar os processos em produção.
+### Execução em Servidor (VPS) via Docker (Recomendado)
+Para realizar o deploy em um servidor VPS de forma isolada, limpa e padronizada, o projeto possui suporte oficial a Docker e Docker Compose.
 
 1. Conecte-se via SSH ao seu servidor e clone/puxe o projeto.
-2. Na raiz do projeto, certifique-se de ter dado permissão de execução ao script:
+2. Na raiz do projeto, crie e configure os arquivos de ambiente:
+   - `backend/.env`
+   - `landing/.env.local`
+3. Suba todos os serviços usando o orquestrador Docker Compose:
+   ```bash
+   docker-compose up -d --build
+   ```
+O Docker irá gerenciar automaticamente o banco de imagens, dependências, o build otimizado (standalone para a Landing Page e Nginx para o Frontend SPA) e levantar os serviços nas portas 3000 (Landing), 3001 (Backend) e 8080 (Frontend).
+
+### Execução em Servidor via PM2 (Legado)
+Para ambientes que não possuem Docker, também fornecemos scripts automatizados baseados no `pm2` para gerenciar os processos.
+
+1. Conecte-se via SSH e puxe o projeto.
+2. Na raiz do projeto, dê permissão ao script:
    ```bash
    chmod +x deploy.sh
    ```
@@ -82,7 +95,7 @@ Para realizar o deploy em um servidor VPS (Linux), fornecemos scripts automatiza
    ```bash
    ./deploy.sh
    ```
-Este comando irá baixar as últimas atualizações, instalar todas as dependências (`frontend` e `backend`), gerar a build e reiniciar o projeto usando o **PM2** (via `ecosystem.config.js`). O backend rodará na porta padrão do Nest e o frontend via preview do Vite.
+Este comando instala dependências, gera a build e reinicia o projeto via **PM2** (`ecosystem.config.js`).
 
 ## 📄 Documentação
 - [Análise Financeira](ANALISE_FINANCEIRA.md)
