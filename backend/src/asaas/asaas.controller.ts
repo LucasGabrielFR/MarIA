@@ -11,12 +11,16 @@ import {
 } from '@nestjs/common';
 import { AsaasService } from './asaas.service';
 import type { Request } from 'express';
+import { SupabaseService } from '../supabase/supabase.service';
 
 @Controller('payment/asaas')
 export class AsaasController {
   private readonly logger = new Logger(AsaasController.name);
 
-  constructor(private readonly asaasService: AsaasService) {}
+  constructor(
+    private readonly asaasService: AsaasService,
+    private readonly supabaseService: SupabaseService,
+  ) {}
 
   /**
    * Asaas envia o token configurado no painel no header `asaas-access-token`.
@@ -86,6 +90,15 @@ export class AsaasController {
 
     if (!body || !body.event) {
       throw new BadRequestException('Invalid webhook payload');
+    }
+
+    try {
+      await this.supabaseService.getClient().from('webhook_logs').insert({
+        event_type: `asaas_${body.event}`,
+        payload: body,
+      });
+    } catch (logError) {
+      this.logger.error(`Failed to save Asaas webhook log: ${logError.message}`);
     }
 
     return this.asaasService.handleWebhook(body);

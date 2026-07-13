@@ -610,7 +610,96 @@ export class AsaasService {
 
       const supabaseClient = this.supabase.getClient();
 
-      // Fluxo especial se o pagamento vier da Web (possui sessionId)
+      let isRecurrence = false;
+      let existingUserWithSub: any = null;
+      if (subscriptionId) {
+        const { data: u } = await supabaseClient
+          .from('users')
+          .select('*')
+          .eq('asaas_subscription_id', subscriptionId)
+          .maybeSingle() as { data: any };
+        if (u) {
+          isRecurrence = true;
+          existingUserWithSub = u;
+        }
+      }
+
+      if (isRecurrence && existingUserWithSub) {
+        this.logger.log(`Pagamento de recorrência detectado para a assinatura ${subscriptionId} do usuário ${existingUserWithSub.id}`);
+        const user = existingUserWithSub;
+
+        // Atualizar expiração
+        const expiresAt = new Date();
+        const isAnnual =
+          parsed.cycle === 'annual' ||
+          payment.value > 100 ||
+          payment.value >= 154;
+        if (isAnnual) {
+          expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+        } else {
+          expiresAt.setMonth(expiresAt.getMonth() + 1);
+        }
+
+        await supabaseClient
+          .from('users')
+          .update({
+            subscription_expires_at: expiresAt.toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', user.id);
+
+        // Deduplicação na tabela subscriptions
+        const dedupeWindow = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+        const { data: existingSub } = await supabaseClient
+          .from('subscriptions')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('provider', 'asaas')
+          .gte('created_at', dedupeWindow)
+          .maybeSingle();
+
+        if (!existingSub) {
+          await supabaseClient.from('subscriptions').insert({
+            user_id: user.id,
+            tier: planTier,
+            amount: payment.value,
+            status: 'paid',
+            provider: 'asaas',
+            expires_at: expiresAt.toISOString(),
+            created_at: new Date().toISOString(),
+          });
+        }
+
+        // Mensagem padrão de recorrência
+        let recurrenceMsg = '';
+        const { data: promptData } = await supabaseClient
+          .from('ai_prompts')
+          .select('content')
+          .eq('key', 'recurrence_success')
+          .eq('is_active', true)
+          .maybeSingle() as any;
+        
+        if (promptData?.content) {
+          recurrenceMsg = promptData.content;
+        } else {
+          recurrenceMsg = '✅ *Sua assinatura foi renovada com sucesso!* Muito obrigado por continuar com a MarIA!';
+        }
+
+        recurrenceMsg = recurrenceMsg
+          .replace(/{user_name}/g, user.name || '')
+          .replace(/\\n/g, '\n');
+
+        const targetChatId = user.wa_chatid || `${user.phone}@s.whatsapp.net`;
+        try {
+          await this.uazapi.sendMessage(targetChatId, recurrenceMsg);
+        } catch (msgErr) {
+          this.logger.error(`Error sending recurrence message to user ${user.id}: ${msgErr.message}`);
+        }
+
+        return { received: true };
+      }
+
+      // Fluxo especial se o pagamento vier da Web e não for recorrência
       if (parsed.sessionId) {
         this.logger.log(
           `Recebido webhook de faturamento de origem WEB. Session ID: ${parsed.sessionId}`,
