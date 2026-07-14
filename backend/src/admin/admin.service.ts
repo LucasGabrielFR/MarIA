@@ -785,6 +785,8 @@ export class AdminService {
     userId: string,
     isPaused: boolean,
     monthlyLimitBrl: number | null,
+    name?: string,
+    status?: string,
   ) {
     const requester = await this.getRequesterAdmin(adminId);
     const supabase = this.supabaseService.getClient();
@@ -792,7 +794,7 @@ export class AdminService {
     // Busca usuário alvo
     const { data: targetUser } = await supabase
       .from('users')
-      .select('name, phone, is_paused, monthly_limit_brl')
+      .select('name, phone, is_paused, monthly_limit_brl, status')
       .eq('id', userId)
       .single();
 
@@ -801,6 +803,14 @@ export class AdminService {
       monthly_limit_brl: monthlyLimitBrl,
       updated_at: new Date(),
     };
+    
+    if (name !== undefined) {
+      updateData.name = name;
+    }
+    
+    if (status !== undefined) {
+      updateData.status = status;
+    }
 
     const { data, error } = await supabase
       .from('users')

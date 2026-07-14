@@ -104,6 +104,8 @@ const WaUsersPage = () => {
   const [showSettings, setShowSettings] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
   const [monthlyLimitBrl, setMonthlyLimitBrl] = useState<string>('')
+  const [editName, setEditName] = useState('')
+  const [editStatus, setEditStatus] = useState('')
   const [savingSettings, setSavingSettings] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [filterTier, setFilterTier] = useState<string>('all')
@@ -236,6 +238,8 @@ const WaUsersPage = () => {
     setSubscriptionExpiresAt(user.subscription_expires_at ? user.subscription_expires_at.split('T')[0] : '')
     setIsPaused(user.is_paused || false)
     setMonthlyLimitBrl(user.monthly_limit_brl !== null && user.monthly_limit_brl !== undefined ? String(user.monthly_limit_brl) : '')
+    setEditName(user.name || '')
+    setEditStatus(user.status || 'active')
     setShowSettings(false)
     fetchMessages(user.id)
   }
@@ -341,7 +345,9 @@ const WaUsersPage = () => {
         },
         body: JSON.stringify({ 
           isPaused, 
-          monthlyLimitBrl: parsedLimit 
+          monthlyLimitBrl: parsedLimit,
+          name: editName,
+          status: editStatus
         })
       })
 
@@ -355,7 +361,9 @@ const WaUsersPage = () => {
         setSelectedUser({ 
           ...selectedUser, 
           is_paused: isPaused,
-          monthly_limit_brl: parsedLimit
+          monthly_limit_brl: parsedLimit,
+          name: editName,
+          status: editStatus
         })
       }
       setShowSettings(false)
@@ -693,6 +701,53 @@ const WaUsersPage = () => {
                       </div>
                     </div>
                     
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                      {/* Left: Name Edit */}
+                      <div className="bg-white rounded-2xl p-6 border border-slate-100/50 shadow-sm flex flex-col justify-between">
+                        <div className="space-y-1.5 mb-4">
+                          <label className="text-xs font-black text-slate-700 uppercase tracking-wider">
+                            Nome do Fiel
+                          </label>
+                          <p className="text-xs text-slate-400 leading-relaxed">
+                            Altere o nome utilizado pela IA para se referir ao usuário.
+                          </p>
+                        </div>
+                        <div className="pt-2 border-t border-slate-50">
+                          <Input 
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            placeholder="Nome do usuário"
+                            className="bg-slate-50/50 border-slate-200 focus-visible:ring-primary rounded-xl"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Right: Status Edit */}
+                      <div className="bg-white rounded-2xl p-6 border border-slate-100/50 shadow-sm flex flex-col justify-between">
+                        <div className="space-y-1.5 mb-4">
+                          <label className="text-xs font-black text-slate-700 uppercase tracking-wider">
+                            Status da Conta
+                          </label>
+                          <p className="text-xs text-slate-400 leading-relaxed">
+                            Defina se a conta está ativa, desativada ou ainda na triagem.
+                          </p>
+                        </div>
+                        <div className="pt-2 border-t border-slate-50">
+                          <select
+                            value={editStatus}
+                            onChange={(e) => setEditStatus(e.target.value)}
+                            className="w-full rounded-xl border-slate-200 text-sm font-bold text-slate-700 bg-slate-50/50 focus:border-primary focus:ring-primary focus:ring-1 h-10 px-3"
+                          >
+                            <option value="active">Ativo (Bot Respondendo)</option>
+                            <option value="disabled">Desativado (Ignorar mensagens)</option>
+                            <option value="triage_intro">Triagem Inicial</option>
+                            <option value="triage_presentation_subscription">Triagem Apresentação</option>
+                            <option value="triage_name">Triagem Nome</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       {/* Left: Pausa Pastoral Toggle */}
                       <div className="bg-white rounded-2xl p-6 border border-slate-100/50 shadow-sm flex flex-col justify-between">

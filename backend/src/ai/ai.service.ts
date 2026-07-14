@@ -708,10 +708,24 @@ export class AiService implements OnModuleInit {
 
     // --- FLUXO ATIVO ---
     const isFree = user.subscription_tier === 'free';
-    const { intent, rules } = await this.determineIntent(message);
+    let { intent, rules } = await this.determineIntent(message);
+
+    // Interceptar intenção de LITURGY explícita
+    const lowerMsg = message.toLowerCase().trim();
+    if (
+      lowerMsg.includes('evangelho do dia') ||
+      lowerMsg.includes('evangelho de hoje') ||
+      lowerMsg.includes('leituras do dia') ||
+      lowerMsg.includes('leitura de hoje') ||
+      lowerMsg.includes('liturgia do dia') ||
+      lowerMsg.includes('liturgia de hoje') ||
+      lowerMsg.includes('liturgia diária') ||
+      lowerMsg.includes('liturgia diaria')
+    ) {
+      intent = 'LITURGY';
+    }
 
     // Interceptar intenção de assinatura / upgrade
-    const lowerMsg = message.toLowerCase().trim();
     const isManagementQuery =
       lowerMsg.includes('cancelar') ||
       lowerMsg.includes('minha assinatura') ||
@@ -904,7 +918,8 @@ export class AiService implements OnModuleInit {
     const history = await this.getChatHistory(userId);
     const summary = user.general_summary || 'Sem resumo.';
     const userNameContext = user.name ? `O nome do usuário com quem você está falando é: ${user.name}. Use esse nome se for natural no diálogo.` : '';
-    const fullSystemPrompt = `${corePersona}\n\nCONTEXTO:\n${summary}\n${userNameContext}\n\nINTENÇÃO:\n${intentContext}\n\nResponda com amor maternal.`;
+    const todayStr = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+    const fullSystemPrompt = `${corePersona}\n\nData atual: Hoje é ${todayStr}.\n\nCONTEXTO:\n${summary}\n${userNameContext}\n\nINTENÇÃO:\n${intentContext}\n\nResponda com amor maternal.`;
 
     const { content: response, usage } = await this.callOpenRouter(
       fullSystemPrompt,
@@ -1015,7 +1030,15 @@ export class AiService implements OnModuleInit {
     if (
       lowerMessage === 'liturgia de hoje' ||
       lowerMessage === 'santo de hoje' ||
-      lowerMessage === 'hoje'
+      lowerMessage === 'hoje' ||
+      lowerMessage.includes('evangelho de hoje') ||
+      lowerMessage.includes('evangelho do dia') ||
+      lowerMessage.includes('leituras do dia') ||
+      lowerMessage.includes('leitura de hoje') ||
+      lowerMessage.includes('liturgia do dia') ||
+      lowerMessage.includes('liturgia de hoje') ||
+      lowerMessage.includes('liturgia diária') ||
+      lowerMessage.includes('liturgia diaria')
     )
       return today;
 

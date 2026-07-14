@@ -140,6 +140,8 @@ export class AdminController {
     @Param('id') id: string,
     @Body('isPaused') isPaused: boolean,
     @Body('monthlyLimitBrl') monthlyLimitBrl: number | null,
+    @Body('name') name: string,
+    @Body('status') status: string,
     @Headers('x-admin-id') adminId: string,
   ) {
     return this.adminService.updateUserSettings(
@@ -147,6 +149,8 @@ export class AdminController {
       id,
       isPaused,
       monthlyLimitBrl,
+      name,
+      status,
     );
   }
 

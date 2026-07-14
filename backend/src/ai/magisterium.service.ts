@@ -68,7 +68,7 @@ export class MagisteriumService {
       let finalResponse = content;
 
       if (data.citations && data.citations.length > 0) {
-        finalResponse += '\n\n**Referências:**\n';
+        finalResponse += '\n\n*Referências:*\n';
 
         const uniqueDocs = new Set<string>();
         data.citations.forEach((cit: any) => {
