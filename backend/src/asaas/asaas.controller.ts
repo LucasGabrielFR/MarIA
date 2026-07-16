@@ -26,15 +26,12 @@ export class AsaasController {
    * Asaas envia o token configurado no painel no header `asaas-access-token`.
    * @see https://docs.asaas.com/docs/receive-asaas-events-at-your-webhook-endpoint
    */
-  private validateWebhookToken(req: Request): void {
-    const expectedToken =
-      process.env.ASAAS_AUTH_TOKEN ||
-      process.env.ASSAS_AUTH_TOKEN ||
-      process.env.ASAAS_WEBHOOK_AUTH_TOKEN;
+  private async validateWebhookToken(req: Request): Promise<void> {
+    const { webhookToken } = await this.asaasService.getEnvConfig();
 
-    if (!expectedToken) {
+    if (!webhookToken) {
       this.logger.warn(
-        'ASAAS_AUTH_TOKEN / ASSAS_AUTH_TOKEN não configurado — webhook aceito sem validação.',
+        'Token de webhook não configurado — webhook aceito sem validação.',
       );
       return;
     }
@@ -43,7 +40,7 @@ export class AsaasController {
       (req.headers['asaas-access-token'] as string) ||
       (req.headers['Asaas-Access-Token'] as string);
 
-    if (!received || received !== expectedToken) {
+    if (!received || received !== webhookToken) {
       this.logger.warn(
         'Webhook Asaas rejeitado: token de autorização inválido ou ausente.',
       );
@@ -86,7 +83,7 @@ export class AsaasController {
 
   @Post('webhook')
   async handleWebhook(@Req() req: Request, @Body() body: any) {
-    this.validateWebhookToken(req);
+    await this.validateWebhookToken(req);
 
     if (!body || !body.event) {
       throw new BadRequestException('Invalid webhook payload');

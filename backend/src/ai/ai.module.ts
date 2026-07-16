@@ -11,9 +11,10 @@ import { AiController } from './ai.controller';
 import { DailyCacheController } from './daily-cache.controller';
 import { SupabaseModule } from '../supabase/supabase.module';
 import { AdminModule } from '../admin/admin.module';
+import { PlansModule } from '../plans/plans.module';
 
 @Module({
-  imports: [ConfigModule, SupabaseModule, AdminModule],
+  imports: [ConfigModule, SupabaseModule, AdminModule, PlansModule],
   controllers: [AiController, DailyCacheController],
   providers: [
     AiService,

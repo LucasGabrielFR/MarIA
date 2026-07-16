@@ -2,6 +2,8 @@ import { Injectable, Logger, ForbiddenException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { AsaasService } from '../asaas/asaas.service';
 
+import { PlansService } from '../plans/plans.service';
+
 @Injectable()
 export class FinanceService {
   private readonly logger = new Logger(FinanceService.name);
@@ -9,6 +11,7 @@ export class FinanceService {
   constructor(
     private readonly supabaseService: SupabaseService,
     private readonly asaasService: AsaasService,
+    private readonly plansService: PlansService,
   ) {}
 
   async getFinanceSummary(startDate?: string, endDate?: string) {
@@ -311,32 +314,16 @@ export class FinanceService {
     }
 
     let value = 0;
-    let cycleAsaas = 'MONTHLY';
+    let cycleAsaas = cycle === 'annual' ? 'YEARLY' : 'MONTHLY';
     let description = '';
 
-    if (tier === 'basic') {
-      if (cycle === 'annual') {
-        value = 154.8;
-        cycleAsaas = 'YEARLY';
-        description = 'Plano Básico (Anual) - Atualizado';
-      } else {
-        value = 14.99;
-        cycleAsaas = 'MONTHLY';
-        description = 'Plano Básico (Mensal) - Atualizado';
-      }
-    } else if (tier === 'premium') {
-      if (cycle === 'annual') {
-        value = 322.8;
-        cycleAsaas = 'YEARLY';
-        description = 'Plano Premium (Anual) - Atualizado';
-      } else {
-        value = 29.9;
-        cycleAsaas = 'MONTHLY';
-        description = 'Plano Premium (Mensal) - Atualizado';
-      }
-    } else {
-      throw new Error('Tier inválido');
+    const plan = await this.plansService.getPlan(tier, cycle);
+    if (!plan) {
+      throw new Error('Plano ou ciclo inválido');
     }
+    
+    value = plan.price;
+    description = `${plan.name} - Atualizado`;
 
     await this.asaasService.updateSubscription(user.asaas_subscription_id, {
       value,

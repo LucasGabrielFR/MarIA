@@ -10,10 +10,14 @@ import {
   Delete,
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
+import { PlansService } from '../plans/plans.service';
 
 @Controller('admin')
 export class AdminController {
-  constructor(private adminService: AdminService) {}
+  constructor(
+    private adminService: AdminService,
+    private plansService: PlansService,
+  ) {}
 
   @Get('users')
   async findAll() {
@@ -198,4 +202,22 @@ export class AdminController {
   ) {
     return this.adminService.getAdminActivities(adminId, targetId);
   }
+
+  // Planos (Pricing)
+  @Get('plans')
+  async getPlans(@Headers('x-admin-id') adminId: string) {
+    if (!adminId) throw new Error('Unauthorized');
+    return this.plansService.getAllPlans();
+  }
+
+  @Patch('plans/:id')
+  async updatePlan(
+    @Headers('x-admin-id') adminId: string,
+    @Param('id') id: string,
+    @Body() body: { name?: string; price?: number; messages_limit?: number; description?: string },
+  ) {
+    if (!adminId) throw new Error('Unauthorized');
+    return this.plansService.updatePlan(id, body);
+  }
 }
+

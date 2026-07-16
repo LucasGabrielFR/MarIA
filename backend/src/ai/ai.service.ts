@@ -7,6 +7,7 @@ import { SupabaseService } from '../supabase/supabase.service';
 import { EmbeddingService } from './embedding.service';
 import { ModuleRef } from '@nestjs/core';
 import { AsaasService } from '../asaas/asaas.service';
+import { PlansService } from '../plans/plans.service';
 
 const MAGISTERIUM_INSTRUCTION =
   '\n\nOBRIGATÓRIO: Ao final da sua resposta, você deve listar as referências exatas de onde a informação foi extraída. ' +
@@ -21,6 +22,7 @@ export class AiService implements OnModuleInit {
   private bridgeModel: string = 'google/gemini-2.5-flash-lite';
 
   private asaasService: AsaasService;
+  private plansService: PlansService;
 
   constructor(
     private readonly promptService: PromptService,
@@ -724,6 +726,29 @@ export class AiService implements OnModuleInit {
     ) {
       intent = 'LITURGY';
     }
+    
+    // Interceptar intenção de TERÇO
+    if (
+      lowerMsg === 'como rezar o terço' ||
+      lowerMsg === 'como rezar o terço?' ||
+      lowerMsg === 'como se reza o terço' ||
+      lowerMsg === 'como rezar o rosário' ||
+      lowerMsg === 'como rezar o rosario' ||
+      lowerMsg === 'roteiro do terço' ||
+      lowerMsg.includes('ensina a rezar o terço') ||
+      lowerMsg.includes('passo a passo do terço')
+    ) {
+      intent = 'ROSARY_GUIDE';
+    } else if (
+      lowerMsg.includes('quais os mistérios') ||
+      lowerMsg.includes('quais os misterios') ||
+      lowerMsg.includes('mistérios de hoje') ||
+      lowerMsg.includes('misterios de hoje') ||
+      lowerMsg.includes('mistérios do terço') ||
+      lowerMsg.includes('misterios do terco')
+    ) {
+      intent = 'ROSARY_MYSTERIES';
+    }
 
     // Interceptar intenção de assinatura / upgrade
     const isManagementQuery =
@@ -837,9 +862,12 @@ export class AiService implements OnModuleInit {
         intentContext = `CONTEÚDO DO SANTO DO DIA (${targetDate}):\n${cachedResponse || 'Informação sobre o santo do dia.'}`;
         break;
       case 'ROSARY_MYSTERIES':
-      case 'ROSARY_GUIDE':
         cachedResponse = await this.getDailyCache('rosary', targetDate);
-        intentContext = `CONTEÚDO DO TERÇO:\n${cachedResponse || 'Roteiro e mistérios do terço.'}`;
+        intentContext = `MISTÉRIOS DO TERÇO DE HOJE:\n${cachedResponse || 'Mistérios não disponíveis.'}`;
+        break;
+      case 'ROSARY_GUIDE':
+        cachedResponse = this.promptService.getPrompt('guide_terco');
+        intentContext = `ROTEIRO DE COMO REZAR O TERÇO:\n${cachedResponse || 'Guia não disponível.'}`;
         break;
       case 'SAINT': // Busca por um santo específico (EXIGE LLM/MAGISTERIUM)
       case 'THEOLOGY':
@@ -1167,16 +1195,21 @@ export class AiService implements OnModuleInit {
     return keywords.some((k) => cleanMsg.includes(k));
   }
 
-  private buildCycleStepMessage(
+  private async buildCycleStepMessage(
     cycleStep: { text?: string; buttons?: any[] },
     tier: 'basic' | 'premium',
     previousTier: string,
   ) {
     const tierLabel = tier === 'basic' ? 'Básico' : 'Premium';
-    const planOptions =
-      tier === 'basic'
-        ? '• *Mensal* — R$ 14,90/mês\n• *Anual* — 12x R$ 12,90 (R$ 154,80/ano)'
-        : '• *Mensal* — R$ 29,90/mês\n• *Anual* — 12x R$ 26,90 (R$ 322,80/ano)';
+    
+    const monthlyPlan = await this.plansService.getPlan(tier, 'monthly');
+    const annualPlan = await this.plansService.getPlan(tier, 'annual');
+    
+    const mPrice = monthlyPlan ? monthlyPlan.price.toFixed(2).replace('.', ',') : '0,00';
+    const aPrice = annualPlan ? annualPlan.price.toFixed(2).replace('.', ',') : '0,00';
+    const aPriceMonthly = annualPlan ? (annualPlan.price / 12).toFixed(2).replace('.', ',') : '0,00';
+
+    const planOptions = `• *Mensal* — R$ ${mPrice}/mês\n• *Anual* — 12x R$ ${aPriceMonthly} (R$ ${aPrice}/ano)`;
 
     let upgradeWarning = '';
     if (previousTier === 'basic' && tier === 'premium') {
@@ -1318,7 +1351,7 @@ export class AiService implements OnModuleInit {
 
       const cycleStep = steps.select_cycle ||
         steps.confirm_plan || { text: '', buttons: [] };
-      return this.buildCycleStepMessage(cycleStep, tier, userTier);
+      return await this.buildCycleStepMessage(cycleStep, tier, userTier);
     }
 
     if (stepId === 'select_cycle' || stepId === 'confirm_plan') {
@@ -1369,11 +1402,18 @@ export class AiService implements OnModuleInit {
           };
         }
         if (!isYes) {
+          const bMonthly = await this.plansService.getPlan('basic', 'monthly');
+          const bAnnual = await this.plansService.getPlan('basic', 'annual');
+          const pMonthly = await this.plansService.getPlan('premium', 'monthly');
+          const pAnnual = await this.plansService.getPlan('premium', 'annual');
+          
+          const formatPrice = (p: number) => p.toFixed(2).replace('.', ',');
+
           const planNames: Record<string, string> = {
-            '1': 'Plano Básico Mensal (R$ 14,99/mês)',
-            '2': 'Plano Básico Anual (R$ 154,80/ano)',
-            '3': 'Plano Premium Mensal (R$ 29,90/mês)',
-            '4': 'Plano Premium Anual (R$ 322,80/ano)',
+            '1': `Plano Básico Mensal (R$ ${bMonthly ? formatPrice(bMonthly.price) : '14,90'}/mês)`,
+            '2': `Plano Básico Anual (R$ ${bAnnual ? formatPrice(bAnnual.price) : '154,80'}/ano)`,
+            '3': `Plano Premium Mensal (R$ ${pMonthly ? formatPrice(pMonthly.price) : '29,90'}/mês)`,
+            '4': `Plano Premium Anual (R$ ${pAnnual ? formatPrice(pAnnual.price) : '322,80'}/ano)`,
           };
           const planName = planNames[contextData.plan] || 'Plano';
           let upgradeWarning = '';
@@ -1475,7 +1515,7 @@ export class AiService implements OnModuleInit {
 
       if (!isMonthly && !isAnnual) {
         const tier = (contextData.tier || 'basic') as 'basic' | 'premium';
-        const invalid = this.buildCycleStepMessage(
+        const invalid = await this.buildCycleStepMessage(
           cycleStep,
           tier,
           contextData.previous_tier || 'free',

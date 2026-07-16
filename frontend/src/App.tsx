@@ -10,6 +10,7 @@ import PrayersPage from './pages/prayers'
 import LogsPage from './pages/logs'
 import SettingsPage from './pages/settings'
 import FinancePage from './pages/finance'
+import PlansPage from './pages/plans'
 import { Toaster } from "@/components/ui/sonner"
 
 function App() {
@@ -30,6 +31,7 @@ function App() {
         <Route path="/conversations" element={<DashboardPage />} />
         <Route path="/logs" element={<LogsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/plans" element={<PlansPage />} />
         
         {/* Redirect unknown routes to login */}
         <Route path="*" element={<Navigate to="/" replace />} />

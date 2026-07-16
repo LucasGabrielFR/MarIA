@@ -128,6 +128,10 @@ export function Sidebar() {
           <Settings size={20} />
           <span className="font-medium">Configurações</span>
         </NavItemLink>
+        <NavItemLink to="/plans" $active={isActive('/plans')}>
+          <DollarSign size={20} />
+          <span className="font-medium">Planos e Preços</span>
+        </NavItemLink>
         <NavItemLink to="/" onClick={handleLogout} className="text-red-300 hover:text-red-100 hover:bg-red-900/20">
           <LogOut size={20} />
           <span className="font-medium">Sair</span>

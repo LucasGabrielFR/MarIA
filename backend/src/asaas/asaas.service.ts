@@ -5,6 +5,8 @@ import { UazapiService } from '../uazapi/uazapi.service';
 
 import { MailService } from '../mail/mail.service';
 
+import { PlansService } from '../plans/plans.service';
+
 /** Imagem 1x1 PNG transparente (exigida pelo Checkout Asaas nos itens). */
 const CHECKOUT_PLACEHOLDER_IMAGE_BASE64 =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
@@ -12,65 +14,49 @@ const CHECKOUT_PLACEHOLDER_IMAGE_BASE64 =
 type PlanId = 'basic' | 'premium';
 type BillingCycle = 'monthly' | 'annual';
 
-interface PlanConfig {
-  value: number;
-  cycleAsaas: 'MONTHLY' | 'YEARLY';
-  description: string;
-  linkName: string;
-  itemName: string;
-}
-
 @Injectable()
 export class AsaasService {
   private readonly logger = new Logger(AsaasService.name);
-  private readonly apiKey =
-    process.env.ASAAS_API_KEY || process.env.ASAAS_TOKEN || '';
-  private readonly apiUrl =
-    process.env.ASAAS_API_URL || 'https://sandbox.asaas.com/api/v3';
+  async getEnvConfig(): Promise<{ apiKey: string; apiUrl: string; webhookToken: string; isProduction: boolean }> {
+    const supabase = this.supabase.getClient();
+    const { data } = await supabase
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'asaas_environment')
+      .single();
+
+    const env = data?.value === 'production' ? 'production' : 'sandbox';
+    
+    if (env === 'production') {
+      const apiKey = process.env.ASAAS_API_KEY || process.env.ASAAS_TOKEN || '';
+      this.logger.debug(`[DEBUG] Production Key start: ${apiKey.substring(0, 15)}`);
+      return {
+        apiKey,
+        apiUrl: process.env.ASAAS_API_URL || 'https://api.asaas.com/v3',
+        webhookToken: process.env.ASAAS_AUTH_TOKEN || '',
+        isProduction: true,
+      };
+    } else {
+      const apiKey = process.env.ASAAS_API_KEY_SANDBOX || '';
+      this.logger.debug(`[DEBUG] Sandbox Key start: ${apiKey.substring(0, 15)}`);
+      return {
+        apiKey,
+        apiUrl: process.env.ASAAS_API_URL_SANDBOX || 'https://sandbox.asaas.com/api/v3',
+        webhookToken: process.env.ASAAS_AUTH_TOKEN_SANDBOX || '',
+        isProduction: false,
+      };
+    }
+  }
 
   constructor(
     private readonly supabase: SupabaseService,
     private readonly uazapi: UazapiService,
     private readonly mail: MailService,
+    private readonly plansService: PlansService,
   ) {}
 
-  private getPlanConfig(planId: PlanId, cycle: BillingCycle): PlanConfig {
-    const configs: Record<PlanId, Record<BillingCycle, PlanConfig>> = {
-      basic: {
-        monthly: {
-          value: 14.9,
-          cycleAsaas: 'MONTHLY',
-          description: 'Plano Básico Mensal - MarIA',
-          linkName: 'MarIA - Plano Básico Mensal',
-          itemName: 'MarIA Básico Mensal',
-        },
-        annual: {
-          value: 154.8,
-          cycleAsaas: 'YEARLY',
-          description: 'Plano Básico Anual - MarIA',
-          linkName: 'MarIA - Plano Básico Anual',
-          itemName: 'MarIA Básico Anual',
-        },
-      },
-      premium: {
-        monthly: {
-          value: 29.9,
-          cycleAsaas: 'MONTHLY',
-          description: 'Plano Premium Mensal - MarIA',
-          linkName: 'MarIA - Plano Premium Mensal',
-          itemName: 'MarIA Premium Mensal',
-        },
-        annual: {
-          value: 322.8,
-          cycleAsaas: 'YEARLY',
-          description: 'Plano Premium Anual - MarIA',
-          linkName: 'MarIA - Plano Premium Anual',
-          itemName: 'MarIA Premium Anual',
-        },
-      },
-    };
-
-    const cfg = configs[planId]?.[cycle];
+  private async getPlanConfig(planId: PlanId, cycle: BillingCycle) {
+    const cfg = await this.plansService.getPlanConfigByTierAndCycle(planId, cycle);
     if (!cfg) {
       throw new BadRequestException('Plano ou ciclo inválido');
     }
@@ -109,12 +95,13 @@ export class AsaasService {
   }
 
   private async request(endpoint: string, method: string, data?: any) {
-    const url = `${this.apiUrl}${endpoint}`;
+    const { apiKey, apiUrl } = await this.getEnvConfig();
+    const url = `${apiUrl}${endpoint}`;
     const options: RequestInit = {
       method,
       headers: {
         'Content-Type': 'application/json',
-        access_token: this.apiKey,
+        access_token: apiKey,
         'User-Agent': 'MarIA/1.0',
       },
       ...(data && { body: JSON.stringify(data) }),
@@ -122,7 +109,14 @@ export class AsaasService {
     };
 
     const response = await fetch(url, options);
-    const result = await response.json();
+    const text = await response.text();
+    let result;
+    try {
+      result = text ? JSON.parse(text) : {};
+    } catch (e) {
+      this.logger.error(`Asaas API error (non-JSON) [${method} ${endpoint}] Status: ${response.status} - Body: ${text.substring(0, 200)}`);
+      throw new Error(`Erro de integração com Asaas. HTTP Status ${response.status}`);
+    }
 
     if (!response.ok) {
       this.logger.error(
@@ -280,7 +274,7 @@ export class AsaasService {
     cycle: BillingCycle,
     phone: string,
   ): Promise<{ url: string; id: string }> {
-    const cfg = this.getPlanConfig(planId, cycle);
+    const cfg = await this.getPlanConfig(planId, cycle);
     const externalReference = this.buildExternalReference(planId, cycle, phone);
 
     const successUrl =
@@ -322,7 +316,7 @@ export class AsaasService {
     customerId?: string,
     customerName?: string | null,
   ): Promise<string> {
-    const cfg = this.getPlanConfig(planId, cycle);
+    const cfg = await this.getPlanConfig(planId, cycle);
     const normalizedPhone = this.normalizePhone(phone);
     const externalReference = this.buildExternalReference(planId, cycle, phone);
 
@@ -389,7 +383,7 @@ export class AsaasService {
     phone: string,
     customerId: string,
   ): Promise<string> {
-    const cfg = this.getPlanConfig(planId, cycle);
+    const cfg = await this.getPlanConfig(planId, cycle);
     const externalReference = this.buildExternalReference(planId, cycle, phone);
 
     const nextDue = new Date();
@@ -446,7 +440,8 @@ export class AsaasService {
     planId: string,
     cycle: string,
   ): Promise<{ url: string; sessionId: string }> {
-    if (!this.apiKey) {
+    const { apiKey } = await this.getEnvConfig();
+    if (!apiKey) {
       throw new Error(
         'ASAAS_API_KEY/ASAAS_TOKEN não configurado — não é possível gerar URL de checkout',
       );
@@ -489,7 +484,8 @@ export class AsaasService {
     phone: string,
     userId?: string,
   ): Promise<{ url: string }> {
-    if (!this.apiKey) {
+    const { apiKey } = await this.getEnvConfig();
+    if (!apiKey) {
       throw new Error(
         'ASAAS_API_KEY/ASAAS_TOKEN não configurado — não é possível gerar URL de checkout',
       );
@@ -544,7 +540,8 @@ export class AsaasService {
   }
 
   async cancelSubscription(subscriptionId: string): Promise<void> {
-    if (!this.apiKey) {
+    const { apiKey } = await this.getEnvConfig();
+    if (!apiKey) {
       this.logger.warn(
         'ASAAS_API_KEY not set. Skipping cancellation in sandbox.',
       );
@@ -565,7 +562,8 @@ export class AsaasService {
   }
 
   async deletePaymentLink(linkId: string): Promise<void> {
-    if (!this.apiKey) {
+    const { apiKey } = await this.getEnvConfig();
+    if (!apiKey) {
       this.logger.warn(
         'ASAAS_API_KEY/ASAAS_TOKEN not set. Skipping deactivate payment link.',
       );
@@ -598,13 +596,13 @@ export class AsaasService {
       const externalReference = payment.externalReference;
       const paymentLinkId = payment.paymentLink;
 
-      if (!subscriptionId) return { received: true };
-
       const parsed = this.parseExternalReference(externalReference);
       let planTier = parsed.planTier;
 
       if (planTier !== 'basic' && planTier !== 'premium') {
-        if (payment.value >= 29.9) planTier = 'premium';
+        const premiumMonthly = await this.plansService.getPlan('premium', 'monthly');
+        const threshold = premiumMonthly ? premiumMonthly.price * 0.9 : 29.9;
+        if (payment.value >= threshold) planTier = 'premium';
         else planTier = 'basic';
       }
 
@@ -868,10 +866,11 @@ export class AsaasService {
         }
 
         const expiresAt = new Date();
+        const basicAnnual = await this.plansService.getPlan('basic', 'annual');
+        const annualThreshold = basicAnnual ? basicAnnual.price * 0.7 : 100;
         const isAnnual =
           parsed.cycle === 'annual' ||
-          payment.value > 100 ||
-          payment.value >= 154;
+          payment.value >= annualThreshold;
         if (isAnnual) {
           expiresAt.setFullYear(expiresAt.getFullYear() + 1);
         } else {
@@ -1008,7 +1007,8 @@ export class AsaasService {
   }
 
   async syncSubscriptions(): Promise<{ synced: number }> {
-    if (!this.apiKey) {
+    const { apiKey } = await this.getEnvConfig();
+    if (!apiKey) {
       this.logger.warn('ASAAS_API_KEY not set. Sync skipped.');
       return { synced: 0 };
     }
@@ -1033,9 +1033,12 @@ export class AsaasService {
         const value = sub.value;
         const nextDueDate = sub.nextDueDate;
 
+        const premiumMonthly = await this.plansService.getPlan('premium', 'monthly');
+        const threshold = premiumMonthly ? premiumMonthly.price * 0.9 : 29.9;
+        
         let planTier = 'basic';
         if (
-          value >= 29.9 ||
+          value >= threshold ||
           sub.description?.toLowerCase().includes('premium')
         ) {
           planTier = 'premium';
@@ -1137,7 +1140,8 @@ export class AsaasService {
     subscriptionId: string,
     payload: { value: number; cycle: string; description: string },
   ): Promise<any> {
-    if (!this.apiKey) {
+    const { apiKey } = await this.getEnvConfig();
+    if (!apiKey) {
       this.logger.warn('ASAAS_API_KEY not set. Skipping update in sandbox.');
       return { id: subscriptionId, ...payload };
     }

@@ -11,6 +11,7 @@ import { FinanceModule } from './finance/finance.module';
 import { AsaasModule } from './asaas/asaas.module';
 import { CustomerAuthModule } from './customer-auth/customer-auth.module';
 import { MailModule } from './mail/mail.module';
+import { PlansModule } from './plans/plans.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { MailModule } from './mail/mail.module';
     AsaasModule,
     CustomerAuthModule,
     MailModule,
+    PlansModule,
   ],
   controllers: [],
   providers: [],

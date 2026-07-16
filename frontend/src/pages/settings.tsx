@@ -283,6 +283,21 @@ export default function SettingsPage() {
                   Sincronizar Cotação (AwesomeAPI)
                 </Button>
               </div>
+
+              <div className="space-y-2 mt-6 pt-6 border-t border-slate-100">
+                <Label className="font-bold text-slate-700 ml-1">Ambiente Asaas (Pagamentos)</Label>
+                <select
+                  className="flex h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 font-medium placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  value={getSettingValue('asaas_environment') || 'sandbox'}
+                  onChange={(e) => {
+                    setSettingValue('asaas_environment', e.target.value);
+                    handleUpdate('asaas_environment', e.target.value);
+                  }}
+                >
+                  <option value="sandbox">Sandbox (Ambiente de Testes)</option>
+                  <option value="production">Produção (Pagamentos Reais)</option>
+                </select>
+              </div>
             </CardContent>
           </Card>
         </div>

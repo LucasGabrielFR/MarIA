@@ -42,6 +42,15 @@ export default function Login() {
   const [selectedPlan, setSelectedPlan] = useState("basic");
   const [selectedCycle, setSelectedCycle] = useState("monthly");
   const [planChangeLoading, setPlanChangeLoading] = useState(false);
+  
+  const [plans, setPlans] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('/api/plans')
+      .then((res) => res.json())
+      .then((data) => setPlans(data))
+      .catch((err) => console.error('Erro ao buscar planos:', err));
+  }, []);
 
   // Auto-login on mount if session is stored
   useEffect(() => {
@@ -617,7 +626,14 @@ export default function Login() {
                   >
                     <span className="font-extrabold text-slate-800 text-sm">Mensal</span>
                     <span className="text-[10px] text-[#0047AB] font-bold mt-1">
-                      {selectedPlan === "premium" ? "R$ 29,90" : "R$ 14,99"} / mês
+                      {selectedPlan === "premium" ? 
+                        (plans.find(p => p.name === 'premium' && p.cycle === 'monthly')?.price 
+                          ? plans.find(p => p.name === 'premium' && p.cycle === 'monthly').price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) 
+                          : "R$ 29,90") 
+                        : 
+                        (plans.find(p => p.name === 'basic' && p.cycle === 'monthly')?.price 
+                          ? plans.find(p => p.name === 'basic' && p.cycle === 'monthly').price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) 
+                          : "R$ 14,99")} / mês
                     </span>
                   </button>
                   <button
@@ -632,7 +648,14 @@ export default function Login() {
                       <span className="bg-[#D4AF37] text-white text-[8px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider">Desconto</span>
                     </span>
                     <span className="text-[10px] text-green-700 font-bold mt-1">
-                      {selectedPlan === "premium" ? "R$ 26,90" : "R$ 12,90"} / mês
+                      {selectedPlan === "premium" ? 
+                        (plans.find(p => p.name === 'premium' && p.cycle === 'annual')?.price 
+                          ? (plans.find(p => p.name === 'premium' && p.cycle === 'annual').price / 12).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) 
+                          : "R$ 26,90") 
+                        : 
+                        (plans.find(p => p.name === 'basic' && p.cycle === 'annual')?.price 
+                          ? (plans.find(p => p.name === 'basic' && p.cycle === 'annual').price / 12).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) 
+                          : "R$ 12,90")} / mês
                     </span>
                   </button>
                 </div>

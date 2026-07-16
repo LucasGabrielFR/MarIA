@@ -11,6 +11,7 @@ import { StripeService } from '../stripe/stripe.service';
 import { AsaasService } from '../asaas/asaas.service';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
+import { PlansService } from '../plans/plans.service';
 
 @Injectable()
 export class CustomerAuthService {
@@ -23,6 +24,7 @@ export class CustomerAuthService {
     private stripeService: StripeService,
     private asaasService: AsaasService,
     private configService: ConfigService,
+    private plansService: PlansService,
   ) {
     this.frontendUrl =
       this.configService.get<string>('FRONTEND_URL') ||
@@ -362,37 +364,20 @@ export class CustomerAuthService {
       );
     }
 
-    // 2. Map and determine new billing value andcycle
     let value = 0;
-    let cycleAsaas = 'MONTHLY';
+    let cycleAsaas = cycle.toLowerCase() === 'annual' ? 'YEARLY' : 'MONTHLY';
     let description = '';
 
     const tier = planId.toLowerCase();
     const normalizedCycle = cycle.toLowerCase();
 
-    if (tier === 'basic') {
-      if (normalizedCycle === 'annual') {
-        value = 154.8;
-        cycleAsaas = 'YEARLY';
-        description = 'Plano Básico (Anual) - Atualizado';
-      } else {
-        value = 14.99;
-        cycleAsaas = 'MONTHLY';
-        description = 'Plano Básico (Mensal) - Atualizado';
-      }
-    } else if (tier === 'premium') {
-      if (normalizedCycle === 'annual') {
-        value = 322.8;
-        cycleAsaas = 'YEARLY';
-        description = 'Plano Premium (Anual) - Atualizado';
-      } else {
-        value = 29.9;
-        cycleAsaas = 'MONTHLY';
-        description = 'Plano Premium (Mensal) - Atualizado';
-      }
-    } else {
+    const plan = await this.plansService.getPlan(tier, normalizedCycle);
+    if (!plan) {
       throw new BadRequestException('Plano selecionado inválido.');
     }
+
+    value = plan.price;
+    description = `${plan.name} - Atualizado`;
 
     // 3. Update active subscription in Asaas
     try {
