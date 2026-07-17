@@ -14,7 +14,6 @@ import {
   Sparkles, 
   ShieldAlert, 
   Compass,
-  ScrollText,
   Zap,
   Brain,
   PenTool,
@@ -123,12 +122,6 @@ export default function AiSettingsPage() {
       icon: <Bot className="w-5 h-5" />,
       description: 'Define quem é a MarIA e como ela se comporta globalmente.',
       keys: ['core_persona', 'intent_router']
-    },
-    onboarding: {
-      label: 'Boas-vindas',
-      icon: <ScrollText className="w-5 h-5" />,
-      description: 'O primeiro contato do fiel com a MarIA.',
-      keys: ['triage_intro', 'triage_name', 'detailed_presentation']
     },
     intentions: {
       label: 'Especialidades',

@@ -25,7 +25,7 @@ interface FlowStep {
   buttons: Array<{ id: string; text: string }>;
 }
 
-type FlowStepKey = 'select_plan' | 'select_cycle' | 'payment_confirmed';
+type FlowStepKey = string;
 
 type FlowSteps = Record<FlowStepKey, FlowStep>;
 
@@ -38,16 +38,31 @@ interface AutomaticFlow {
   updated_at: string;
 }
 
-function normalizeFlowSteps(steps: Partial<FlowSteps> & { confirm_plan?: FlowStep }): FlowSteps {
-  const selectCycle = steps.select_cycle || steps.confirm_plan || { text: '', buttons: [] };
-  const paymentConfirmed = steps.payment_confirmed && steps.payment_confirmed.text.trim()
-    ? steps.payment_confirmed
-    : { text: PAYMENT_CONFIRMED_MESSAGE_TEXT, buttons: [] };
-  return {
-    select_plan: steps.select_plan || { text: '', buttons: [] },
-    select_cycle: selectCycle,
-    payment_confirmed: paymentConfirmed,
-  };
+function normalizeFlowSteps(steps: any): FlowSteps {
+  const normalized: FlowSteps = {};
+  if (!steps) return normalized;
+  
+  // Trata chaves legadas do subscription_flow
+  if (steps.confirm_plan && !steps.select_cycle) {
+    steps.select_cycle = steps.confirm_plan;
+  }
+  
+  for (const key of Object.keys(steps)) {
+    if (key === 'confirm_plan') continue;
+    normalized[key] = {
+      text: steps[key].text || '',
+      buttons: Array.isArray(steps[key].buttons) ? steps[key].buttons : []
+    };
+  }
+  
+  // Garante que o subscription_flow sempre tenha as 3 etapas essenciais se estiver vazio
+  if (steps.select_plan || steps.select_cycle || steps.payment_confirmed) {
+    if (!normalized.select_plan) normalized.select_plan = { text: '', buttons: [] };
+    if (!normalized.select_cycle) normalized.select_cycle = { text: '', buttons: [] };
+    if (!normalized.payment_confirmed) normalized.payment_confirmed = { text: PAYMENT_CONFIRMED_MESSAGE_TEXT, buttons: [] };
+  }
+  
+  return normalized;
 }
 
 function formatFlowPreviewText(text: string): string {
@@ -104,6 +119,7 @@ export default function FlowsPage() {
         const copy = JSON.parse(JSON.stringify(subFlow)) as AutomaticFlow;
         copy.steps = normalizeFlowSteps(copy.steps);
         setSelectedFlow(copy);
+        setActiveStep(Object.keys(copy.steps)[0]);
       }
     } catch (error) {
       toast.error('Erro ao carregar fluxos automáticos');
@@ -262,31 +278,45 @@ export default function FlowsPage() {
 
     // Validações básicas do fluxo
     const steps = normalizeFlowSteps(selectedFlow.steps);
-    const selectPlanText = steps.select_plan.text;
-    const selectCycleText = steps.select_cycle.text;
-    const paymentConfirmedText = steps.payment_confirmed?.text || '';
+    
+    if (selectedFlow.key === 'subscription_flow') {
+      const selectPlanText = steps.select_plan?.text || '';
+      const selectCycleText = steps.select_cycle?.text || '';
+      const paymentConfirmedText = steps.payment_confirmed?.text || '';
 
-    if (!selectPlanText.trim()) {
-      toast.error('O texto da etapa de plano não pode estar vazio');
-      return;
-    }
+      if (!selectPlanText.trim()) {
+        toast.error('O texto da etapa de plano não pode estar vazio');
+        return;
+      }
 
-    if (!selectCycleText.trim()) {
-      toast.error('O texto da etapa de pagamento não pode estar vazio');
-      return;
-    }
+      if (!selectCycleText.trim()) {
+        toast.error('O texto da etapa de pagamento não pode estar vazio');
+        return;
+      }
 
-    if (!paymentConfirmedText.trim()) {
-      toast.error('O texto da etapa de confirmação de pagamento não pode estar vazio');
-      return;
-    }
+      if (!paymentConfirmedText.trim()) {
+        toast.error('O texto da etapa de confirmação de pagamento não pode estar vazio');
+        return;
+      }
 
-    if (steps.select_plan.buttons.length > 3 || steps.select_cycle.buttons.length > 3 || (steps.payment_confirmed?.buttons?.length || 0) > 3) {
-      toast.warning('Cada etapa deve ter no máximo 3 botões para o WhatsApp enviar botões nativos.');
-    }
+      if ((steps.select_plan?.buttons?.length || 0) > 3 || (steps.select_cycle?.buttons?.length || 0) > 3 || (steps.payment_confirmed?.buttons?.length || 0) > 3) {
+        toast.warning('Cada etapa deve ter no máximo 3 botões para o WhatsApp enviar botões nativos.');
+      }
 
-    if (!selectCycleText.includes('{tier_label}') || !selectCycleText.includes('{plan_options}')) {
-      toast.warning('Atenção: Use {tier_label} e {plan_options} na etapa de pagamento para exibir o plano e os valores.');
+      if (!selectCycleText.includes('{tier_label}') || !selectCycleText.includes('{plan_options}')) {
+        toast.warning('Atenção: Use {tier_label} e {plan_options} na etapa de pagamento para exibir o plano e os valores.');
+      }
+    } else {
+      // General validation for other flows
+      for (const step of Object.values(steps)) {
+        if (!step.text?.trim()) {
+          toast.error(`O texto da etapa não pode estar vazio.`);
+          return;
+        }
+        if ((step.buttons?.length || 0) > 3) {
+          toast.warning('Cada etapa deve ter no máximo 3 botões para o WhatsApp enviar botões nativos.');
+        }
+      }
     }
 
     setSaving(true);
@@ -359,6 +389,7 @@ export default function FlowsPage() {
                       const copy = JSON.parse(JSON.stringify(f)) as AutomaticFlow;
                       copy.steps = normalizeFlowSteps(copy.steps);
                       setSelectedFlow(copy);
+                      setActiveStep(Object.keys(copy.steps)[0]);
                     }}
                     className={`w-full text-left p-4 rounded-2xl border transition-all flex items-center justify-between group ${selectedFlow?.key === f.key
                         ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm shadow-blue-50/50'
@@ -386,73 +417,49 @@ export default function FlowsPage() {
               </CardHeader>
               <CardContent className="p-8">
                 <div className="flex flex-col gap-4">
-                  <button
-                    onClick={() => setActiveStep('select_plan')}
-                    className={`p-4 rounded-2xl border text-left flex items-start gap-4 transition-all relative ${activeStep === 'select_plan'
-                        ? 'bg-blue-50 border-blue-200 shadow-sm shadow-blue-50'
-                        : 'bg-slate-50/30 border-slate-100 hover:bg-slate-50/50'
-                      }`}
-                  >
-                    <div className={`p-2.5 rounded-xl font-bold text-xs flex items-center justify-center ${activeStep === 'select_plan' ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-200 text-slate-600'
-                      }`}>
-                      1
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold text-slate-700">Escolha do Plano</span>
-                      <span className="text-xs text-slate-400">Básico / Premium / Cancelar</span>
-                    </div>
-                    {activeStep === 'select_plan' && (
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
-                    )}
-                  </button>
+                  {Object.keys(selectedFlow.steps).map((stepKey, index) => (
+                    <React.Fragment key={stepKey}>
+                      <button
+                        onClick={() => setActiveStep(stepKey)}
+                        className={`p-4 rounded-2xl border text-left flex items-start gap-4 transition-all relative ${activeStep === stepKey
+                            ? 'bg-blue-50 border-blue-200 shadow-sm shadow-blue-50'
+                            : 'bg-slate-50/30 border-slate-100 hover:bg-slate-50/50'
+                          }`}
+                      >
+                        <div className={`p-2.5 rounded-xl font-bold text-xs flex items-center justify-center ${activeStep === stepKey ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-200 text-slate-600'
+                          }`}>
+                          {index + 1}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold text-slate-700">
+                             {stepKey === 'select_plan' ? 'Escolha do Plano' :
+                             stepKey === 'select_cycle' ? 'Forma de Pagamento' :
+                             stepKey === 'payment_confirmed' ? 'Boas-Vindas (Plano Ativo)' :
+                             stepKey === 'ask_name' ? 'Acolhimento e Pergunta do Nome' :
+                             stepKey === 'presentation' ? 'Apresentação da MarIA, site, funcionalidades, orientações' :
+                             stepKey}
+                          </span>
+                          <span className="text-xs text-slate-400">
+                            {stepKey === 'select_plan' ? 'Básico / Premium / Cancelar' :
+                             stepKey === 'select_cycle' ? 'Mensal / Anual / Voltar' :
+                             stepKey === 'payment_confirmed' ? 'Mensagem final de sucesso' :
+                             stepKey === 'ask_name' ? 'Início da triagem' :
+                             stepKey === 'presentation' ? 'Final do fluxo de triagem' :
+                             stepKey}
+                          </span>
+                        </div>
+                        {activeStep === stepKey && (
+                          <span className="absolute right-4 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
+                        )}
+                      </button>
 
-                  <div className="flex justify-center my-0">
-                    <ArrowRight className="h-5 w-5 text-slate-300 rotate-90" />
-                  </div>
-
-                  <button
-                    onClick={() => setActiveStep('select_cycle')}
-                    className={`p-4 rounded-2xl border text-left flex items-start gap-4 transition-all relative ${activeStep === 'select_cycle'
-                        ? 'bg-blue-50 border-blue-200 shadow-sm shadow-blue-50'
-                        : 'bg-slate-50/30 border-slate-100 hover:bg-slate-50/50'
-                      }`}
-                  >
-                    <div className={`p-2.5 rounded-xl font-bold text-xs flex items-center justify-center ${activeStep === 'select_cycle' ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-200 text-slate-600'
-                      }`}>
-                      2
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold text-slate-700">Forma de Pagamento</span>
-                      <span className="text-xs text-slate-400">Mensal / Anual / Voltar → Link Asaas</span>
-                    </div>
-                    {activeStep === 'select_cycle' && (
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
-                    )}
-                  </button>
-
-                  <div className="flex justify-center my-0">
-                    <ArrowRight className="h-5 w-5 text-slate-300 rotate-90" />
-                  </div>
-
-                  <button
-                    onClick={() => setActiveStep('payment_confirmed')}
-                    className={`p-4 rounded-2xl border text-left flex items-start gap-4 transition-all relative ${activeStep === 'payment_confirmed'
-                        ? 'bg-blue-50 border-blue-200 shadow-sm shadow-blue-50'
-                        : 'bg-slate-50/30 border-slate-100 hover:bg-slate-50/50'
-                      }`}
-                  >
-                    <div className={`p-2.5 rounded-xl font-bold text-xs flex items-center justify-center ${activeStep === 'payment_confirmed' ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-200 text-slate-600'
-                      }`}>
-                      3
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold text-slate-700">Confirmação de Pagamento</span>
-                      <span className="text-xs text-slate-400">Boas-vindas pós-pagamento</span>
-                    </div>
-                    {activeStep === 'payment_confirmed' && (
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
-                    )}
-                  </button>
+                      {index < Object.keys(selectedFlow.steps).length - 1 && (
+                        <div className="flex justify-center my-0">
+                          <ArrowRight className="h-5 w-5 text-slate-300 rotate-90" />
+                        </div>
+                      )}
+                    </React.Fragment>
+                  ))}
                 </div>
               </CardContent>
             </Card>
@@ -472,18 +479,20 @@ export default function FlowsPage() {
                   </div>
                   <div>
                     <h3 className="text-2xl font-black text-slate-800 tracking-tight">
-                      {activeStep === 'select_plan'
-                        ? 'Etapa 1: Tipo de Plano'
-                        : activeStep === 'select_cycle'
-                        ? 'Etapa 2: Forma de Pagamento'
-                        : 'Etapa 3: Confirmação de Pagamento'}
+                      {activeStep === 'select_plan' ? 'Etapa 1: Escolha do Plano' :
+                       activeStep === 'select_cycle' ? 'Etapa 2: Forma de Pagamento' :
+                       activeStep === 'payment_confirmed' ? 'Mensagem de Boas-Vindas' :
+                       activeStep === 'ask_name' ? 'Etapa 1: Acolhimento e Pergunta do Nome' :
+                       activeStep === 'presentation' ? 'Etapa 2: Apresentação da MarIA, site, funcionalidades, orientações' :
+                       activeStep.replace(/_/g, ' ')}
                     </h3>
                     <p className="text-slate-400 font-bold text-sm mt-1">
-                      {activeStep === 'select_plan'
-                        ? 'Botões Básico, Premium e Cancelar (máx. 3 — nativos no WhatsApp).'
-                        : activeStep === 'select_cycle'
-                        ? 'Botões Mensal, Anual e Voltar. Após a escolha, o link do Asaas é enviado automaticamente.'
-                        : 'Mensagem de boas-vindas enviada no WhatsApp imediatamente após a confirmação do pagamento.'}
+                      {activeStep === 'select_plan' ? 'Botões Básico, Premium e Cancelar (máx. 3 — nativos no WhatsApp).' :
+                       activeStep === 'select_cycle' ? 'As variáveis {tier_label} e {plan_options} serão trocadas no código.' :
+                       activeStep === 'payment_confirmed' ? 'Enviada quando a assinatura é ativada. Use {tier_label}.' :
+                       activeStep === 'ask_name' ? 'Mensagem estática enviada para acolher o usuário e perguntar o nome.' :
+                       activeStep === 'presentation' ? 'Mensagem estática final que detalha o que a IA faz. Use {nome}.' :
+                       'Configure os botões interativos e as opções de texto da etapa selecionada.'}
                     </p>
                   </div>
                 </div>

@@ -6,6 +6,7 @@ import AiSettingsPage from './pages/ai-settings'
 import FlowsPage from './pages/flows'
 import DailyContentPage from './pages/daily-content'
 import WaUsersPage from './pages/wa-users'
+import BroadcastsPage from './pages/broadcasts'
 import PrayersPage from './pages/prayers'
 import LogsPage from './pages/logs'
 import SettingsPage from './pages/settings'
@@ -25,6 +26,7 @@ function App() {
         <Route path="/prayers" element={<PrayersPage />} />
         <Route path="/daily-content" element={<DailyContentPage />} />
         <Route path="/wa-users" element={<WaUsersPage />} />
+        <Route path="/broadcasts" element={<BroadcastsPage />} />
         <Route path="/finance" element={<FinancePage />} />
         
         {/* Fallback routes - to be implemented as needed */}

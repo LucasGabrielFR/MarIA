@@ -1,5 +1,5 @@
 import styled from 'styled-components';
-import { LayoutDashboard, MessageSquare, Settings, Users, Database, LogOut, Brain, Calendar, DollarSign, GitFork } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Settings, Users, Database, LogOut, Brain, Calendar, DollarSign, GitFork, Megaphone } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 const SidebarContainer = styled.aside`
@@ -90,6 +90,10 @@ export function Sidebar() {
         <NavItemLink to="/wa-users" $active={isActive('/wa-users')}>
           <MessageSquare size={20} />
           <span className="font-medium">Gestão de Fiéis</span>
+        </NavItemLink>
+        <NavItemLink to="/broadcasts" $active={isActive('/broadcasts')}>
+          <Megaphone size={20} />
+          <span className="font-medium">Disparos em Massa</span>
         </NavItemLink>
         <NavItemLink to="/finance" $active={isActive('/finance')}>
           <DollarSign size={20} />

@@ -211,7 +211,6 @@ export class AiService implements OnModuleInit {
         status: 'triage_intro', // Novo fluxo começa em triage_intro
         subscription_tier: 'free',
       };
-      if (pushName) insertData.name = pushName;
       if (phone) insertData.phone = phone;
 
       const { data: newUser, error } = await supabase
@@ -264,13 +263,9 @@ export class AiService implements OnModuleInit {
       return { allowed: true };
     }
 
-    // Se for free, não há limite de mensagens (apenas restrição de funcionalidades no processMessage)
-    if (user.subscription_tier === 'free') {
-      return { allowed: true };
-    }
-
     // Limites por tier
     const limits = {
+      free: 20,
       basic: 300,
       premium: 600,
     };
@@ -282,9 +277,10 @@ export class AiService implements OnModuleInit {
     const count = await this.countMonthlyMessages(user.id);
 
     if (count >= monthlyLimit) {
+      const planName = user.subscription_tier === 'free' ? 'Gratuito' : user.subscription_tier === 'basic' ? 'Básico' : 'Premium';
       return {
         allowed: false,
-        reason: `Você atingiu seu limite mensal de ${monthlyLimit} mensagens no plano ${user.subscription_tier === 'basic' ? 'Básico' : 'Premium'}. Seu apoio é fundamental para mantermos a MarIA ativa! Gostaria de fazer um upgrade ou renovar seu plano?`,
+        reason: `Você atingiu seu limite mensal de ${monthlyLimit} mensagens no plano ${planName}. Seu apoio é fundamental para mantermos a MarIA ativa! Gostaria de fazer um upgrade ou renovar seu plano?`,
       };
     }
 
@@ -604,13 +600,7 @@ export class AiService implements OnModuleInit {
       user.name = null;
     }
 
-    // Verificar limites de assinatura antes de processar (exceto triagem)
-    if (!userStatus.startsWith('triage')) {
-      const { allowed, reason } = await this.checkSubscriptionLimits(user);
-      if (!allowed) {
-        return reason || this.promptService.getPrompt('usage_limit_reached');
-      }
-    }
+    // Limites de assinatura foram movidos para depois da triagem e detecção de utilitários
 
     // Salvar a mensagem do usuário (inicialmente is_llm: false)
     const userMessageId = await this.saveMessage(
@@ -626,10 +616,7 @@ export class AiService implements OnModuleInit {
 
     // 1. Triagem Inicial (Nome)
     if (userStatus === 'triage_intro' || userStatus === 'triage_name') {
-      await supabase
-        .from('messages')
-        .update({ is_llm: true })
-        .eq('id', userMessageId);
+      // Removido update de is_llm = true para não consumir cotas na triagem
 
       const extractionNamePrompt = (
         this.promptService.getPrompt('extractor_name') || ''
@@ -654,17 +641,15 @@ export class AiService implements OnModuleInit {
           .update({ ...updateData, status: 'triage_presentation_subscription' })
           .eq('id', userId);
         userStatus = 'triage_presentation_subscription';
+        user.name = updateData.name; // <--- Atualiza na memória para o próximo bloco!
       } else {
-        const triagePromptKey =
-          userStatus === 'triage_intro' ? 'triage_intro' : 'triage_name';
-        const triagePrompt = this.promptService.getPrompt(triagePromptKey);
-
-        const fullSystemPrompt = `${corePersona}\n\nREGRAS ATUAIS:\n${triagePrompt}`;
-        const { content: response, usage } = await this.callOpenRouter(
-          fullSystemPrompt,
-          message,
-        );
-        if (usage) await this.logUsage(userId, usage, this.model);
+        const { data: flowData } = await supabase
+          .from('automatic_flows')
+          .select('steps')
+          .eq('key', 'welcome_flow')
+          .single();
+          
+        const response = flowData?.steps?.['ask_name']?.text || 'Olá! Como você se chama?';
 
         if (userStatus === 'triage_intro') {
           await supabase
@@ -673,37 +658,29 @@ export class AiService implements OnModuleInit {
             .eq('id', userId);
         }
 
-        await this.saveMessage(userId, 'assistant', response, true);
+        await this.saveMessage(userId, 'assistant', response, false);
         return response;
       }
     }
 
     // 2. Apresentação Detalhada
     if (userStatus === 'triage_presentation_subscription') {
-      await supabase
-        .from('messages')
-        .update({ is_llm: true })
-        .eq('id', userMessageId);
+      const { data: flowData } = await supabase
+        .from('automatic_flows')
+        .select('steps')
+        .eq('key', 'welcome_flow')
+        .single();
+        
+      let presentationPrompt = flowData?.steps?.['presentation']?.text || 'Seja bem-vindo(a), {nome}!';
 
-      const presentationPrompt = this.promptService.getPrompt(
-        'detailed_presentation',
-      );
-      const isSubscriber =
-        user.subscription_tier && user.subscription_tier !== 'free';
-      const subscriptionContext = isSubscriber
-        ? '\n\nO usuário JÁ É UM ASSINANTE. Agradeça e não ofereça planos.'
-        : '\n\nO usuário NÃO é assinante. Apresente os planos conforme as regras.';
-
-      const fullSystemPrompt = `${corePersona}${subscriptionContext}\n\nREGRAS DE APRESENTAÇÃO:\n${presentationPrompt}`;
-      const { content: response, usage } = await this.callOpenRouter(
-        fullSystemPrompt,
-        message,
-      );
-      if (usage) await this.logUsage(userId, usage, this.model);
+      const userName = user.name || 'amigo(a)';
+      const response = presentationPrompt
+        .replace(/{{nome}}/gi, userName)
+        .replace(/{nome}/gi, userName);
 
       await Promise.all([
         supabase.from('users').update({ status: 'active' }).eq('id', userId),
-        this.saveMessage(userId, 'assistant', response, true),
+        this.saveMessage(userId, 'assistant', response, false),
       ]);
       return response;
     }
@@ -828,11 +805,12 @@ export class AiService implements OnModuleInit {
     ];
     const isUtility = utilityIntents.includes(intent);
 
-    // Bloqueio Free para não-utilitários (conteúdos que exigem LLM/Processamento caro)
-    if (isFree && !isUtility) {
-      const response = this.promptService.getPrompt('free_tier_block');
-      await this.saveMessage(userId, 'assistant', response, false);
-      return response;
+    // Verificação de Limites: utilitários são isentos, chat normal verifica o limite (incluindo plano gratuito)
+    if (!isUtility) {
+      const { allowed, reason } = await this.checkSubscriptionLimits(user);
+      if (!allowed) {
+        return reason || this.promptService.getPrompt('usage_limit_reached');
+      }
     }
 
     let intentContext = '';

@@ -12,6 +12,7 @@ import { AsaasModule } from './asaas/asaas.module';
 import { CustomerAuthModule } from './customer-auth/customer-auth.module';
 import { MailModule } from './mail/mail.module';
 import { PlansModule } from './plans/plans.module';
+import { BroadcastModule } from './broadcast/broadcast.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { PlansModule } from './plans/plans.module';
     CustomerAuthModule,
     MailModule,
     PlansModule,
+    BroadcastModule,
   ],
   controllers: [],
   providers: [],

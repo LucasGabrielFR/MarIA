@@ -8,7 +8,7 @@ COPY package.json ./
 # Copy frontend workspace and install dependencies
 COPY frontend/package*.json ./frontend/
 WORKDIR /app/frontend
-RUN npm ci
+RUN npm install
 
 # Copy the rest of the frontend source
 COPY frontend/ .
