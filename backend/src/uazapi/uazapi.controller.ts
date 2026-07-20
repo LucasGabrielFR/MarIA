@@ -12,6 +12,14 @@ export class UazapiController {
   // são processadas uma de cada vez, evitando race conditions em estado/DB.
   private readonly userLocks = new Map<string, Promise<void>>();
 
+  // Buffer de mensagens (debouncing) para juntar envios em série (5s de espera)
+  private readonly messageBuffers = new Map<string, {
+    messages: string[];
+    timer: ReturnType<typeof setTimeout>;
+    pushName: string;
+    phoneNumber: string;
+  }>();
+
   constructor(
     private readonly aiService: AiService,
     private readonly uazapiService: UazapiService,
@@ -119,16 +127,42 @@ export class UazapiController {
         }
       }
 
-      // Responde ao webhook imediatamente; processa em background com lock por chatId
-      // para garantir que mensagens do mesmo usuário sejam sequenciais.
-      void this.enqueueForUser(chatId, () =>
-        this.processMessageInBackground(chatId, messageContent, pushName, phoneNumber),
-      );
+      // Adiciona ao buffer para agrupar mensagens sequenciais rápidas (5s de espera)
+      if (this.messageBuffers.has(chatId)) {
+        const buffer = this.messageBuffers.get(chatId)!;
+        buffer.messages.push(messageContent);
+        clearTimeout(buffer.timer);
+        buffer.timer = setTimeout(() => this.flushBuffer(chatId), 5000);
+      } else {
+        this.messageBuffers.set(chatId, {
+          messages: [messageContent],
+          timer: setTimeout(() => this.flushBuffer(chatId), 5000),
+          pushName,
+          phoneNumber,
+        });
+      }
 
       return { status: 'accepted' };
     }
 
     return { status: 'success' };
+  }
+
+  /**
+   * Pega as mensagens acumuladas no buffer de um usuário e envia para processamento
+   */
+  private flushBuffer(chatId: string) {
+    const buffer = this.messageBuffers.get(chatId);
+    if (!buffer) return;
+    this.messageBuffers.delete(chatId);
+
+    const combinedMessage = buffer.messages.join('\n');
+    
+    // Processa em background com lock por chatId para garantir que
+    // mensagens do mesmo usuário sejam processadas em ordem.
+    void this.enqueueForUser(chatId, () =>
+      this.processMessageInBackground(chatId, combinedMessage, buffer.pushName, buffer.phoneNumber),
+    );
   }
 
   /**
@@ -421,15 +455,15 @@ export class UazapiController {
 
   /**
    * Simula o tempo de digitação humano com base no tamanho do texto.
-   * Delay entre 2 e 10 segundos, com fator randômico.
+   * Delay reduzido para respostas mais ágeis.
    */
   private async sleepForTyping(text: string): Promise<void> {
-    const charsPerSecond = 25; // Velocidade de digitação média-rápida
+    const charsPerSecond = 80; // Velocidade de digitação rápida
     const baseDelay = (text.length / charsPerSecond) * 1000;
 
     // Adicionar jitter randômico (+/- 15%)
     const jitter = 0.85 + Math.random() * 0.3;
-    const finalDelay = Math.min(Math.max(baseDelay * jitter, 2000), 10000);
+    const finalDelay = Math.min(Math.max(baseDelay * jitter, 500), 2500);
 
     this.logger.debug(
       `Simulating typing for ${finalDelay.toFixed(0)}ms (${text.length} chars)`,

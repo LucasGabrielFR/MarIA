@@ -71,6 +71,11 @@ export class CronService {
 
     this.logger.log(`Gerando liturgia para ${date}...`);
     const rawLiturgy = await this.liturgyService.getDailyLiturgy(date);
+    if (rawLiturgy === 'Não foi possível obter a liturgia no momento.') {
+      this.logger.warn(`API de liturgia falhou para ${date}. Abortando geração com IA.`);
+      return;
+    }
+
     const formattedDate = new Date(date + 'T12:00:00').toLocaleDateString(
       'pt-BR',
     );

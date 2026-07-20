@@ -698,10 +698,13 @@ export class AiService implements OnModuleInit {
       lowerMsg.includes('leitura de hoje') ||
       lowerMsg.includes('liturgia do dia') ||
       lowerMsg.includes('liturgia de hoje') ||
-      lowerMsg.includes('liturgia diária') ||
       lowerMsg.includes('liturgia diaria')
     ) {
       intent = 'LITURGY';
+    } else if (lowerMsg === 'liturgy_short') {
+      intent = 'LITURGY_SHORT';
+    } else if (lowerMsg === 'liturgy_full') {
+      intent = 'LITURGY_FULL';
     }
     
     // Interceptar intenção de TERÇO
@@ -799,6 +802,8 @@ export class AiService implements OnModuleInit {
     // Lista de intenções de utilidade (cacheáveis e gratuitas)
     const utilityIntents = [
       'LITURGY',
+      'LITURGY_SHORT',
+      'LITURGY_FULL',
       'SAINT_OF_DAY',
       'ROSARY_MYSTERIES',
       'ROSARY_GUIDE',
@@ -828,12 +833,43 @@ export class AiService implements OnModuleInit {
     // Lógica de Contexto por Intenção
     switch (intent) {
       case 'LITURGY':
+        // Tenta buscar o fluxo automático para liturgia
+        const { data: liturgyFlow } = await supabase
+          .from('automatic_flows')
+          .select('steps')
+          .eq('key', 'liturgy_flow')
+          .maybeSingle();
+
+        if (liturgyFlow && liturgyFlow.steps?.choose_format) {
+          // Atualiza status do usuário para não prender no fluxo, pois é só uma escolha simples
+          // Retornamos logo a mensagem interativa.
+          return {
+            type: 'interactive',
+            text: liturgyFlow.steps.choose_format.text,
+            buttons: liturgyFlow.steps.choose_format.buttons,
+          };
+        }
+        
+        // Fallback: Se não houver fluxo configurado, retorna a resumida (cache)
         cachedResponse = await this.getDailyCache('liturgy', targetDate);
         if (!cachedResponse) {
-          cachedResponse =
-            await this.liturgyService.getDailyLiturgy(targetDate);
+          cachedResponse = await this.liturgyService.getDailyLiturgy(targetDate);
         }
         intentContext = `CONTEÚDO DA LITURGIA (${targetDate}):\n${cachedResponse}`;
+        break;
+
+      case 'LITURGY_SHORT':
+        cachedResponse = await this.getDailyCache('liturgy', targetDate);
+        if (!cachedResponse) {
+          cachedResponse = await this.liturgyService.getDailyLiturgy(targetDate);
+        }
+        intentContext = `CONTEÚDO DA LITURGIA (${targetDate}):\n${cachedResponse}`;
+        break;
+
+      case 'LITURGY_FULL':
+        const fullLiturgy = await this.liturgyService.getDailyLiturgy(targetDate);
+        cachedResponse = fullLiturgy;
+        intentContext = `CONTEÚDO DA LITURGIA COMPLETA (${targetDate}):\n${cachedResponse}`;
         break;
       case 'SAINT_OF_DAY':
         cachedResponse = await this.getDailyCache('saint', targetDate);
@@ -858,13 +894,20 @@ export class AiService implements OnModuleInit {
           .update({ is_llm: true })
           .eq('id', userMessageId);
         const promptKey = `intent_${intent.toLowerCase()}`;
-        const { content: magisteriumRes, usage: magUsage } =
-          await this.magisteriumService.query(
-            message,
-            this.promptService.getPrompt(promptKey),
-          );
-        if (magUsage) await this.logUsage(userId, magUsage, this.model);
-        intentContext = `CONTEÚDO DO MAGISTERIUM:\n${magisteriumRes}`;
+        const intentPrompt = this.promptService.getPrompt(promptKey);
+
+        if (user.subscription_tier !== 'free') {
+          const { content: magisteriumRes, usage: magUsage } =
+            await this.magisteriumService.query(
+              message,
+              intentPrompt,
+            );
+          if (magUsage) await this.logUsage(userId, magUsage, 'magisterium-expert');
+          intentContext = `CONTEÚDO DO MAGISTERIUM:\n${magisteriumRes}`;
+        } else {
+          // Usuário gratuito: responde com a LLM padrão baseando-se nas diretrizes do prompt sem gastar Magisterium
+          intentContext = `DIRETRIZ TEOLÓGICA/ESPIRITUAL:\n${intentPrompt}\n\nNota: Responda usando seu próprio conhecimento e treinamento, mantendo a precisão doutrinária e o acolhimento maternal.`;
+        }
         break;
       default:
         // Caso padrão também usa LLM para conversa casual

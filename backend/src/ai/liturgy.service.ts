@@ -2,29 +2,21 @@ import { Injectable, Logger } from '@nestjs/common';
 
 export interface LiturgyData {
   data: string;
-  celebracoes: Array<{
-    id: string;
-    liturgia: string;
-    cor: string;
-    principal: boolean;
-    leituras: Array<{
-      ordem: number;
-      tipo: string;
-      rotulo: string;
-      opcoes: Array<{
-        referencia: string;
-        titulo: string;
-        texto: string;
-        refrao?: string;
-      }>;
-    }>;
-  }>;
+  liturgia: string;
+  cor: string;
+  leituras: {
+    primeiraLeitura?: Array<{ referencia: string; titulo: string; texto: string }>;
+    segundaLeitura?: Array<{ referencia: string; titulo: string; texto: string }>;
+    salmo?: Array<{ referencia: string; refrao: string; texto: string }>;
+    evangelho?: Array<{ referencia: string; titulo: string; texto: string }>;
+    extras?: Array<{ titulo: string; texto: string }>;
+  };
 }
 
 @Injectable()
 export class LiturgyService {
   private readonly logger = new Logger(LiturgyService.name);
-  private readonly apiUrl = 'https://liturgia.up.railway.app/v3/';
+  private readonly apiUrl = 'https://liturgia.up.railway.app/v2/';
 
   async getDailyLiturgy(date?: string): Promise<string> {
     try {
@@ -49,28 +41,59 @@ export class LiturgyService {
   }
 
   private formatLiturgy(data: LiturgyData): string {
-    if (!data.celebracoes || data.celebracoes.length === 0) {
+    if (!data.liturgia) {
       return 'Nenhuma celebração encontrada para hoje.';
     }
 
-    const principal =
-      data.celebracoes.find((c) => c.principal) || data.celebracoes[0];
+    const colorEmojiMap: Record<string, string> = {
+      Verde: '🟢',
+      Vermelho: '🔴',
+      Roxo: '🟣',
+      Branco: '⚪',
+      Rosa: '🌸',
+      Preto: '⚫',
+    };
+    const emoji = data.cor ? colorEmojiMap[data.cor] || '' : '';
+    const corText = emoji ? `${data.cor} ${emoji}` : data.cor;
+
     let formatted = `LITURGIA DE HOJE (${data.data})\n`;
-    formatted += `Celebração: ${principal.liturgia}\n`;
-    formatted += `Cor Litúrgica: ${principal.cor}\n\n`;
+    formatted += `Celebração: ${data.liturgia}\n`;
+    formatted += `Cor Litúrgica: ${corText}\n\n`;
 
-    principal.leituras.forEach((leitura) => {
-      formatted += `--- ${leitura.rotulo} ---\n`;
-      leitura.opcoes.forEach((opcao) => {
-        formatted += `Referência: ${opcao.referencia}\n`;
-        formatted += `Título: ${opcao.titulo}\n`;
-        if (opcao.refrao) {
-          formatted += `Refrão: ${opcao.refrao}\n`;
-        }
-        formatted += `Texto: ${opcao.texto}\n\n`;
-      });
-    });
+    const { leituras } = data;
+    if (!leituras) return formatted;
 
-    return formatted;
+    const sections = [
+      { key: 'primeiraLeitura', label: '1ª Leitura', type: 'reading' },
+      { key: 'salmo', label: 'Salmo', type: 'psalm' },
+      { key: 'segundaLeitura', label: '2ª Leitura', type: 'reading' },
+      { key: 'evangelho', label: 'Evangelho', type: 'gospel' }
+    ];
+
+    for (const section of sections) {
+      const parts = leituras[section.key as keyof typeof leituras];
+      if (parts && Array.isArray(parts) && parts.length > 0) {
+        parts.forEach((p) => {
+          formatted += `*${section.label}*\n`;
+          
+          if (section.type === 'psalm') {
+            if (p.referencia) formatted += `Referência: ${p.referencia}\n`;
+            if (p.refrao) formatted += `*${p.refrao.trim()}*\n\n`;
+            if (p.texto) formatted += `${p.texto.trim()}\n\n`;
+          } else if (section.type === 'gospel') {
+            if (p.referencia) formatted += `Referência: ${p.referencia}\n\n`;
+            if (p.titulo) formatted += `*${p.titulo.trim()}*\n\n`;
+            if (p.texto) formatted += `${p.texto.trim()}\n\n`;
+          } else {
+            if (p.titulo) formatted += `*${p.titulo.trim()}*\n`;
+            if (p.referencia) formatted += `Referência: ${p.referencia}\n\n`;
+            if (p.texto) formatted += `${p.texto.trim()}\n\n`;
+          }
+        });
+      }
+    }
+
+    return formatted.trim();
   }
 }
+
