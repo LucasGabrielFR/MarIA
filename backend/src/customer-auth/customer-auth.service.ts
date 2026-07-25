@@ -7,7 +7,6 @@ import {
 } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { UazapiService } from '../uazapi/uazapi.service';
-import { StripeService } from '../stripe/stripe.service';
 import { AsaasService } from '../asaas/asaas.service';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
@@ -21,7 +20,6 @@ export class CustomerAuthService {
   constructor(
     private supabaseService: SupabaseService,
     private uazapiService: UazapiService,
-    private stripeService: StripeService,
     private asaasService: AsaasService,
     private configService: ConfigService,
     private plansService: PlansService,
@@ -456,7 +454,7 @@ export class CustomerAuthService {
     const { data: user, error: userError } = await this.supabaseService
       .getClient()
       .from('users')
-      .select('id, stripe_customer_id')
+      .select('id, asaas_customer_id')
       .eq('phone', phone)
       .single();
 
@@ -466,9 +464,9 @@ export class CustomerAuthService {
       );
     }
 
-    if (!user.stripe_customer_id) {
+    if (!user.asaas_customer_id) {
       throw new BadRequestException(
-        'Usuário encontrado, mas não possui uma assinatura registrada (Stripe).',
+        'Usuário encontrado, mas não possui uma assinatura registrada.',
       );
     }
 
@@ -544,17 +542,17 @@ export class CustomerAuthService {
     const { data: user, error: userError } = await this.supabaseService
       .getClient()
       .from('users')
-      .select('id, stripe_customer_id')
+      .select('id, asaas_customer_id')
       .eq('id', magicLink.user_id)
       .single();
 
-    if (userError || !user || !user.stripe_customer_id) {
+    if (userError || !user || !user.asaas_customer_id) {
       throw new BadRequestException(
         'Não foi possível encontrar a assinatura atrelada a este número.',
       );
     }
 
-    // 4. Generate Stripe Portal URL
-    return this.stripeService.createCustomerPortalSession(user.id);
+    // 4. Generate Portal URL (Substituted for Asaas or return static for now)
+    return { url: 'https://www.asaas.com/c' }; // Placeholder for Asaas Portal
   }
 }

@@ -109,37 +109,95 @@ export class AiService implements OnModuleInit {
 
       const model = modelOverride || this.model || 'openai/gpt-4o-mini';
 
-      const response = await fetch(
+      const tools = !isJsonMode ? [
+        {
+          type: 'function',
+          function: {
+            name: 'search_web',
+            description: 'Busca notícias e atualidades na internet. Use APENAS quando precisar de informações recentes ou em tempo real (ex: quem é o papa atual).',
+            parameters: {
+              type: 'object',
+              properties: {
+                query: { type: 'string', description: 'O termo de busca otimizado para o buscador' }
+              },
+              required: ['query']
+            }
+          }
+        }
+      ] : undefined;
+
+      const headers = {
+        Authorization: `Bearer ${this.openRouterApiKey}`,
+        'HTTP-Referer': 'https://maria.acutistech.com.br',
+        'X-Title': 'MarIA Assistant',
+        'Content-Type': 'application/json',
+      };
+
+      let response = await fetch(
         'https://openrouter.ai/api/v1/chat/completions',
         {
           method: 'POST',
-          headers: {
-            Authorization: `Bearer ${this.openRouterApiKey}`,
-            'HTTP-Referer': 'https://maria.acutistech.com.br',
-            'X-Title': 'MarIA Assistant',
-            'Content-Type': 'application/json',
-          },
+          headers,
           body: JSON.stringify({
             model,
             messages: messagesPayload,
             response_format: isJsonMode ? { type: 'json_object' } : undefined,
             temperature: isJsonMode ? 0.1 : 0.7,
+            tools,
           }),
           signal: AbortSignal.timeout(30_000),
         },
       );
 
-      const data = await response.json();
+      let data = await response.json();
       if (!response.ok) {
         throw new Error(`OpenRouter API error: ${JSON.stringify(data)}`);
       }
 
-      const content = data.choices?.[0]?.message?.content;
+      // Check for tool calls
+      if (data.choices?.[0]?.message?.tool_calls && data.choices[0].message.tool_calls.length > 0) {
+        const toolCall = data.choices[0].message.tool_calls[0];
+        if (toolCall.function.name === 'search_web') {
+          const args = JSON.parse(toolCall.function.arguments || '{}');
+          
+          this.logger.debug(`Executando busca na web (DuckDuckGo): ${args.query}`);
+          const searchResult = await this.searchWeb(args.query);
+
+          messagesPayload.push(data.choices[0].message);
+          messagesPayload.push({
+            role: 'tool',
+            tool_call_id: toolCall.id,
+            name: 'search_web',
+            content: searchResult
+          });
+
+          // Second call
+          response = await fetch(
+            'https://openrouter.ai/api/v1/chat/completions',
+            {
+              method: 'POST',
+              headers,
+              body: JSON.stringify({
+                model,
+                messages: messagesPayload,
+                temperature: 0.7,
+              }),
+              signal: AbortSignal.timeout(30_000),
+            }
+          );
+          data = await response.json();
+        }
+      }
+
+      let content = data.choices?.[0]?.message?.content;
       if (typeof content !== 'string') {
         throw new Error(
           `OpenRouter retornou resposta inválida (sem choices): ${JSON.stringify(data)}`,
         );
       }
+
+      // Filtrar qualquer resquício de link indesejado caso a IA teime em criar
+      content = content.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
 
       return {
         content,
@@ -148,6 +206,49 @@ export class AiService implements OnModuleInit {
     } catch (error) {
       this.logger.error('Erro ao chamar OpenRouter', error);
       throw error;
+    }
+  }
+
+  /**
+   * Executa busca limpa no DuckDuckGo para fornecer contexto de notícias (Sem links)
+   */
+  private async searchWeb(query: string): Promise<string> {
+    try {
+      if (!query) return "Termo de busca vazio.";
+      // Import dinâmico para não falhar se o pacote não tiver sido buildado ainda
+      const duckduckgo = await import('duck-duck-scrape');
+      
+      // Para evitar dados defasados, adicionamos o ano e mês atual na query
+      const currentYear = new Date().getFullYear();
+      const currentMonth = new Date().getMonth() + 1; // 1-12
+      const enhancedQuery = `${query} ${currentMonth}/${currentYear}`;
+      
+      this.logger.debug(`Busca melhorada com contexto temporal: ${enhancedQuery}`);
+      
+      // Tenta usar a busca de notícias primeiro (searchNews) se existir, senão usa a busca normal com tempo restrito
+      let results;
+      if (typeof duckduckgo.searchNews === 'function') {
+        try {
+          results = await duckduckgo.searchNews(enhancedQuery);
+        } catch (e) {
+          results = await duckduckgo.search(enhancedQuery, { time: 'y' });
+        }
+      } else {
+        results = await duckduckgo.search(enhancedQuery, { time: 'y' });
+      }
+
+      if (!results || !results.results || results.results.length === 0) {
+        return "Nenhum resultado de busca encontrado na internet para esse termo no momento atual.";
+      }
+      
+      // Retorna apenas títulos e resumos para evitar links na resposta da IA
+      return results.results
+        .slice(0, 3)
+        .map(r => `Fonte: ${r.title}\nResumo: ${r.description || r.excerpt || r.body || 'Sem resumo'}`)
+        .join('\n\n---\n\n');
+    } catch (error) {
+      this.logger.error('Erro ao buscar no DuckDuckGo', error);
+      return "Ocorreu um erro ao buscar informações atuais. Continue respondendo com o que você já sabe.";
     }
   }
 
@@ -273,14 +374,30 @@ export class AiService implements OnModuleInit {
     const monthlyLimit =
       limits[user.subscription_tier as keyof typeof limits] ?? 0;
 
-    // Contar mensagens do mês (APENAS as que usaram LLM)
-    const count = await this.countMonthlyMessages(user.id);
+    const isFree = user.subscription_tier === 'free';
+    const count = isFree
+      ? await this.countTotalMessages(user.id)
+      : await this.countMonthlyMessages(user.id);
 
     if (count >= monthlyLimit) {
-      const planName = user.subscription_tier === 'free' ? 'Gratuito' : user.subscription_tier === 'basic' ? 'Básico' : 'Premium';
+      const planName = isFree ? 'Gratuito' : user.subscription_tier === 'basic' ? 'Básico' : 'Premium';
+      
+      let reasonText = '';
+      if (isFree) {
+        const customPrompt = this.promptService.getPrompt('free_tier_block');
+        reasonText = customPrompt 
+          ? customPrompt.replace('{monthlyLimit}', monthlyLimit.toString()) 
+          : `Você atingiu seu limite de ${monthlyLimit} mensagens gratuitas. Seu apoio é fundamental para mantermos a MarIA ativa! Gostaria de fazer uma assinatura e continuar conversando?`;
+      } else {
+        const customPrompt = this.promptService.getPrompt('usage_limit_reached');
+        reasonText = customPrompt
+          ? customPrompt.replace('{monthlyLimit}', monthlyLimit.toString()).replace('{planName}', planName)
+          : `Você atingiu seu limite mensal de ${monthlyLimit} mensagens no plano ${planName}. Seu apoio é fundamental para mantermos a MarIA ativa! Gostaria de fazer um upgrade ou renovar seu plano?`;
+      }
+      
       return {
         allowed: false,
-        reason: `Você atingiu seu limite mensal de ${monthlyLimit} mensagens no plano ${planName}. Seu apoio é fundamental para mantermos a MarIA ativa! Gostaria de fazer um upgrade ou renovar seu plano?`,
+        reason: reasonText,
       };
     }
 
@@ -303,6 +420,24 @@ export class AiService implements OnModuleInit {
 
     if (error) {
       this.logger.error(`Erro ao contar mensagens mensais: ${error.message}`);
+      return 0;
+    }
+
+    return count || 0;
+  }
+
+  private async countTotalMessages(userId: string): Promise<number> {
+    const supabase = this.supabaseService.getClient();
+
+    const { count, error } = await supabase
+      .from('messages')
+      .select('id', { count: 'exact' })
+      .eq('user_id', userId)
+      .eq('role', 'user')
+      .eq('is_llm', true); // Apenas conta interações com IA
+
+    if (error) {
+      this.logger.error(`Erro ao contar mensagens totais: ${error.message}`);
       return 0;
     }
 
@@ -897,16 +1032,19 @@ export class AiService implements OnModuleInit {
         const intentPrompt = this.promptService.getPrompt(promptKey);
 
         if (user.subscription_tier !== 'free') {
+          // 1. Consulta o Magisterium passando a dúvida do usuário
           const { content: magisteriumRes, usage: magUsage } =
             await this.magisteriumService.query(
               message,
-              intentPrompt,
+              'Responda com base no Magistério da Igreja Católica.' // O Magisterium só precisa de uma diretriz técnica, não de persona.
             );
           if (magUsage) await this.logUsage(userId, magUsage, 'magisterium-expert');
-          intentContext = `CONTEÚDO DO MAGISTERIUM:\n${magisteriumRes}`;
+          
+          // 2. Passa o resultado E a diretriz de persona (intentPrompt) para a MarIA traduzir
+          intentContext = `DIRETRIZ DE POSTURA E TRADUÇÃO:\n${intentPrompt}\n\nCONTEÚDO DO MAGISTERIUM (Baseie sua resposta fielmente nisto):\n${magisteriumRes}`;
         } else {
           // Usuário gratuito: responde com a LLM padrão baseando-se nas diretrizes do prompt sem gastar Magisterium
-          intentContext = `DIRETRIZ TEOLÓGICA/ESPIRITUAL:\n${intentPrompt}\n\nNota: Responda usando seu próprio conhecimento e treinamento, mantendo a precisão doutrinária e o acolhimento maternal.`;
+          intentContext = `DIRETRIZ DE POSTURA:\n${intentPrompt}\n\nNota: Responda usando seu próprio conhecimento e treinamento, mantendo a precisão doutrinária e o acolhimento maternal.`;
         }
         break;
       default:

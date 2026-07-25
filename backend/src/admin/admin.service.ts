@@ -163,6 +163,13 @@ export class AdminService {
           .eq('user_id', user.id)
           .eq('role', 'assistant');
 
+        const { count: aiMsgCount } = await supabase
+          .from('messages')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('role', 'user')
+          .eq('is_llm', true);
+
         const totalMessages = (userMsgCount || 0) + (assistantMsgCount || 0);
 
         // Determinação de Perfil de Engajamento (Mantendo lógica baseada em atividade recente)
@@ -193,6 +200,7 @@ export class AdminService {
             total_messages: totalMessages || 0,
             total_user_messages: userMsgCount || 0,
             total_assistant_messages: assistantMsgCount || 0,
+            total_ai_messages: aiMsgCount || 0,
             engagement,
           },
         };

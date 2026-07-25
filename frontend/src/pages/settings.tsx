@@ -191,7 +191,7 @@ export default function SettingsPage() {
     <MainLayout title="Configurações" subtitle="Gerenciamento global do sistema e parâmetros de IA.">
       <div className="space-y-8 max-w-5xl">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <Card className="rounded-3xl border-none shadow-sm bg-white">
+          <Card className="rounded-3xl border-none shadow-sm bg-white overflow-visible">
             <CardHeader className="border-b border-slate-50 pb-6">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 bg-blue-50 text-primary rounded-xl">
@@ -246,7 +246,7 @@ export default function SettingsPage() {
           </Card>
 
           {/* Financial */}
-          <Card className="rounded-3xl border-none shadow-sm bg-white">
+          <Card className="rounded-3xl border-none shadow-sm bg-white overflow-visible">
             <CardHeader className="border-b border-slate-50 pb-6">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 bg-green-50 text-green-600 rounded-xl">

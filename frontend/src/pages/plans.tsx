@@ -89,6 +89,14 @@ export default function PlansPage() {
                   />
                 </div>
                 <div>
+                  <Label>Limite de Mensagens (IA)</Label>
+                  <Input 
+                    type="number" 
+                    value={plan.messages_limit || 0} 
+                    onChange={e => handleUpdatePlan(i, 'messages_limit', parseInt(e.target.value, 10))} 
+                  />
+                </div>
+                <div>
                   <Label>Descrição</Label>
                   <Input 
                     value={plan.description || ''} 

@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils"
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<any>(null);
+  const [waUsers, setWaUsers] = useState<any[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -25,6 +26,19 @@ export default function DashboardPage() {
     };
 
     fetchStats();
+
+    const fetchWaUsers = async () => {
+      try {
+        const response = await fetch(`${API_URL}/admin/wa-users`);
+        const data = await response.json();
+        const sorted = data.sort((a: any, b: any) => (b.metrics?.total_ai_messages || 0) - (a.metrics?.total_ai_messages || 0));
+        setWaUsers(sorted);
+      } catch (error) {
+        console.error('Erro ao buscar usuários do WhatsApp:', error);
+      }
+    };
+
+    fetchWaUsers();
   }, []);
 
   const conversations = stats?.recentConversations || [];
@@ -185,6 +199,81 @@ export default function DashboardPage() {
               </div>
             </div>
           ))}
+        </div>
+      </div>
+
+      <div className="mt-10 bg-white rounded-3xl shadow-sm p-8 border border-slate-100">
+        <h3 className="text-xl font-bold text-slate-800 mb-8">Controle de Uso de IA por Usuário</h3>
+        <div className="overflow-x-auto rounded-xl border border-slate-50">
+          <Table>
+            <TableHeader className="bg-slate-50/50">
+              <TableRow className="hover:bg-transparent border-slate-100">
+                <TableHead className="font-bold">Usuário (Telefone)</TableHead>
+                <TableHead className="font-bold">Plano</TableHead>
+                <TableHead className="text-center font-bold">Mensagens IA Utilizadas</TableHead>
+                <TableHead className="text-center font-bold">Limite</TableHead>
+                <TableHead className="text-center font-bold">Status de Uso</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {waUsers.slice(0, 50).map((user: any) => {
+                const planId = user.context?.plan || 'free';
+                let limit = 20; // free
+                let planName = 'Gratuito';
+                if (planId === 'basic') {
+                  limit = 100;
+                  planName = 'Básico';
+                } else if (planId === 'premium') {
+                  limit = 300;
+                  planName = 'Premium';
+                }
+                const used = user.metrics?.total_ai_messages || 0;
+                const exceeded = used >= limit;
+                const nearLimit = used >= limit * 0.8 && !exceeded;
+
+                return (
+                  <TableRow key={user.id} className="border-slate-50 hover:bg-slate-50/50 transition-all">
+                    <TableCell className="font-medium text-slate-700">
+                      {user.phone_number}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="font-medium text-slate-600 bg-slate-50 border-slate-200">
+                        {planName}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-center font-black text-slate-700">
+                      {used}
+                    </TableCell>
+                    <TableCell className="text-center text-slate-500 font-medium">
+                      {limit}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {exceeded ? (
+                        <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border-none px-3 py-1">
+                          Excedido
+                        </Badge>
+                      ) : nearLimit ? (
+                        <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-none px-3 py-1">
+                          Próximo
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-none px-3 py-1">
+                          Normal
+                        </Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+              {waUsers.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-slate-500 py-8">
+                    Nenhum usuário encontrado.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </div>
       </div>
     </MainLayout>

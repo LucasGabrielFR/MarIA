@@ -117,7 +117,7 @@ export class PlansService implements OnModuleInit {
         cycle: 'monthly',
         name: 'Plano Básico Mensal',
         price: 14.9,
-        messages_limit: 300,
+        messages_limit: 100,
         description: 'Plano Básico Mensal - MarIA'
       },
       {
@@ -126,7 +126,7 @@ export class PlansService implements OnModuleInit {
         cycle: 'annual',
         name: 'Plano Básico Anual',
         price: 154.8,
-        messages_limit: 300,
+        messages_limit: 100,
         description: 'Plano Básico Anual - MarIA'
       },
       {
@@ -135,7 +135,7 @@ export class PlansService implements OnModuleInit {
         cycle: 'monthly',
         name: 'Plano Premium Mensal',
         price: 29.9,
-        messages_limit: 600,
+        messages_limit: 300,
         description: 'Plano Premium Mensal - MarIA'
       },
       {
@@ -144,7 +144,7 @@ export class PlansService implements OnModuleInit {
         cycle: 'annual',
         name: 'Plano Premium Anual',
         price: 322.8,
-        messages_limit: 600,
+        messages_limit: 300,
         description: 'Plano Premium Anual - MarIA'
       }
     ];

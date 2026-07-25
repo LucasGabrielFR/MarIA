@@ -127,7 +127,7 @@ export default function AiSettingsPage() {
       label: 'Especialidades',
       icon: <Zap className="w-5 h-5" />,
       description: 'Como a IA responde a temas específicos (Bíblia, Oração, etc).',
-      keys: ['intent_theology', 'intent_prayer', 'intent_bible', 'intent_liturgy', 'intent_saint', 'intent_rosary', 'intent_advice', 'intent_casual']
+      keys: ['intent_theology', 'intent_prayer', 'intent_bible', 'intent_liturgy', 'intent_saint', 'intent_rosary', 'intent_advice', 'intent_casual', 'intent_info']
     },
     rules: {
       label: 'Segurança',

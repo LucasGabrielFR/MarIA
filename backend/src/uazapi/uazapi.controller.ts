@@ -429,7 +429,6 @@ export class UazapiController {
         const buttons = Array.isArray(interactive.buttons)
           ? interactive.buttons
           : [];
-        await this.sleepForTyping(interactive.text);
         await this.uazapiService.sendInteractiveMessage(
           chatId,
           interactive.text,
@@ -437,11 +436,9 @@ export class UazapiController {
         );
       } else if (Array.isArray(responseText)) {
         for (const text of responseText) {
-          await this.sleepForTyping(text);
           await this.uazapiService.sendMessage(chatId, text);
         }
       } else {
-        await this.sleepForTyping(responseText as string);
         await this.uazapiService.sendMessage(chatId, responseText as string);
       }
 
@@ -458,16 +455,8 @@ export class UazapiController {
    * Delay reduzido para respostas mais ágeis.
    */
   private async sleepForTyping(text: string): Promise<void> {
-    const charsPerSecond = 80; // Velocidade de digitação rápida
-    const baseDelay = (text.length / charsPerSecond) * 1000;
-
-    // Adicionar jitter randômico (+/- 15%)
-    const jitter = 0.85 + Math.random() * 0.3;
-    const finalDelay = Math.min(Math.max(baseDelay * jitter, 500), 2500);
-
-    this.logger.debug(
-      `Simulating typing for ${finalDelay.toFixed(0)}ms (${text.length} chars)`,
-    );
-    await new Promise((resolve) => setTimeout(resolve, finalDelay));
+    // Delay artificial removido para agilizar as respostas.
+    // O estado de 'composing' já é enviado antes do processamento da IA.
+    return;
   }
 }
