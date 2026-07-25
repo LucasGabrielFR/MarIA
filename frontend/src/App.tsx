@@ -12,6 +12,7 @@ import LogsPage from './pages/logs'
 import SettingsPage from './pages/settings'
 import FinancePage from './pages/finance'
 import PlansPage from './pages/plans'
+import ScheduledMessagesPage from './pages/scheduled-messages'
 import { Toaster } from "@/components/ui/sonner"
 
 function App() {
@@ -27,6 +28,7 @@ function App() {
         <Route path="/daily-content" element={<DailyContentPage />} />
         <Route path="/wa-users" element={<WaUsersPage />} />
         <Route path="/broadcasts" element={<BroadcastsPage />} />
+        <Route path="/scheduled-messages" element={<ScheduledMessagesPage />} />
         <Route path="/finance" element={<FinancePage />} />
         
         {/* Fallback routes - to be implemented as needed */}

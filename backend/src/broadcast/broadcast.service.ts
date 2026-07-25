@@ -2,6 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { SupabaseService } from '../supabase/supabase.service';
 import { UazapiService } from '../uazapi/uazapi.service';
+import { AiService } from '../ai/ai.service';
+import { PromptService } from '../ai/prompt.service';
+import { LiturgyService } from '../ai/liturgy.service';
 
 @Injectable()
 export class BroadcastService {
@@ -11,6 +14,9 @@ export class BroadcastService {
   constructor(
     private readonly supabaseService: SupabaseService,
     private readonly uazapiService: UazapiService,
+    private readonly aiService: AiService,
+    private readonly promptService: PromptService,
+    private readonly liturgyService: LiturgyService,
   ) {}
 
   async createJob(name: string, messageText: string, userIds: string[]) {
@@ -92,7 +98,7 @@ export class BroadcastService {
       
       const { data: pendingMessages, error: pendingError } = await supabase
         .from('broadcast_messages')
-        .select('id, job_id, wa_chatid, user_id, broadcast_jobs!inner(message_text, status)')
+        .select('id, job_id, wa_chatid, user_id, broadcast_jobs!inner(name, message_text, status)')
         .eq('status', 'pending')
         .eq('broadcast_jobs.status', 'pending')
         .order('created_at', { ascending: true })
@@ -132,12 +138,78 @@ export class BroadcastService {
 
           const userName = user?.name || 'amigo(a)';
           const rawText = (msg.broadcast_jobs as any).message_text;
-          const textToSend = rawText
-            .replace(/{{nome}}/gi, userName)
-            .replace(/{nome}/gi, userName);
+          const jobName = (msg.broadcast_jobs as any).name || '';
+          
+          let textToSend = rawText;
+          let buttonsToAttach: any[] = [];
+          let buttonText = "Escolha uma opção:";
+          
+          if (jobName.startsWith('[ai_sched|')) {
+            try {
+              const config = JSON.parse(rawText);
+              const today = new Date().toISOString().split('T')[0];
+              let contextForPrompt: Record<string, string> = {};
+              
+              for (const tool of (config.tools || [])) {
+                if (tool.type === 'liturgy') {
+                  if (tool.option === 'menu') {
+                    const { data: flow } = await supabase.from('automatic_flows').select('steps').eq('key', 'liturgy_flow').single();
+                    if (flow?.steps?.choose_format?.buttons) {
+                      buttonsToAttach = flow.steps.choose_format.buttons;
+                      if (flow.steps.choose_format.text) {
+                        buttonText = flow.steps.choose_format.text;
+                      }
+                    }
+                  } else if (tool.option === 'short' || tool.option === 'full') {
+                    // For short/full, we just fetch the text and let AI summarize/handle it based on the prompt.
+                    // (Full optimizations like grabbing from cache for short could be added later).
+                    const liturgyText = await this.liturgyService.getDailyLiturgy(today);
+                    contextForPrompt['{liturgia}'] = liturgyText;
+                  }
+                } else if (tool.type === 'context') {
+                  const { data: recentMsgs } = await supabase
+                    .from('messages')
+                    .select('content, role')
+                    .eq('user_id', msg.user_id)
+                    .order('created_at', { ascending: false })
+                    .limit(10);
+                  const contextStr = recentMsgs?.reverse().map(m => `${m.role}: ${m.content}`).join('\n') || 'Sem histórico recente.';
+                  contextForPrompt['{contexto}'] = contextStr;
+                }
+              }
 
-          // Enviar via Uazapi
-          const sent = await this.uazapiService.sendMessage(msg.wa_chatid, textToSend);
+              let prompt = config.prompt || '';
+              prompt = prompt
+                .replace(/{{nome}}/gi, userName)
+                .replace(/{nome}/gi, userName);
+                
+              for (const [tag, val] of Object.entries(contextForPrompt)) {
+                prompt = prompt.replace(new RegExp(tag, 'gi'), val);
+              }
+              
+              const corePersona = this.promptService.getCorePersona();
+              const fullSystemPrompt = `${corePersona}\n\nData atual: Hoje é ${today}.`;
+              
+              const { content } = await this.aiService.callOpenRouter(fullSystemPrompt, prompt);
+              textToSend = content;
+            } catch (e) {
+              this.logger.error(`Error processing dynamic AI scheduled message: ${e.message}`);
+              throw new Error('Erro ao processar prompt da campanha dinâmica.');
+            }
+          } else {
+            textToSend = textToSend
+              .replace(/{{nome}}/gi, userName)
+              .replace(/{nome}/gi, userName);
+          }
+
+          // Enviar texto da IA (ou texto normal) via Uazapi
+          let sent = await this.uazapiService.sendMessage(msg.wa_chatid, textToSend);
+          
+          // Se houver botões anexados, enviá-los como uma segunda mensagem separada
+          if (sent && buttonsToAttach.length > 0) {
+            sent = await this.uazapiService.sendInteractiveMessage(msg.wa_chatid, buttonText, buttonsToAttach);
+          }
+          
           if (!sent) {
             finalStatus = 'failed';
             errorMessage = 'UazapiService retornou false.';

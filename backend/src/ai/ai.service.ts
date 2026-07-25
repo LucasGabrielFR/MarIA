@@ -367,8 +367,8 @@ export class AiService implements OnModuleInit {
     // Limites por tier
     const limits = {
       free: 20,
-      basic: 300,
-      premium: 600,
+      basic: 100,
+      premium: 300,
     };
 
     const monthlyLimit =

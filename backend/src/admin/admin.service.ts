@@ -163,12 +163,24 @@ export class AdminService {
           .eq('user_id', user.id)
           .eq('role', 'assistant');
 
-        const { count: aiMsgCount } = await supabase
+        const plan = user.subscription_tier || 'free';
+        const isFree = plan === 'free';
+
+        let aiMsgQuery = supabase
           .from('messages')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', user.id)
           .eq('role', 'user')
           .eq('is_llm', true);
+
+        if (!isFree) {
+          const firstDayOfMonth = new Date();
+          firstDayOfMonth.setDate(1);
+          firstDayOfMonth.setHours(0, 0, 0, 0);
+          aiMsgQuery = aiMsgQuery.gte('created_at', firstDayOfMonth.toISOString());
+        }
+
+        const { count: aiMsgCount } = await aiMsgQuery;
 
         const totalMessages = (userMsgCount || 0) + (assistantMsgCount || 0);
 

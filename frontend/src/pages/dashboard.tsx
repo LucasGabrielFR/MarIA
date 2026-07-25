@@ -217,8 +217,8 @@ export default function DashboardPage() {
             </TableHeader>
             <TableBody>
               {waUsers.slice(0, 50).map((user: any) => {
-                const planId = user.context?.plan || 'free';
-                let limit = 20; // free
+                const planId = user.subscription_tier || 'free';
+                let limit: number | string = 20;
                 let planName = 'Gratuito';
                 if (planId === 'basic') {
                   limit = 100;
@@ -226,15 +226,21 @@ export default function DashboardPage() {
                 } else if (planId === 'premium') {
                   limit = 300;
                   planName = 'Premium';
+                } else if (planId === 'unlimited') {
+                  limit = '∞';
+                  planName = 'Ilimitado';
+                } else if (planId === 'admin') {
+                  limit = '∞';
+                  planName = 'Admin';
                 }
                 const used = user.metrics?.total_ai_messages || 0;
-                const exceeded = used >= limit;
-                const nearLimit = used >= limit * 0.8 && !exceeded;
+                const exceeded = typeof limit === 'number' ? used >= limit : false;
+                const nearLimit = typeof limit === 'number' ? used >= limit * 0.8 && !exceeded : false;
 
                 return (
                   <TableRow key={user.id} className="border-slate-50 hover:bg-slate-50/50 transition-all">
                     <TableCell className="font-medium text-slate-700">
-                      {user.phone_number}
+                      {user.name ? `${user.name} (${user.phone || user.phone_number})` : (user.phone || user.phone_number)}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="font-medium text-slate-600 bg-slate-50 border-slate-200">

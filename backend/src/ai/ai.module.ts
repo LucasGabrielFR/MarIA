@@ -9,6 +9,7 @@ import { CronService } from './cron.service';
 import { EmbeddingService } from './embedding.service';
 import { AiController } from './ai.controller';
 import { DailyCacheController } from './daily-cache.controller';
+import { ScheduledMessagesService } from './scheduled-messages.service';
 import { SupabaseModule } from '../supabase/supabase.module';
 import { AdminModule } from '../admin/admin.module';
 import { PlansModule } from '../plans/plans.module';
@@ -24,6 +25,7 @@ import { PlansModule } from '../plans/plans.module';
     SaintService,
     CronService,
     EmbeddingService,
+    ScheduledMessagesService,
   ],
   exports: [
     AiService,
@@ -33,6 +35,7 @@ import { PlansModule } from '../plans/plans.module';
     SaintService,
     CronService,
     EmbeddingService,
+    ScheduledMessagesService,
   ],
 })
 export class AiModule {}
