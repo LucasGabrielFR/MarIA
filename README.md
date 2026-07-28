@@ -52,6 +52,7 @@
   - **Injeção de Contexto Teológico:** Integração nativa com **Magisterium AI** e Cache Semântico local.
 - **Supabase:** Postgres com extensões `vector` para busca por similaridade. Utilizado para a gestão de Prompts Dinâmicos, Cache Diário e Cache Semântico Global.
 - **Frontend (Admin):** Vite + React + Tailwind CSS v4 + shadcn/ui.
+- **Landing Page:** Next.js (React) + Tailwind CSS v4 para conversão, onboarding seguro e ativação de assinaturas.
 
 ## 🏃 Como Rodar o Projeto
 
@@ -59,7 +60,7 @@ Para agilizar o desenvolvimento, configuramos um orquestrador na raiz que inicia
 
 ### Pré-requisitos
 - Node.js instalado
-- Dependências instaladas em ambas as pastas (`frontend` e `backend`)
+- Dependências instaladas (você pode usar `npm run install:all` na raiz para instalar as dependências de todos os serviços: `backend`, `frontend` e `landing`).
 
 ### Execução em Desenvolvimento
 Na raiz do projeto, você pode usar um dos seguintes comandos:
@@ -68,7 +69,7 @@ Na raiz do projeto, você pode usar um dos seguintes comandos:
 - **Via Windows (Powershell):** `./dev.ps1`
 - **Via Windows (CMD/Batch):** `dev.bat`
 
-Isso iniciará o Vite (Frontend) na porta padrão e o NestJS (Backend) com hot-reload.
+Isso iniciará o Vite (Frontend) na porta padrão e o NestJS (Backend) com hot-reload. Para a Landing Page, inicie separadamente acessando a pasta `landing` e rodando `npm run dev`.
 
 ### Execução em Servidor (VPS) via Docker (Recomendado)
 Para realizar o deploy em um servidor VPS de forma isolada, limpa e padronizada, o projeto possui suporte oficial a Docker e Docker Compose.

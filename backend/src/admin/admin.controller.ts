@@ -8,6 +8,7 @@ import {
   Post,
   Headers,
   Delete,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { PlansService } from '../plans/plans.service';
@@ -145,6 +146,7 @@ export class AdminController {
     @Body('isPaused') isPaused: boolean,
     @Body('monthlyLimitBrl') monthlyLimitBrl: number | null,
     @Body('name') name: string,
+    @Body('gender') gender: string | null,
     @Body('status') status: string,
     @Headers('x-admin-id') adminId: string,
   ) {
@@ -154,6 +156,7 @@ export class AdminController {
       isPaused,
       monthlyLimitBrl,
       name,
+      gender,
       status,
     );
   }
@@ -219,5 +222,38 @@ export class AdminController {
     if (!adminId) throw new Error('Unauthorized');
     return this.plansService.updatePlan(id, body);
   }
-}
+  // Mensagens Agendadas (Scheduled Messages)
+  @Get('scheduled-messages')
+  async getScheduledMessages(@Headers('x-admin-id') adminId: string) {
+    if (!adminId) throw new UnauthorizedException();
+    return this.adminService.getScheduledMessages();
+  }
 
+  @Post('scheduled-messages')
+  async createScheduledMessage(
+    @Headers('x-admin-id') adminId: string,
+    @Body() body: any,
+  ) {
+    if (!adminId) throw new UnauthorizedException();
+    return this.adminService.createScheduledMessage(adminId, body);
+  }
+
+  @Patch('scheduled-messages/:id')
+  async updateScheduledMessage(
+    @Headers('x-admin-id') adminId: string,
+    @Param('id') id: string,
+    @Body() body: any,
+  ) {
+    if (!adminId) throw new UnauthorizedException();
+    return this.adminService.updateScheduledMessage(adminId, id, body);
+  }
+
+  @Delete('scheduled-messages/:id')
+  async deleteScheduledMessage(
+    @Headers('x-admin-id') adminId: string,
+    @Param('id') id: string,
+  ) {
+    if (!adminId) throw new UnauthorizedException();
+    return this.adminService.deleteScheduledMessage(adminId, id);
+  }
+}

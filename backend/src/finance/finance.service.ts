@@ -342,7 +342,6 @@ export class FinanceService {
       .from('users')
       .update({
         subscription_tier: tier,
-        plan_tier: tier,
         subscription_expires_at: expiresAt.toISOString(),
         updated_at: new Date().toISOString(),
       })

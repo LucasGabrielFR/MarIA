@@ -86,6 +86,20 @@ export class UazapiController {
       // Extrair o chatId
       if (!chatId) return { status: 'missing_chatid' };
 
+      // Detectar se é reação
+      const isReaction = !!(
+        messageData.message?.reactionMessage ||
+        messageData.messageType === 'reactionMessage' ||
+        messageData.type === 'reaction' ||
+        messageData.wa_lastMessageType === 'ReactionMessage' ||
+        payload.wa_lastMessageType === 'ReactionMessage' ||
+        payload.type === 'reaction'
+      );
+
+      if (isReaction) {
+        return { status: 'ignored_reaction' };
+      }
+
       // Detectar se é áudio
       const isAudio = !!(
         messageData.message?.audioMessage ||
@@ -127,16 +141,16 @@ export class UazapiController {
         }
       }
 
-      // Adiciona ao buffer para agrupar mensagens sequenciais rápidas (5s de espera)
+      // Adiciona ao buffer para agrupar mensagens sequenciais rápidas (10s de espera)
       if (this.messageBuffers.has(chatId)) {
         const buffer = this.messageBuffers.get(chatId)!;
         buffer.messages.push(messageContent);
         clearTimeout(buffer.timer);
-        buffer.timer = setTimeout(() => this.flushBuffer(chatId), 5000);
+        buffer.timer = setTimeout(() => this.flushBuffer(chatId), 10000);
       } else {
         this.messageBuffers.set(chatId, {
           messages: [messageContent],
-          timer: setTimeout(() => this.flushBuffer(chatId), 5000),
+          timer: setTimeout(() => this.flushBuffer(chatId), 10000),
           pushName,
           phoneNumber,
         });
@@ -320,7 +334,6 @@ export class UazapiController {
             .update({
               asaas_subscription_id: asaasSubscriptionId,
               subscription_tier: planTier,
-              plan_tier: planTier,
               asaas_customer_id: asaasCustomerId,
               subscription_expires_at: expiresAt.toISOString(),
               origin: 'web', // Marca a origem do faturamento como web
@@ -344,7 +357,6 @@ export class UazapiController {
                 wa_chatid: chatId,
                 name: pushName || `Cliente MarIA`,
                 subscription_tier: planTier,
-                plan_tier: planTier,
                 asaas_subscription_id: asaasSubscriptionId,
                 asaas_customer_id: asaasCustomerId,
                 subscription_expires_at: expiresAt.toISOString(),

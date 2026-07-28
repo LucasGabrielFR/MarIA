@@ -313,7 +313,7 @@ export class CustomerAuthService {
 
     // 3. Keep current active paid subscriptions in the database as 'paid' because the period is already paid for!
     // Instead, we only update the user's local record to set asaas_subscription_id to null (stopping future recurrence management),
-    // but preserving subscription_tier, plan_tier, and subscription_expires_at so they keep their active access until the period naturally expires.
+    // but preserving subscription_tier, and subscription_expires_at so they keep their active access until the period naturally expires.
     const { data: updatedUser, error: updateError } = await this.supabaseService
       .getClient()
       .from('users')
@@ -404,7 +404,6 @@ export class CustomerAuthService {
       .from('users')
       .update({
         subscription_tier: tier,
-        plan_tier: tier,
         subscription_expires_at: expiresAt.toISOString(),
         updated_at: new Date().toISOString(),
       })

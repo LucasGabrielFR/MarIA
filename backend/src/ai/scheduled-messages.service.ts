@@ -1,10 +1,10 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { SupabaseService } from '../supabase/supabase.service';
 import { AdminService } from '../admin/admin.service';
 
 @Injectable()
-export class ScheduledMessagesService implements OnModuleInit {
+export class ScheduledMessagesService {
   private readonly logger = new Logger(ScheduledMessagesService.name);
 
   constructor(
@@ -12,68 +12,39 @@ export class ScheduledMessagesService implements OnModuleInit {
     private readonly adminService: AdminService,
   ) {}
 
-  async onModuleInit() {
-    await this.ensureSettingsExist();
-  }
-
-  private async ensureSettingsExist() {
-    const supabase = this.supabaseService.getClient();
-    const { data } = await supabase
-      .from('system_settings')
-      .select('value')
-      .eq('key', 'scheduled_ai_messages')
-      .single();
-
-    let parsedValue: any = null;
-    if (data && data.value) {
-      try {
-        parsedValue = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
-      } catch (e) {}
-    }
-
-    if (!parsedValue || !Array.isArray(parsedValue)) {
-      const defaultSettings = [
-        {
-          id: 'morning-default',
-          name: 'Bom Dia',
-          time: '08:00',
-          prompt: 'Esta é uma mensagem matinal. Deseje um ótimo dia para o usuário usando o nome dele. Diga que Deus o abençoe e que você (Eu, Nossa Senhora) estará sempre com ele ao longo de hoje.\nFaça um convite amoroso para que ele se lembre de Deus no meio das atividades, propondo um pequeno desafio para hoje: rezar um terço, uma Ave Maria ou fazer um pequeno ato de amor ao próximo, fique livre para decidir o desafio diário.\nPor fim, informe que a liturgia de hoje será enviada logo abaixo para que ele possa meditar.',
-          audience: ['basic', 'premium', 'unlimited'],
-          tools: [{ id: 'liturgy', option: 'menu' }]
-        }
-      ];
-
-      await supabase.from('system_settings').upsert({
-        key: 'scheduled_ai_messages',
-        value: JSON.stringify(defaultSettings),
-        description: 'Configurações de horário e prompt para envio agendado de IA',
-      }, { onConflict: 'key' });
-      this.logger.log('Configurações default de scheduled_ai_messages criadas.');
-    }
-  }
 
   @Cron(CronExpression.EVERY_MINUTE)
   async checkScheduledMessages() {
     try {
-      const supabase = this.supabaseService.getClient();
-      const { data: settingsRow } = await supabase
-        .from('system_settings')
-        .select('value')
-        .eq('key', 'scheduled_ai_messages')
-        .single();
-
-      if (!settingsRow || !settingsRow.value) return;
-
-      const settings = Array.isArray(settingsRow.value) ? settingsRow.value : [];
       const now = new Date();
-      const currentHour = now.getHours().toString().padStart(2, '0');
-      const currentMinute = now.getMinutes().toString().padStart(2, '0');
-      const currentTime = `${currentHour}:${currentMinute}`;
+      const formatter = new Intl.DateTimeFormat('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      });
+      
+      let currentTime = formatter.format(now);
+      if (currentTime.startsWith('24:')) {
+        currentTime = '00:' + currentTime.substring(3);
+      }
 
-      for (const campaign of settings) {
-        if (campaign.time === currentTime) {
-          await this.queueBroadcast(campaign);
-        }
+      const supabase = this.supabaseService.getClient();
+      const { data: campaigns, error } = await supabase
+        .from('scheduled_messages')
+        .select('*')
+        .eq('time', currentTime)
+        .eq('is_active', true);
+
+      if (error) {
+        this.logger.error('Erro ao buscar mensagens agendadas', error);
+        return;
+      }
+
+      if (!campaigns || campaigns.length === 0) return;
+
+      for (const campaign of campaigns) {
+        await this.queueBroadcast(campaign);
       }
     } catch (error) {
       this.logger.error('Erro ao checar mensagens agendadas', error);
@@ -84,16 +55,20 @@ export class ScheduledMessagesService implements OnModuleInit {
     this.logger.log(`Iniciando enfileiramento de broadcast agendado: ${campaign.name}`);
     const supabase = this.supabaseService.getClient();
 
-    const { data: allUsers } = await supabase
+    const { data: allUsers, error } = await supabase
       .from('users')
-      .select('id, wa_chatid, user_contexts(plan)')
+      .select('id, wa_chatid, subscription_tier')
       .not('wa_chatid', 'is', null);
+
+    if (error) {
+      this.logger.error('Erro ao buscar usuários para broadcast agendado', error);
+      return;
+    }
 
     if (!allUsers) return;
 
     const eligibleUsers = allUsers.filter(u => {
-      const contexts = Array.isArray(u.user_contexts) ? u.user_contexts : [u.user_contexts];
-      const plan = contexts[0]?.plan || 'free';
+      const plan = u.subscription_tier || 'free';
       return campaign.audience && campaign.audience.includes(plan);
     });
 

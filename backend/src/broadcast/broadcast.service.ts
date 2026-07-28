@@ -130,9 +130,10 @@ export class BroadcastService {
 
         try {
           // Precisamos carregar o nome do usuário para substituir {nome}
+          // Precisamos carregar o nome e gênero do usuário para substituir {nome} e contextualizar a IA
           const { data: user } = await supabase
             .from('users')
-            .select('name')
+            .select('name, gender')
             .eq('id', msg.user_id)
             .single();
 
@@ -187,10 +188,18 @@ export class BroadcastService {
                 prompt = prompt.replace(new RegExp(tag, 'gi'), val);
               }
               
+              let genderContext = '';
+              if (user?.gender === 'M') {
+                genderContext = `O gênero do destinatário é MASCULINO. Trate-o por pronomes masculinos.`;
+              } else if (user?.gender === 'F') {
+                genderContext = `O gênero do destinatário é FEMININO. Trate-a por pronomes femininos.`;
+              }
+
               const corePersona = this.promptService.getCorePersona();
-              const fullSystemPrompt = `${corePersona}\n\nData atual: Hoje é ${today}.`;
+              const fullSystemPrompt = `${corePersona}\n\nData atual: Hoje é ${today}.\n\nINSTRUÇÕES IMPORTANTES DE PERSONALIZAÇÃO:\n- Escreva esta mensagem de forma ÚNICA e EXCLUSIVA para este usuário.\n- Mude a estrutura, escolha palavras diferentes e traga uma pequena variação na reflexão em relação a outras mensagens do mesmo tema.\n- O destinatário chama-se: ${userName}.\n- ${genderContext}`;
               
-              const { content } = await this.aiService.callOpenRouter(fullSystemPrompt, prompt);
+              // Aumentamos a temperatura para 0.9 para gerar mais diversidade nas mensagens em massa
+              const { content } = await this.aiService.callOpenRouter(fullSystemPrompt, prompt, false, [], undefined, 0.9);
               textToSend = content;
             } catch (e) {
               this.logger.error(`Error processing dynamic AI scheduled message: ${e.message}`);

@@ -92,6 +92,7 @@ export class AiService implements OnModuleInit {
     isJsonMode = false,
     history: any[] = [],
     modelOverride?: string,
+    temperatureOverride?: number,
   ): Promise<{
     content: string;
     usage?: {
@@ -109,12 +110,16 @@ export class AiService implements OnModuleInit {
 
       const model = modelOverride || this.model || 'openai/gpt-4o-mini';
 
-      const tools = !isJsonMode ? [
+      // Configuração para ferramentas (DuckDuckGo Search)
+      // Só ativamos ferramentas em certas condições (ex: não json, chat normal, não utilitário)
+      // Aqui vamos ativar para o model default e flash, e evitar em json mode
+      const useTools = !isJsonMode && (model.includes('gpt') || model.includes('gemini'));
+      const tools = useTools ? [
         {
           type: 'function',
           function: {
             name: 'search_web',
-            description: 'Busca notícias e atualidades na internet. Use APENAS quando precisar de informações recentes ou em tempo real (ex: quem é o papa atual).',
+            description: 'Pesquisa informações recentes, notícias ou fatos atuais na internet.',
             parameters: {
               type: 'object',
               properties: {
@@ -133,6 +138,9 @@ export class AiService implements OnModuleInit {
         'Content-Type': 'application/json',
       };
 
+      const defaultTemp = isJsonMode ? 0.1 : 0.7;
+      const temperature = temperatureOverride !== undefined ? temperatureOverride : defaultTemp;
+
       let response = await fetch(
         'https://openrouter.ai/api/v1/chat/completions',
         {
@@ -142,7 +150,7 @@ export class AiService implements OnModuleInit {
             model,
             messages: messagesPayload,
             response_format: isJsonMode ? { type: 'json_object' } : undefined,
-            temperature: isJsonMode ? 0.1 : 0.7,
+            temperature: temperature,
             tools,
           }),
           signal: AbortSignal.timeout(30_000),
@@ -771,12 +779,16 @@ export class AiService implements OnModuleInit {
       }
 
       if (nameFound) {
+        updateData.gender = await this.extractGenderFromName(updateData.name);
+
         await supabase
           .from('users')
           .update({ ...updateData, status: 'triage_presentation_subscription' })
           .eq('id', userId);
         userStatus = 'triage_presentation_subscription';
         user.name = updateData.name; // <--- Atualiza na memória para o próximo bloco!
+        user.gender = updateData.gender;
+
       } else {
         const { data: flowData } = await supabase
           .from('automatic_flows')
@@ -1105,8 +1117,17 @@ export class AiService implements OnModuleInit {
     const history = await this.getChatHistory(userId);
     const summary = user.general_summary || 'Sem resumo.';
     const userNameContext = user.name ? `O nome do usuário com quem você está falando é: ${user.name}. Use esse nome se for natural no diálogo.` : '';
+    let genderContext = '';
+    if (user.gender === 'M') {
+      genderContext = `O gênero do usuário é MASCULINO. Trate-o por pronomes masculinos (ex: "meu querido filho", "amigo").`;
+    } else if (user.gender === 'F') {
+      genderContext = `O gênero do usuário é FEMININO. Trate-a por pronomes femininos (ex: "minha querida filha", "amiga").`;
+    } else {
+      genderContext = `O gênero do usuário é DESCONHECIDO. Use uma linguagem neutra ou acolhedora sem especificar gênero.`;
+    }
+
     const todayStr = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-    const fullSystemPrompt = `${corePersona}\n\nData atual: Hoje é ${todayStr}.\n\nCONTEXTO:\n${summary}\n${userNameContext}\n\nINTENÇÃO:\n${intentContext}\n\nResponda com amor maternal.`;
+    const fullSystemPrompt = `${corePersona}\n\nData atual: Hoje é ${todayStr}.\n\nCONTEXTO:\n${summary}\n${userNameContext}\n${genderContext}\n\nINTENÇÃO:\n${intentContext}\n\nResponda com amor maternal.`;
 
     const { content: response, usage } = await this.callOpenRouter(
       fullSystemPrompt,
@@ -1727,5 +1748,26 @@ export class AiService implements OnModuleInit {
     // Default fallback
     await supabase.from('users').update({ status: 'active' }).eq('id', user.id);
     return 'Desculpe, ocorreu um erro inesperado no fluxo de assinatura. O fluxo foi reiniciado.';
+  }
+
+  /**
+   * Extrai o gênero a partir do nome usando LLM.
+   */
+  async extractGenderFromName(name: string): Promise<'M' | 'F' | 'N'> {
+    if (!name || name.trim() === '') return 'N';
+    const prompt = `Analise o seguinte nome: "${name}". Responda APENAS com a letra "M" se for tipicamente masculino, "F" se for tipicamente feminino, ou "N" se não for possível determinar (ex: unissex, sobrenome apenas, apelido ambíguo). Não escreva mais nada além da letra.`;
+    try {
+      const { content } = await this.callOpenRouter(
+        'Você é um assistente especialista em identificar gênero por nomes. Responda APENAS com uma letra maiúscula.',
+        prompt,
+        false
+      );
+      const res = content.trim().toUpperCase();
+      if (res === 'M' || res === 'F' || res === 'N') return res;
+      return 'N';
+    } catch (e) {
+      this.logger.error(`Error extracting gender for name ${name}`, e);
+      return 'N';
+    }
   }
 }

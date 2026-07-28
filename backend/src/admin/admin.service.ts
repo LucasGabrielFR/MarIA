@@ -806,6 +806,7 @@ export class AdminService {
     isPaused: boolean,
     monthlyLimitBrl: number | null,
     name?: string,
+    gender?: string | null,
     status?: string,
   ) {
     const requester = await this.getRequesterAdmin(adminId);
@@ -814,7 +815,7 @@ export class AdminService {
     // Busca usuário alvo
     const { data: targetUser } = await supabase
       .from('users')
-      .select('name, phone, is_paused, monthly_limit_brl, status')
+      .select('name, phone, is_paused, monthly_limit_brl, status, gender')
       .eq('id', userId)
       .single();
 
@@ -826,6 +827,10 @@ export class AdminService {
     
     if (name !== undefined) {
       updateData.name = name;
+    }
+
+    if (gender !== undefined) {
+      updateData.gender = gender;
     }
     
     if (status !== undefined) {
@@ -1086,5 +1091,119 @@ export class AdminService {
     const { data, error } = await query.limit(200);
     if (error) throw error;
     return data;
+  }
+
+  // --- Scheduled Messages CRUD ---
+  async getScheduledMessages() {
+    const supabase = this.supabaseService.getClient();
+    const { data, error } = await supabase
+      .from('scheduled_messages')
+      .select('*')
+      .order('time', { ascending: true });
+
+    if (error) throw error;
+    return data;
+  }
+
+  async createScheduledMessage(adminId: string, payload: any) {
+    const requester = await this.getRequesterAdmin(adminId);
+    const supabase = this.supabaseService.getClient();
+    
+    const { data, error } = await supabase
+      .from('scheduled_messages')
+      .insert({
+        name: payload.name,
+        time: payload.time,
+        prompt: payload.prompt,
+        audience: payload.audience || [],
+        tools: payload.tools || [],
+        is_active: payload.is_active !== undefined ? payload.is_active : true,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    await this.logActivity(
+      requester.id,
+      requester.email,
+      requester.name,
+      'create_scheduled_message',
+      {
+        message_name: payload.name,
+        description: `Criou o agendamento de mensagem "${payload.name}" para as ${payload.time}.`,
+      },
+    );
+
+    return data;
+  }
+
+  async updateScheduledMessage(adminId: string, id: string, payload: any) {
+    const requester = await this.getRequesterAdmin(adminId);
+    const supabase = this.supabaseService.getClient();
+
+    const updateData: any = { updated_at: new Date().toISOString() };
+    if (payload.name !== undefined) updateData.name = payload.name;
+    if (payload.time !== undefined) updateData.time = payload.time;
+    if (payload.prompt !== undefined) updateData.prompt = payload.prompt;
+    if (payload.audience !== undefined) updateData.audience = payload.audience;
+    if (payload.tools !== undefined) updateData.tools = payload.tools;
+    if (payload.is_active !== undefined) updateData.is_active = payload.is_active;
+
+    const { data, error } = await supabase
+      .from('scheduled_messages')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    await this.logActivity(
+      requester.id,
+      requester.email,
+      requester.name,
+      'update_scheduled_message',
+      {
+        message_name: data.name,
+        description: `Atualizou o agendamento de mensagem "${data.name}".`,
+      },
+    );
+
+    return data;
+  }
+
+  async deleteScheduledMessage(adminId: string, id: string) {
+    const requester = await this.getRequesterAdmin(adminId);
+    const supabase = this.supabaseService.getClient();
+
+    // Buscar o nome antes de deletar para o log
+    const { data: existing } = await supabase
+      .from('scheduled_messages')
+      .select('name')
+      .eq('id', id)
+      .single();
+
+    const { error } = await supabase
+      .from('scheduled_messages')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
+    if (existing) {
+      await this.logActivity(
+        requester.id,
+        requester.email,
+        requester.name,
+        'delete_scheduled_message',
+        {
+          message_name: existing.name,
+          description: `Removeu o agendamento de mensagem "${existing.name}".`,
+        },
+      );
+    }
+
+    return { success: true };
   }
 }

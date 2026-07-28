@@ -882,7 +882,6 @@ export class AsaasService {
           .update({
             asaas_subscription_id: subscriptionId,
             subscription_tier: planTier,
-            plan_tier: planTier,
             asaas_customer_id: customerId,
             subscription_expires_at: expiresAt.toISOString(),
             updated_at: new Date().toISOString(),
@@ -1096,7 +1095,6 @@ export class AsaasService {
             .update({
               asaas_subscription_id: subscriptionId,
               subscription_tier: planTier,
-              plan_tier: planTier,
               subscription_expires_at: expiresAt.toISOString(),
               updated_at: new Date().toISOString(),
             })

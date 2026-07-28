@@ -12,39 +12,25 @@ import { Save, Loader2, CalendarClock, Plus, Trash2, Settings2, Users } from 'lu
 
 export default function ScheduledMessagesPage() {
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
+  const [savingId, setSavingId] = useState<string | null>(null)
   const [campaigns, setCampaigns] = useState<any[]>([])
 
   useEffect(() => {
-    fetchSettings()
+    fetchCampaigns()
   }, [])
 
-  const fetchSettings = async () => {
+  const fetchCampaigns = async () => {
     setLoading(true)
     try {
       const storedUser = localStorage.getItem('maria_user');
       const adminId = storedUser ? JSON.parse(storedUser)?.id : '';
-      const res = await fetch(`${API_URL}/admin/settings`, {
+      const res = await fetch(`${API_URL}/admin/scheduled-messages`, {
         headers: { 'x-admin-id': adminId }
       })
-      if (!res.ok) throw new Error('Falha ao carregar configurações.')
+      if (!res.ok) throw new Error('Falha ao carregar agendamentos.')
       
-      const allSettings = await res.json()
-      const data = allSettings.find((s: any) => s.key === 'scheduled_ai_messages');
-      if (data && data.value) {
-        try {
-          const parsed = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
-          if (Array.isArray(parsed)) {
-            setCampaigns(parsed)
-          } else {
-            setCampaigns([])
-          }
-        } catch (e) {
-          setCampaigns([])
-        }
-      } else {
-        setCampaigns([])
-      }
+      const data = await res.json()
+      setCampaigns(data)
     } catch (err) {
       console.error(err)
       toast.error('Erro ao carregar os agendamentos.')
@@ -53,47 +39,77 @@ export default function ScheduledMessagesPage() {
     }
   }
 
-  const handleSave = async () => {
-    setSaving(true)
+  const addNewCampaign = async () => {
     try {
       const storedUser = localStorage.getItem('maria_user');
       const adminId = storedUser ? JSON.parse(storedUser)?.id : '';
-      const response = await fetch(`${API_URL}/admin/settings/scheduled_ai_messages`, {
+      const newCampaign = {
+        name: 'Nova Mensagem Agendada',
+        time: '08:00',
+        prompt: '',
+        audience: ['basic', 'premium', 'unlimited'],
+        tools: [],
+        is_active: true
+      };
+      
+      const response = await fetch(`${API_URL}/admin/scheduled-messages`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-admin-id': adminId
+        },
+        body: JSON.stringify(newCampaign)
+      });
+      
+      if (!response.ok) throw new Error('Erro ao criar campanha');
+      const data = await response.json();
+      setCampaigns([data, ...campaigns]);
+      toast.success('Nova campanha criada!');
+    } catch (error) {
+      console.error(error);
+      toast.error('Erro ao criar nova campanha.');
+    }
+  }
+
+  const saveCampaign = async (campaign: any) => {
+    setSavingId(campaign.id)
+    try {
+      const storedUser = localStorage.getItem('maria_user');
+      const adminId = storedUser ? JSON.parse(storedUser)?.id : '';
+      const response = await fetch(`${API_URL}/admin/scheduled-messages/${campaign.id}`, {
         method: 'PATCH',
         headers: { 
           'Content-Type': 'application/json',
           'x-admin-id': adminId
         },
-        body: JSON.stringify({ value: JSON.stringify(campaigns) })
-      })
-
-      if (!response.ok) throw new Error('Erro ao salvar as configurações')
-      toast.success('Envios agendados atualizados com sucesso!')
+        body: JSON.stringify(campaign)
+      });
+      if (!response.ok) throw new Error('Erro ao salvar campanha');
+      toast.success('Campanha salva com sucesso!');
     } catch (error) {
-      console.error(error)
-      toast.error('Erro ao salvar os envios agendados.')
+      console.error(error);
+      toast.error('Erro ao salvar a campanha.');
     } finally {
-      setSaving(false)
+      setSavingId(null)
     }
   }
 
-  const addNewCampaign = () => {
-    const newId = Date.now().toString();
-    setCampaigns([
-      {
-        id: newId,
-        name: 'Nova Mensagem Agendada',
-        time: '08:00',
-        prompt: '',
-        audience: ['basic', 'premium', 'unlimited'],
-        tools: []
-      },
-      ...campaigns
-    ])
-  }
-
-  const removeCampaign = (id: string) => {
-    setCampaigns(campaigns.filter(c => c.id !== id))
+  const removeCampaign = async (id: string) => {
+    if (!window.confirm('Tem certeza que deseja remover esta campanha?')) return;
+    try {
+      const storedUser = localStorage.getItem('maria_user');
+      const adminId = storedUser ? JSON.parse(storedUser)?.id : '';
+      const response = await fetch(`${API_URL}/admin/scheduled-messages/${id}`, {
+        method: 'DELETE',
+        headers: { 'x-admin-id': adminId }
+      });
+      if (!response.ok) throw new Error('Erro ao remover campanha');
+      setCampaigns(campaigns.filter(c => c.id !== id));
+      toast.success('Campanha removida com sucesso!');
+    } catch (error) {
+      console.error(error);
+      toast.error('Erro ao remover a campanha.');
+    }
   }
 
   const updateCampaign = (id: string, field: string, value: any) => {
@@ -153,13 +169,9 @@ export default function ScheduledMessagesPage() {
           </p>
         </div>
         <div className="flex gap-3">
-          <Button onClick={addNewCampaign} variant="outline" className="border-[#0047AB] text-[#0047AB]">
+          <Button onClick={addNewCampaign} className="bg-[#0047AB] hover:bg-[#002D6E] text-white">
             <Plus className="w-4 h-4 mr-2" />
             Nova Campanha
-          </Button>
-          <Button onClick={handleSave} disabled={saving} className="bg-[#0047AB] hover:bg-[#002D6E] text-white">
-            {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-            Salvar Configurações
           </Button>
         </div>
       </div>
@@ -192,6 +204,21 @@ export default function ScheduledMessagesPage() {
                       onChange={(e) => updateCampaign(camp.id, 'time', e.target.value)}
                       className="mt-1"
                     />
+                  </div>
+                  <div className="w-32 flex flex-col justify-end">
+                    <Label className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-2">Status</Label>
+                    <div className="flex items-center space-x-2">
+                      <input 
+                        type="checkbox"
+                        className="w-4 h-4 text-[#0047AB] bg-white border-slate-300 rounded focus:ring-[#0047AB]"
+                        id={`status-${camp.id}`} 
+                        checked={camp.is_active !== false}
+                        onChange={(e) => updateCampaign(camp.id, 'is_active', e.target.checked)}
+                      />
+                      <Label htmlFor={`status-${camp.id}`} className="cursor-pointer">
+                        {camp.is_active !== false ? 'Ativo' : 'Pausado'}
+                      </Label>
+                    </div>
                   </div>
                 </div>
                 <Button variant="ghost" size="icon" onClick={() => removeCampaign(camp.id)} className="text-red-400 hover:text-red-600 hover:bg-red-50">
@@ -272,11 +299,26 @@ export default function ScheduledMessagesPage() {
               <div className="md:col-span-8 flex flex-col">
                 <Label className="text-sm font-semibold mb-2 text-slate-700">Prompt / Instrução para IA</Label>
                 <Textarea 
-                  className="flex-1 min-h-[250px] resize-y bg-slate-50 focus:bg-white"
+                  className="flex-1 min-h-[250px] resize-y bg-slate-50 focus:bg-white mb-4"
                   value={camp.prompt} 
                   onChange={(e) => updateCampaign(camp.id, 'prompt', e.target.value)} 
                   placeholder="Ex: Aja como um conselheiro amigável. Deseje um bom dia ao usuário."
                 />
+                
+                <div className="flex justify-end pt-4 border-t border-slate-100">
+                  <Button 
+                    onClick={() => saveCampaign(camp)} 
+                    disabled={savingId === camp.id} 
+                    className="bg-[#0047AB] hover:bg-[#002D6E] text-white"
+                  >
+                    {savingId === camp.id ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4 mr-2" />
+                    )}
+                    Salvar Esta Campanha
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>

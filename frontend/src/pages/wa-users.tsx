@@ -58,6 +58,7 @@ interface WaUser {
   credits: number
   is_paused?: boolean
   monthly_limit_brl?: number | null
+  gender?: string | null
   context?: {
     general_summary: string
     interests: string[]
@@ -105,6 +106,7 @@ const WaUsersPage = () => {
   const [isPaused, setIsPaused] = useState(false)
   const [monthlyLimitBrl, setMonthlyLimitBrl] = useState<string>('')
   const [editName, setEditName] = useState('')
+  const [editGender, setEditGender] = useState<string>('')
   const [editStatus, setEditStatus] = useState('')
   const [savingSettings, setSavingSettings] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
@@ -239,6 +241,7 @@ const WaUsersPage = () => {
     setIsPaused(user.is_paused || false)
     setMonthlyLimitBrl(user.monthly_limit_brl !== null && user.monthly_limit_brl !== undefined ? String(user.monthly_limit_brl) : '')
     setEditName(user.name || '')
+    setEditGender(user.gender || 'N')
     setEditStatus(user.status || 'active')
     setShowSettings(false)
     fetchMessages(user.id)
@@ -347,6 +350,7 @@ const WaUsersPage = () => {
           isPaused, 
           monthlyLimitBrl: parsedLimit,
           name: editName,
+          gender: editGender,
           status: editStatus
         })
       })
@@ -363,6 +367,7 @@ const WaUsersPage = () => {
           is_paused: isPaused,
           monthly_limit_brl: parsedLimit,
           name: editName,
+          gender: editGender,
           status: editStatus
         })
       }
@@ -701,7 +706,7 @@ const WaUsersPage = () => {
                       </div>
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
                       {/* Left: Name Edit */}
                       <div className="bg-white rounded-2xl p-6 border border-slate-100/50 shadow-sm flex flex-col justify-between">
                         <div className="space-y-1.5 mb-4">
@@ -719,6 +724,29 @@ const WaUsersPage = () => {
                             placeholder="Nome do usuário"
                             className="bg-slate-50/50 border-slate-200 focus-visible:ring-primary rounded-xl"
                           />
+                        </div>
+                      </div>
+
+                      {/* Middle: Gender Edit */}
+                      <div className="bg-white rounded-2xl p-6 border border-slate-100/50 shadow-sm flex flex-col justify-between">
+                        <div className="space-y-1.5 mb-4">
+                          <label className="text-xs font-black text-slate-700 uppercase tracking-wider">
+                            Gênero
+                          </label>
+                          <p className="text-xs text-slate-400 leading-relaxed">
+                            Defina o gênero para personalizar os pronomes de tratamento.
+                          </p>
+                        </div>
+                        <div className="pt-2 border-t border-slate-50">
+                          <select
+                            value={editGender}
+                            onChange={(e) => setEditGender(e.target.value)}
+                            className="w-full rounded-xl border-slate-200 text-sm font-bold text-slate-700 bg-slate-50/50 focus:border-primary focus:ring-primary focus:ring-1 h-10 px-3"
+                          >
+                            <option value="M">Masculino (Querido Filho)</option>
+                            <option value="F">Feminino (Querida Filha)</option>
+                            <option value="N">Não Informado (Neutro)</option>
+                          </select>
                         </div>
                       </div>
 
