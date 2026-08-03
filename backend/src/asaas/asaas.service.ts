@@ -6,6 +6,7 @@ import { UazapiService } from '../uazapi/uazapi.service';
 import { MailService } from '../mail/mail.service';
 
 import { PlansService } from '../plans/plans.service';
+import { AffiliatesService } from '../affiliates/affiliates.service';
 
 /** Imagem 1x1 PNG transparente (exigida pelo Checkout Asaas nos itens). */
 const CHECKOUT_PLACEHOLDER_IMAGE_BASE64 =
@@ -53,6 +54,7 @@ export class AsaasService {
     private readonly uazapi: UazapiService,
     private readonly mail: MailService,
     private readonly plansService: PlansService,
+    private readonly affiliatesService: AffiliatesService,
   ) {}
 
   private async getPlanConfig(planId: PlanId, cycle: BillingCycle) {
@@ -273,9 +275,23 @@ export class AsaasService {
     planId: PlanId,
     cycle: BillingCycle,
     phone: string,
+    affiliateCode?: string,
   ): Promise<{ url: string; id: string }> {
     const cfg = await this.getPlanConfig(planId, cycle);
     const externalReference = this.buildExternalReference(planId, cycle, phone);
+
+    let price = cfg.value;
+
+    if (affiliateCode) {
+      const affiliate = await this.affiliatesService.getAffiliateByCode(affiliateCode);
+      if (affiliate && affiliate.is_active) {
+        const promotion = await this.affiliatesService.getPromotionForAffiliateAndPlan(affiliate.id, planId, cycle);
+        if (promotion && promotion.is_active) {
+          price = promotion.promotional_price;
+          this.logger.log(`Affiliate promotion applied! Original price: ${cfg.value}, Promo price: ${price}`);
+        }
+      }
+    }
 
     const successUrl =
       process.env.ASAAS_CHECKOUT_SUCCESS_URL ||
@@ -284,7 +300,7 @@ export class AsaasService {
     const payload = {
       name: cfg.linkName,
       description: cfg.description,
-      value: cfg.value,
+      value: price,
       billingType: 'CREDIT_CARD',
       chargeType: 'RECURRENT',
       subscriptionCycle: cfg.cycleAsaas,
@@ -439,6 +455,7 @@ export class AsaasService {
   async createWebCheckoutSession(
     planId: string,
     cycle: string,
+    affiliateCode?: string,
   ): Promise<{ url: string; sessionId: string }> {
     const { apiKey } = await this.getEnvConfig();
     if (!apiKey) {
@@ -466,6 +483,7 @@ export class AsaasService {
         normalizedPlan,
         normalizedCycle,
         phoneOrSession,
+        affiliateCode
       );
 
       this.logger.log(
@@ -483,6 +501,7 @@ export class AsaasService {
     cycle: string,
     phone: string,
     userId?: string,
+    affiliateCode?: string,
   ): Promise<{ url: string }> {
     const { apiKey } = await this.getEnvConfig();
     if (!apiKey) {
@@ -505,6 +524,7 @@ export class AsaasService {
         normalizedPlan,
         normalizedCycle,
         phone,
+        affiliateCode
       );
 
       let resolvedUserId = userId;

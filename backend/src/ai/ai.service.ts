@@ -306,6 +306,7 @@ export class AiService implements OnModuleInit {
     waChatId: string,
     pushName?: string,
     phone?: string,
+    affiliateCode?: string | null,
   ): Promise<any> {
     const supabase = this.supabaseService.getClient();
     let { data: user } = await supabase
@@ -321,6 +322,7 @@ export class AiService implements OnModuleInit {
         subscription_tier: 'free',
       };
       if (phone) insertData.phone = phone;
+      if (affiliateCode) insertData.affiliate_code = affiliateCode;
 
       const { data: newUser, error } = await supabase
         .from('users')
@@ -329,6 +331,10 @@ export class AiService implements OnModuleInit {
         .single();
       if (error) throw new Error(`Falha ao criar usuário: ${error.message}`);
       user = newUser;
+    } else if (affiliateCode && user.affiliate_code !== affiliateCode) {
+      // Atualiza o código se for diferente
+      await supabase.from('users').update({ affiliate_code: affiliateCode }).eq('id', user.id);
+      user.affiliate_code = affiliateCode;
     }
     return user;
   }
@@ -690,6 +696,7 @@ export class AiService implements OnModuleInit {
     message: string,
     pushName?: string,
     phone?: string,
+    affiliateCode?: string | null,
   ): Promise<any> {
     const supabase = this.supabaseService.getClient();
 
@@ -704,7 +711,7 @@ export class AiService implements OnModuleInit {
       return this.promptService.getPrompt('maintenance_message');
     }
 
-    const user = await this.getOrCreateUser(waChatId, pushName, phone);
+    const user = await this.getOrCreateUser(waChatId, pushName, phone, affiliateCode);
     const userId = user.id;
 
     // 2. Verificar se o bot está pausado para este fiel (Pausa Pastoral)
@@ -1643,6 +1650,7 @@ export class AiService implements OnModuleInit {
             cycle,
             user.phone,
             user.id,
+            user.affiliate_code,
           );
           return (
             `Perfeito! Aqui está o seu link de pagamento:\n\n` +

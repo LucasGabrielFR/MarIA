@@ -4,9 +4,10 @@ import { AsaasController } from './asaas.controller';
 import { SupabaseModule } from '../supabase/supabase.module';
 import { UazapiModule } from '../uazapi/uazapi.module';
 import { PlansModule } from '../plans/plans.module';
+import { AffiliatesModule } from '../affiliates/affiliates.module';
 
 @Module({
-  imports: [SupabaseModule, UazapiModule, PlansModule],
+  imports: [SupabaseModule, UazapiModule, PlansModule, AffiliatesModule],
   controllers: [AsaasController],
   providers: [AsaasService],
   exports: [AsaasService],

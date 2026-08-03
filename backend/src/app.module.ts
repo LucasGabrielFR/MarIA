@@ -13,6 +13,7 @@ import { CustomerAuthModule } from './customer-auth/customer-auth.module';
 import { MailModule } from './mail/mail.module';
 import { PlansModule } from './plans/plans.module';
 import { BroadcastModule } from './broadcast/broadcast.module';
+import { AffiliatesModule } from './affiliates/affiliates.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { BroadcastModule } from './broadcast/broadcast.module';
     MailModule,
     PlansModule,
     BroadcastModule,
+    AffiliatesModule,
   ],
   controllers: [],
   providers: [],

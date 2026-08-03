@@ -55,22 +55,24 @@ export class AsaasController {
     @Body('planId') planId: string,
     @Body('cycle') cycle: string,
     @Body('phone') phone: string,
+    @Body('affiliateCode') affiliateCode?: string,
   ) {
     if (!planId || !cycle || !phone) {
       throw new BadRequestException('planId, cycle and phone are required');
     }
-    return this.asaasService.createCheckoutUrl(planId, cycle, phone);
+    return this.asaasService.createCheckoutUrl(planId, cycle, phone, undefined, affiliateCode);
   }
 
   @Post('checkout-web')
   async createWebCheckout(
     @Body('planId') planId: string,
     @Body('cycle') cycle: string,
+    @Body('affiliateCode') affiliateCode?: string,
   ) {
     if (!planId || !cycle) {
       throw new BadRequestException('planId and cycle are required');
     }
-    return this.asaasService.createWebCheckoutSession(planId, cycle);
+    return this.asaasService.createWebCheckoutSession(planId, cycle, affiliateCode);
   }
 
   @Get('status/:sessionId')

@@ -17,6 +17,49 @@ export default function Home() {
       .then((data) => setPlans(data))
       .catch((err) => console.error('Erro ao buscar planos:', err));
   }, []);
+
+  const getPrice = (tier: string, cycle: string) => {
+    const promo = promoPrices[`${tier}-${cycle}`];
+    if (promo !== undefined) return promo;
+    const plan = plans.find(p => p.tier === tier && p.cycle === cycle);
+    return plan?.price;
+  };
+
+  const [affiliateCode, setAffiliateCodeState] = useState<string | null>(null);
+  const [promoPrices, setPromoPrices] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const searchParams = new URLSearchParams(window.location.search);
+    const ref = searchParams.get('ref');
+    
+    let activeRef = ref;
+    if (ref) {
+      localStorage.setItem('maria_affiliate_ref', ref);
+      // Remove da URL para ficar limpo
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
+    } else {
+      activeRef = localStorage.getItem('maria_affiliate_ref');
+    }
+
+    if (activeRef) {
+      setAffiliateCodeState(activeRef);
+      // Buscar promoções desse afiliado
+      fetch(`/api/affiliates/code/${activeRef}/promotions`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.promotions) {
+            const promoMap: Record<string, number> = {};
+            data.promotions.forEach((p: any) => {
+              promoMap[`${p.plan_tier}-${p.plan_cycle}`] = p.promotional_price;
+            });
+            setPromoPrices(promoMap);
+          }
+        })
+        .catch(err => console.error('Erro ao buscar promoções do afiliado', err));
+    }
+  }, []);
   
   // Novos estados para o fluxo de checkout e ativação
   const [showModal, setShowModal] = useState(false);
@@ -87,7 +130,7 @@ export default function Home() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ planId, cycle }),
+        body: JSON.stringify({ planId, cycle, affiliateCode }),
       });
 
       const data = await response.json();
@@ -400,18 +443,16 @@ export default function Home() {
                 <div className="flex items-end gap-1 mb-1">
                   <span className="text-5xl font-extrabold text-slate-900 transition-all">
                     R$ {isAnnual ? 
-                      plans.find(p => p.tier === 'basic' && p.cycle === 'annual')?.price ? 
-                      (plans.find(p => p.tier === 'basic' && p.cycle === 'annual').price / 12).toFixed(2).replace('.', ',') : '12,90' 
+                      (getPrice('basic', 'annual') ? (getPrice('basic', 'annual')! / 12).toFixed(2).replace('.', ',') : '12,90')
                       : 
-                      plans.find(p => p.tier === 'basic' && p.cycle === 'monthly')?.price ? 
-                      plans.find(p => p.tier === 'basic' && p.cycle === 'monthly').price.toFixed(2).replace('.', ',') : '14,90'
+                      (getPrice('basic', 'monthly') ? getPrice('basic', 'monthly')!.toFixed(2).replace('.', ',') : '14,90')
                     }
                   </span>
                   <span className="text-slate-500 text-sm font-medium pb-1.5"> / mês</span>
                 </div>
                 {isAnnual ? 
                   <p className="text-[#0047AB] text-xs font-bold animate-fade-in">
-                    Cobrado R$ {plans.find(p => p.tier === 'basic' && p.cycle === 'annual')?.price ? plans.find(p => p.tier === 'basic' && p.cycle === 'annual').price.toFixed(2).replace('.', ',') : '154,80'} anualmente
+                    Cobrado R$ {getPrice('basic', 'annual') ? getPrice('basic', 'annual')!.toFixed(2).replace('.', ',') : '154,80'} anualmente
                   </p> : 
                   <p className="text-transparent text-xs font-bold h-4">Espaço reservado</p>}
               </div>
@@ -453,18 +494,16 @@ export default function Home() {
                 <div className="flex items-end gap-1 mb-1">
                   <span className="text-5xl font-extrabold text-white transition-all">
                     R$ {isAnnual ? 
-                      plans.find(p => p.tier === 'premium' && p.cycle === 'annual')?.price ? 
-                      (plans.find(p => p.tier === 'premium' && p.cycle === 'annual').price / 12).toFixed(2).replace('.', ',') : '26,90' 
+                      (getPrice('premium', 'annual') ? (getPrice('premium', 'annual')! / 12).toFixed(2).replace('.', ',') : '26,90')
                       : 
-                      plans.find(p => p.tier === 'premium' && p.cycle === 'monthly')?.price ? 
-                      plans.find(p => p.tier === 'premium' && p.cycle === 'monthly').price.toFixed(2).replace('.', ',') : '29,90'
+                      (getPrice('premium', 'monthly') ? getPrice('premium', 'monthly')!.toFixed(2).replace('.', ',') : '29,90')
                     }
                   </span>
                   <span className="text-slate-400 text-sm font-medium pb-1.5"> / mês</span>
                 </div>
                 {isAnnual ? 
                   <p className="text-[#D4AF37] text-xs font-bold animate-fade-in">
-                    Cobrado R$ {plans.find(p => p.tier === 'premium' && p.cycle === 'annual')?.price ? plans.find(p => p.tier === 'premium' && p.cycle === 'annual').price.toFixed(2).replace('.', ',') : '322,80'} anualmente
+                    Cobrado R$ {getPrice('premium', 'annual') ? getPrice('premium', 'annual')!.toFixed(2).replace('.', ',') : '322,80'} anualmente
                   </p> : 
                   <p className="text-transparent text-xs font-bold h-4">Espaço reservado</p>}
               </div>

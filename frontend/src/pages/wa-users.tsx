@@ -1246,8 +1246,8 @@ const WaUsersPage = () => {
                             {showHistory ? 'Ocultar' : 'Revelar'}
                           </Button>
                         </div>
-                        <div className={cn("flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar", !showHistory && "blur-xl select-none")}>
-                          {messages.map((msg, i) => (
+                        <div className={cn("flex-1 overflow-y-auto p-6 space-y-4 space-y-reverse flex flex-col-reverse custom-scrollbar", !showHistory && "blur-xl select-none")}>
+                          {[...messages].reverse().map((msg, i) => (
                             <div key={i} className={cn("flex flex-col", msg.role === 'user' ? 'items-end' : 'items-start')}>
                               <div className={cn("max-w-[85%] px-4 py-3 rounded-2xl text-sm font-semibold", msg.role === 'user' ? "bg-primary text-white" : "bg-slate-100 text-slate-800")}>
                                 {msg.content}

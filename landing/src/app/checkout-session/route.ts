@@ -4,16 +4,19 @@ export async function POST(req: NextRequest) {
   try {
     let planId: string | null = null;
     let cycle: string | null = null;
+    let affiliateCode: string | null = null;
 
     const contentType = req.headers.get('content-type') || '';
     if (contentType.includes('application/json')) {
       const body = await req.json();
       planId = body.planId;
       cycle = body.cycle;
+      affiliateCode = body.affiliateCode;
     } else {
       const formData = await req.formData();
       planId = formData.get('planId') as string;
       cycle = formData.get('cycle') as string;
+      affiliateCode = formData.get('affiliateCode') as string;
     }
 
     if (!planId || !cycle) {
@@ -33,6 +36,7 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         planId: planId,
         cycle: cycle,
+        affiliateCode: affiliateCode,
       }),
     });
 

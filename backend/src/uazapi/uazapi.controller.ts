@@ -423,11 +423,24 @@ export class UazapiController {
         return;
       }
 
+      let affiliateCode: string | null = null;
+      let cleanMessage = messageContent;
+      const refMatch = messageContent.match(/\[ref:([a-zA-Z0-9_-]+)\]/i);
+      if (refMatch) {
+        affiliateCode = refMatch[1];
+        this.logger.log(`Affiliate code detected: ${affiliateCode} from ${chatId}`);
+        cleanMessage = messageContent.replace(/\[ref:[a-zA-Z0-9_-]+\]/gi, '').trim();
+      }
+
+      // Se a mensagem ficar vazia após remover a ref, colocar algo padrão
+      if (!cleanMessage) cleanMessage = 'Olá';
+
       const responseText = await this.aiService.processMessage(
         chatId,
-        messageContent,
+        cleanMessage,
         pushName,
         phoneNumber,
+        affiliateCode
       );
 
       if (!responseText) return;

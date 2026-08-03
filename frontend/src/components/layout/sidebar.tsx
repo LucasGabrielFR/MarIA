@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import styled from 'styled-components';
-import { LayoutDashboard, MessageSquare, Settings, Users, Database, LogOut, Brain, Calendar, CalendarClock, DollarSign, GitFork, Megaphone, ChevronDown, ChevronRight, Send, Wrench } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Settings, Users, Database, LogOut, Brain, Calendar, CalendarClock, DollarSign, GitFork, Megaphone, ChevronDown, ChevronRight, Send, Wrench, Handshake } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 const SidebarContainer = styled.aside`
@@ -173,6 +173,10 @@ export function Sidebar() {
             <NavItemLink to="/finance" $active={isActive('/finance')}>
               <DollarSign size={18} />
               <span className="font-medium">Financeiro</span>
+            </NavItemLink>
+            <NavItemLink to="/affiliates" $active={isActive('/affiliates')}>
+              <Handshake size={18} />
+              <span className="font-medium">Afiliados</span>
             </NavItemLink>
             {isSuperAdmin && (
               <NavItemLink to="/users" $active={isActive('/users')}>

@@ -12,6 +12,7 @@ import LogsPage from './pages/logs'
 import SettingsPage from './pages/settings'
 import FinancePage from './pages/finance'
 import PlansPage from './pages/plans'
+import AffiliatesPage from './pages/affiliates'
 import ScheduledMessagesPage from './pages/scheduled-messages'
 import { Toaster } from "@/components/ui/sonner"
 
@@ -36,6 +37,7 @@ function App() {
         <Route path="/logs" element={<LogsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/plans" element={<PlansPage />} />
+        <Route path="/affiliates" element={<AffiliatesPage />} />
         
         {/* Redirect unknown routes to login */}
         <Route path="*" element={<Navigate to="/" replace />} />
