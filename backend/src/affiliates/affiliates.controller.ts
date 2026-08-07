@@ -10,6 +10,16 @@ export class AffiliatesController {
     return this.affiliatesService.getAllAffiliates();
   }
 
+  @Get('by-admin/:adminId')
+  async getByAdminId(@Param('adminId') adminId: string) {
+    const affiliates = await this.affiliatesService.getAllAffiliates();
+    const affiliate = affiliates.find(a => a.admin_id === adminId);
+    if (!affiliate) {
+      return { success: false, message: 'Affiliate not found for this admin' };
+    }
+    return { success: true, affiliate };
+  }
+
   @Get('code/:code')
   async getByCode(@Param('code') code: string) {
     const affiliate = await this.affiliatesService.getAffiliateByCode(code);
@@ -61,7 +71,7 @@ export class AffiliatesController {
 
     return {
       success: true,
-      promotional_price: promotion.promotional_price,
+      discount_percentage: promotion.discount_percentage,
     };
   }
 
@@ -73,5 +83,15 @@ export class AffiliatesController {
     }
     const promotions = await this.affiliatesService.getPromotionsByAffiliate(affiliate.id);
     return { success: true, promotions: promotions.filter(p => p.is_active) };
+  }
+
+  @Get(':id/dashboard')
+  async getDashboard(@Param('id') id: string) {
+    return this.affiliatesService.getDashboardStats(id);
+  }
+
+  @Get(':id/insights')
+  async getInsights(@Param('id') id: string) {
+    return this.affiliatesService.getAffiliateInsights(id);
   }
 }

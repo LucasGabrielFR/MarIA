@@ -1734,6 +1734,7 @@ export class AiService implements OnModuleInit {
           cycle,
           user.phone,
           user.id,
+          user.affiliate_code,
         );
         const tierLabel = tier === 'basic' ? 'Básico' : 'Premium';
         const cycleLabel = isMonthly ? 'Mensal' : 'Anual';

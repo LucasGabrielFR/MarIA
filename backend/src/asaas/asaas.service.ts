@@ -287,8 +287,10 @@ export class AsaasService {
       if (affiliate && affiliate.is_active) {
         const promotion = await this.affiliatesService.getPromotionForAffiliateAndPlan(affiliate.id, planId, cycle);
         if (promotion && promotion.is_active) {
-          price = promotion.promotional_price;
-          this.logger.log(`Affiliate promotion applied! Original price: ${cfg.value}, Promo price: ${price}`);
+          const discountPercentage = promotion.discount_percentage || 0;
+          const discountAmount = cfg.value * (discountPercentage / 100);
+          price = Number((cfg.value - discountAmount).toFixed(2));
+          this.logger.log(`Affiliate promotion applied! Original price: ${cfg.value}, Discount: ${discountPercentage}%, Promo price: ${price}`);
         }
       }
     }

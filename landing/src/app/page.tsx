@@ -19,42 +19,42 @@ export default function Home() {
   }, []);
 
   const getPrice = (tier: string, cycle: string) => {
-    const promo = promoPrices[`${tier}-${cycle}`];
-    if (promo !== undefined) return promo;
     const plan = plans.find(p => p.tier === tier && p.cycle === cycle);
-    return plan?.price;
+    if (!plan) return undefined;
+    
+    const discount = promoDiscounts[`${tier}-${cycle}`];
+    if (discount !== undefined && discount > 0) {
+      const discountAmount = plan.price * (discount / 100);
+      return plan.price - discountAmount;
+    }
+    
+    return plan.price;
+  };
+  
+  const getDiscount = (tier: string, cycle: string) => {
+    return promoDiscounts[`${tier}-${cycle}`];
   };
 
   const [affiliateCode, setAffiliateCodeState] = useState<string | null>(null);
-  const [promoPrices, setPromoPrices] = useState<Record<string, number>>({});
+  const [promoDiscounts, setPromoDiscounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const searchParams = new URLSearchParams(window.location.search);
     const ref = searchParams.get('ref');
-    
-    let activeRef = ref;
-    if (ref) {
-      localStorage.setItem('maria_affiliate_ref', ref);
-      // Remove da URL para ficar limpo
-      const newUrl = window.location.pathname;
-      window.history.replaceState({}, document.title, newUrl);
-    } else {
-      activeRef = localStorage.getItem('maria_affiliate_ref');
-    }
 
-    if (activeRef) {
-      setAffiliateCodeState(activeRef);
+    if (ref) {
+      setAffiliateCodeState(ref);
       // Buscar promoções desse afiliado
-      fetch(`/api/affiliates/code/${activeRef}/promotions`)
+      fetch(`/api/affiliates/code/${ref}/promotions`)
         .then(res => res.json())
         .then(data => {
           if (data.success && data.promotions) {
             const promoMap: Record<string, number> = {};
             data.promotions.forEach((p: any) => {
-              promoMap[`${p.plan_tier}-${p.plan_cycle}`] = p.promotional_price;
+              promoMap[`${p.plan_tier}-${p.plan_cycle}`] = p.discount_percentage || p.promotional_price || 0;
             });
-            setPromoPrices(promoMap);
+            setPromoDiscounts(promoMap);
           }
         })
         .catch(err => console.error('Erro ao buscar promoções do afiliado', err));
@@ -435,12 +435,25 @@ export default function Home() {
               <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-[#0047AB] text-white text-[10px] font-extrabold px-6 py-1.5 rounded-full uppercase tracking-widest shadow-lg">
                 Mais Escolhido
               </div>
+              
+              {/* Promo Banner */}
+              {getDiscount('basic', isAnnual ? 'annual' : 'monthly') && (
+                <div className="absolute -top-6 -right-6 md:-right-8 bg-[#D4AF37] text-white font-black text-sm px-4 py-2 rounded-xl shadow-lg rotate-12 animate-pulse border-2 border-white z-30">
+                  {getDiscount('basic', isAnnual ? 'annual' : 'monthly')}% OFF
+                </div>
+              )}
+              
               <div className="mb-8">
                 <h4 className="text-2xl font-bold text-slate-900 mb-2">Básico</h4>
                 <p className="text-slate-500 text-sm font-light leading-relaxed">Para quem busca direcionamento e uma companhia diária constante.</p>
               </div>
               <div className="mb-10">
                 <div className="flex items-end gap-1 mb-1">
+                  {getDiscount('basic', isAnnual ? 'annual' : 'monthly') && (
+                    <span className="text-xl line-through text-slate-400 font-medium mr-2 self-center">
+                      R$ {plans.find(p => p.tier === 'basic' && p.cycle === (isAnnual ? 'annual' : 'monthly'))?.price?.toFixed(2).replace('.', ',') || '0,00'}
+                    </span>
+                  )}
                   <span className="text-5xl font-extrabold text-slate-900 transition-all">
                     R$ {isAnnual ? 
                       (getPrice('basic', 'annual') ? (getPrice('basic', 'annual')! / 12).toFixed(2).replace('.', ',') : '12,90')
@@ -486,12 +499,23 @@ export default function Home() {
 
             {/* Plano Premium */}
             <div className="bg-white/5 backdrop-blur-xl rounded-[2.5rem] p-10 flex flex-col relative border border-white/10 hover:bg-white/10 transition-all duration-300 group">
+              {/* Promo Banner */}
+              {getDiscount('premium', isAnnual ? 'annual' : 'monthly') && (
+                <div className="absolute -top-4 -right-4 md:-right-6 bg-[#D4AF37] text-white font-black text-sm px-4 py-2 rounded-xl shadow-lg rotate-12 animate-pulse border-2 border-[#001b44] z-30">
+                  {getDiscount('premium', isAnnual ? 'annual' : 'monthly')}% OFF
+                </div>
+              )}
               <div className="mb-8">
                 <h4 className="text-2xl font-bold text-[#D4AF37] mb-2">Premium</h4>
                 <p className="text-slate-400 text-sm font-light leading-relaxed">Para quem deseja viver uma imersão teológica e oração intensa.</p>
               </div>
               <div className="mb-10">
                 <div className="flex items-end gap-1 mb-1">
+                  {getDiscount('premium', isAnnual ? 'annual' : 'monthly') && (
+                    <span className="text-xl line-through text-slate-500 font-medium mr-2 self-center">
+                      R$ {plans.find(p => p.tier === 'premium' && p.cycle === (isAnnual ? 'annual' : 'monthly'))?.price?.toFixed(2).replace('.', ',') || '0,00'}
+                    </span>
+                  )}
                   <span className="text-5xl font-extrabold text-white transition-all">
                     R$ {isAnnual ? 
                       (getPrice('premium', 'annual') ? (getPrice('premium', 'annual')! / 12).toFixed(2).replace('.', ',') : '26,90')

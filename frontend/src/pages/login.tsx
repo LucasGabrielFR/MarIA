@@ -98,9 +98,10 @@ export default function LoginPage() {
 
     setIsLoading(true);
     try {
+      const loginEmail = email.includes('@') ? email : `${email}@acutistech.com.br`;
       const data = await apiRequest('/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, pass: password }),
+        body: JSON.stringify({ email: loginEmail, pass: password }),
       });
 
       if (data.user.requires_password_change) {
@@ -115,7 +116,11 @@ export default function LoginPage() {
       localStorage.setItem('maria_session', JSON.stringify(data.session));
       localStorage.setItem('maria_user', JSON.stringify(data.user));
 
-      navigate('/dashboard');
+      if (data.user.role === 'affiliate') {
+        navigate('/affiliate-dashboard');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (error: any) {
       toast.error(error.message || 'Erro ao realizar login');
     } finally {
@@ -143,9 +148,10 @@ export default function LoginPage() {
 
     setIsLoading(true);
     try {
+      const loginEmail = email.includes('@') ? email : `${email}@acutistech.com.br`;
       const data = await apiRequest('/auth/change-password', {
         method: 'POST',
-        body: JSON.stringify({ email, pass: password, newPass: newPassword }),
+        body: JSON.stringify({ email: loginEmail, pass: password, newPass: newPassword }),
       });
 
       toast.success('Senha atualizada com sucesso! Bem-vindo.');
@@ -154,7 +160,11 @@ export default function LoginPage() {
       localStorage.setItem('maria_session', JSON.stringify(data.session));
       localStorage.setItem('maria_user', JSON.stringify(data.user));
 
-      navigate('/dashboard');
+      if (data.user.role === 'affiliate') {
+        navigate('/affiliate-dashboard');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (error: any) {
       toast.error(error.message || 'Erro ao redefinir a senha');
     } finally {
@@ -197,13 +207,13 @@ export default function LoginPage() {
             {!showChangePassword ? (
               <form className="space-y-6" onSubmit={handleLogin}>
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-slate-700 font-bold ml-1">E-mail</Label>
+                  <Label htmlFor="email" className="text-slate-700 font-bold ml-1">E-mail ou Usuário</Label>
                   <Input 
                     id="email" 
-                    type="email"
+                    type="text"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="seu@email.com" 
+                    onChange={(e) => setEmail(e.target.value.toLowerCase().trim())}
+                    placeholder="seu_usuario ou seu@email.com" 
                     className="h-14 rounded-2xl border-slate-100 bg-slate-50 focus:bg-white transition-all text-lg"
                   />
                 </div>

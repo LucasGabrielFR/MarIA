@@ -16,14 +16,24 @@ export default function AffiliatesPage() {
   const [plans, setPlans] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [newAffiliate, setNewAffiliate] = useState({ name: '', code: '' })
+  const [editingAffiliateId, setEditingAffiliateId] = useState<string | null>(null)
+  const [newAffiliate, setNewAffiliate] = useState({ 
+    name: '', 
+    code: '', 
+    email: '', 
+    password: '', 
+    commission_type: 'percentage', 
+    commission_value: '', 
+    commission_duration_months: '', 
+    can_view_insights: false 
+  })
   
   // States for promotions
   const [selectedAffiliate, setSelectedAffiliate] = useState<any>(null)
   const [promotions, setPromotions] = useState<any[]>([])
   const [loadingPromos, setLoadingPromos] = useState(false)
 
-  const [newPromo, setNewPromo] = useState({ plan_tier: 'premium', plan_cycle: 'monthly', promotional_price: '' })
+  const [newPromo, setNewPromo] = useState({ plan_tier: 'premium', plan_cycle: 'monthly', discount_percentage: '' })
 
   useEffect(() => {
     fetchData()
@@ -48,29 +58,82 @@ export default function AffiliatesPage() {
     }
   }
 
-  const handleCreateAffiliate = async () => {
+  const handleSaveAffiliate = async () => {
     if (!newAffiliate.name || !newAffiliate.code) {
       toast.error("Preencha o nome e o código do afiliado.")
       return
     }
     setSaving(true)
     try {
-      const response = await fetch(`${API_URL}/affiliates`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...newAffiliate, is_active: true })
-      })
-      if (!response.ok) throw new Error('Falha ao criar afiliado')
-      const created = await response.json()
-      setAffiliates([...affiliates, created])
-      setNewAffiliate({ name: '', code: '' })
-      toast.success('Afiliado criado com sucesso!')
+      const affiliateEmail = newAffiliate.email.includes('@') || newAffiliate.email === '' 
+        ? newAffiliate.email 
+        : `${newAffiliate.email}@acutistech.com.br`;
+
+      const payload = {
+        ...newAffiliate,
+        email: affiliateEmail,
+        commission_value: newAffiliate.commission_value ? parseFloat(newAffiliate.commission_value.toString()) : 0,
+        commission_duration_months: newAffiliate.commission_duration_months ? parseInt(newAffiliate.commission_duration_months.toString()) : null,
+      }
+      
+      let response;
+      if (editingAffiliateId) {
+        response = await fetch(`${API_URL}/affiliates/${editingAffiliateId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+      } else {
+        response = await fetch(`${API_URL}/affiliates`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...payload, is_active: true })
+        })
+      }
+
+      if (!response.ok) throw new Error(editingAffiliateId ? 'Falha ao atualizar afiliado' : 'Falha ao criar afiliado')
+      
+      const saved = await response.json()
+      
+      if (editingAffiliateId) {
+        setAffiliates(affiliates.map(a => a.id === editingAffiliateId ? saved : a))
+        toast.success('Afiliado atualizado com sucesso!')
+      } else {
+        setAffiliates([...affiliates, saved])
+        toast.success('Afiliado criado com sucesso!')
+      }
+
+      cancelEdit()
     } catch (err) {
       console.error(err)
-      toast.error("Erro ao criar afiliado")
+      toast.error(editingAffiliateId ? "Erro ao atualizar afiliado" : "Erro ao criar afiliado")
     } finally {
       setSaving(false)
     }
+  }
+
+  const cancelEdit = () => {
+    setEditingAffiliateId(null)
+    setNewAffiliate({ 
+      name: '', code: '', email: '', password: '', 
+      commission_type: 'percentage', commission_value: '', 
+      commission_duration_months: '', can_view_insights: false 
+    })
+  }
+
+  const startEdit = (affiliate: any) => {
+    setEditingAffiliateId(affiliate.id)
+    setNewAffiliate({
+      name: affiliate.name || '',
+      code: affiliate.code || '',
+      email: affiliate.email || '',
+      password: '', // Don't populate password for security, let them type a new one if they want to change it (assuming backend handles empty password as "don't change")
+      commission_type: affiliate.commission_type || 'percentage',
+      commission_value: affiliate.commission_value?.toString() || '',
+      commission_duration_months: affiliate.commission_duration_months?.toString() || '',
+      can_view_insights: affiliate.can_view_insights || false
+    })
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const toggleAffiliateStatus = async (affiliate: any) => {
@@ -106,7 +169,7 @@ export default function AffiliatesPage() {
   }
 
   const handleCreatePromo = async () => {
-    if (!newPromo.promotional_price || !selectedAffiliate) return
+    if (!newPromo.discount_percentage || !selectedAffiliate) return
     setSaving(true)
     try {
       const response = await fetch(`${API_URL}/affiliates/${selectedAffiliate.id}/promotions`, {
@@ -115,14 +178,14 @@ export default function AffiliatesPage() {
         body: JSON.stringify({
           plan_tier: newPromo.plan_tier,
           plan_cycle: newPromo.plan_cycle,
-          promotional_price: parseFloat(newPromo.promotional_price),
+          discount_percentage: parseFloat(newPromo.discount_percentage),
           is_active: true
         })
       })
       if (!response.ok) throw new Error('Falha ao salvar promoção')
       toast.success('Promoção salva com sucesso!')
       loadPromotions(selectedAffiliate)
-      setNewPromo({ ...newPromo, promotional_price: '' })
+      setNewPromo({ ...newPromo, discount_percentage: '' })
     } catch (err) {
       console.error(err)
       toast.error("Erro ao salvar promoção")
@@ -139,7 +202,7 @@ export default function AffiliatesPage() {
         body: JSON.stringify({
           plan_tier: promo.plan_tier,
           plan_cycle: promo.plan_cycle,
-          promotional_price: promo.promotional_price,
+          discount_percentage: promo.discount_percentage,
           is_active: !promo.is_active
         })
       })
@@ -182,20 +245,57 @@ export default function AffiliatesPage() {
         <div className="md:col-span-2 space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Novo Afiliado</CardTitle>
+              <CardTitle>{editingAffiliateId ? 'Editar Afiliado' : 'Novo Afiliado'}</CardTitle>
             </CardHeader>
-            <CardContent className="flex gap-4 items-end">
-              <div className="flex-1">
-                <Label>Nome do Afiliado</Label>
-                <Input value={newAffiliate.name} onChange={e => setNewAffiliate({...newAffiliate, name: e.target.value})} placeholder="Ex: João Silva" />
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Nome do Afiliado *</Label>
+                  <Input value={newAffiliate.name} onChange={e => setNewAffiliate({...newAffiliate, name: e.target.value})} placeholder="Ex: João Silva" />
+                </div>
+                <div>
+                  <Label>Código (Único) *</Label>
+                  <Input value={newAffiliate.code} onChange={e => setNewAffiliate({...newAffiliate, code: e.target.value})} placeholder="Ex: joao123" />
+                </div>
+                <div>
+                  <Label>Usuário ou E-mail (Para Login no Dashboard)</Label>
+                  <Input type="text" value={newAffiliate.email} onChange={e => setNewAffiliate({...newAffiliate, email: e.target.value.toLowerCase().trim()})} placeholder="Ex: joao123 ou joao@email.com" />
+                </div>
+                <div>
+                  <Label>Senha (Para Login no Dashboard)</Label>
+                  <Input type="password" value={newAffiliate.password} onChange={e => setNewAffiliate({...newAffiliate, password: e.target.value})} placeholder="Senha inicial" />
+                </div>
+                <div>
+                  <Label>Tipo de Comissão</Label>
+                  <select className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm" value={newAffiliate.commission_type} onChange={e => setNewAffiliate({...newAffiliate, commission_type: e.target.value})}>
+                    <option value="percentage">Porcentagem (%)</option>
+                    <option value="fixed">Valor Fixo (R$)</option>
+                  </select>
+                </div>
+                <div>
+                  <Label>Valor da Comissão</Label>
+                  <Input type="number" step="0.01" value={newAffiliate.commission_value} onChange={e => setNewAffiliate({...newAffiliate, commission_value: e.target.value})} placeholder="Ex: 20" />
+                </div>
+                <div>
+                  <Label>Duração da Comissão (Meses)</Label>
+                  <Input type="number" step="1" value={newAffiliate.commission_duration_months} onChange={e => setNewAffiliate({...newAffiliate, commission_duration_months: e.target.value})} placeholder="Ex: 12 (Vazio = vitalício)" />
+                </div>
+                <div className="flex items-center gap-2 mt-6">
+                  <input type="checkbox" id="insights" checked={newAffiliate.can_view_insights} onChange={e => setNewAffiliate({...newAffiliate, can_view_insights: e.target.checked})} className="w-4 h-4" />
+                  <Label htmlFor="insights">Permitir ver Insights da IA</Label>
+                </div>
               </div>
-              <div className="flex-1">
-                <Label>Código (Único)</Label>
-                <Input value={newAffiliate.code} onChange={e => setNewAffiliate({...newAffiliate, code: e.target.value})} placeholder="Ex: joao123" />
+              <div className="flex justify-end gap-2">
+                {editingAffiliateId && (
+                  <Button variant="outline" onClick={cancelEdit} disabled={saving}>
+                    Cancelar
+                  </Button>
+                )}
+                <Button onClick={handleSaveAffiliate} disabled={saving}>
+                  {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />} 
+                  {editingAffiliateId ? 'Salvar Alterações' : 'Adicionar Afiliado'}
+                </Button>
               </div>
-              <Button onClick={handleCreateAffiliate} disabled={saving}>
-                {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />} Adicionar
-              </Button>
             </CardContent>
           </Card>
 
@@ -232,9 +332,18 @@ export default function AffiliatesPage() {
                             <code className="bg-slate-100 px-2 py-1 rounded truncate max-w-[200px]">{generateWebLink(aff.code)}</code>
                             <button onClick={() => copyToClipboard(generateWebLink(aff.code))} className="text-primary hover:text-blue-700"><Copy size={14} /></button>
                           </div>
+                          <div className="grid grid-cols-2 gap-2 mt-2 p-2 bg-slate-50 rounded text-xs border border-slate-100">
+                            <div><span className="font-medium">Comissão:</span> {aff.commission_type === 'percentage' ? `${aff.commission_value || 0}%` : `R$ ${aff.commission_value || 0}`}</div>
+                            <div><span className="font-medium">Duração:</span> {aff.commission_duration_months ? `${aff.commission_duration_months} meses` : 'Vitalício'}</div>
+                            <div><span className="font-medium">Insights:</span> {aff.can_view_insights ? 'Sim' : 'Não'}</div>
+                            <div><span className="font-medium">Acesso Dashboard:</span> {aff.admin_id ? 'Ativo' : 'Não'}</div>
+                          </div>
                         </div>
                       </div>
                       <div className="flex flex-col gap-2 justify-start sm:items-end">
+                        <Button variant="outline" size="sm" onClick={() => startEdit(aff)}>
+                          Editar
+                        </Button>
                         <Button variant="outline" size="sm" onClick={() => loadPromotions(aff)}>
                           <Tag className="w-4 h-4 mr-2" /> Promoções
                         </Button>
@@ -287,10 +396,10 @@ export default function AffiliatesPage() {
                       </div>
                     </div>
                     <div>
-                      <Label className="text-xs">Preço Promocional (R$)</Label>
-                      <Input type="number" step="0.01" value={newPromo.promotional_price} onChange={e => setNewPromo({...newPromo, promotional_price: e.target.value})} placeholder="Ex: 19.90" />
+                      <Label className="text-xs">Desconto (%)</Label>
+                      <Input type="number" step="1" value={newPromo.discount_percentage} onChange={e => setNewPromo({...newPromo, discount_percentage: e.target.value})} placeholder="Ex: 15" />
                     </div>
-                    <Button size="sm" className="w-full" onClick={handleCreatePromo} disabled={saving || !newPromo.promotional_price}>
+                    <Button size="sm" className="w-full" onClick={handleCreatePromo} disabled={saving || !newPromo.discount_percentage}>
                       Salvar Regra
                     </Button>
                   </div>
@@ -312,7 +421,7 @@ export default function AffiliatesPage() {
                                 <p className="font-medium capitalize">{promo.plan_tier} - {promo.plan_cycle}</p>
                                 <div className="flex gap-2 items-center mt-1">
                                   <span className="text-xs line-through text-slate-400">R$ {basePlan?.price || '?'}</span>
-                                  <span className="text-green-600 font-bold">R$ {promo.promotional_price}</span>
+                                  <span className="text-green-600 font-bold">{promo.discount_percentage}% OFF</span>
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">
