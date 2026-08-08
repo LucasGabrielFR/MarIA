@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
+import * as bcrypt from 'bcryptjs';
 
 export interface Affiliate {
   id: string;
@@ -43,108 +44,103 @@ export class AffiliatesService {
 
   // Affiliates
 
-  async getAllAffiliates(): Promise<Affiliate[]> {
+  async getAllAffiliates(): Promise<any[]> {
     const supabase = this.supabaseService.getClient();
     const { data, error } = await supabase.from('affiliates').select('*');
     if (error) {
       this.logger.error('Error fetching affiliates:', error.message);
       throw error;
     }
-    return data || [];
+    return (data || []).map(aff => {
+      const { admins, ...rest } = aff;
+      return {
+        ...rest,
+        email: admins?.email || '',
+      };
+    });
   }
 
-  async getAffiliateByCode(code: string): Promise<Affiliate | null> {
+  async getAffiliateByCode(code: string): Promise<any | null> {
     const supabase = this.supabaseService.getClient();
-    const { data, error } = await supabase.from('affiliates').select('*').eq('code', code).single();
+    const { data, error } = await supabase.from('affiliates').select('*, admins(email)').eq('code', code).single();
     if (error) {
       if (error.code !== 'PGRST116') { // PGRST116 is for not found
         this.logger.error('Error fetching affiliate by code:', error.message);
       }
       return null;
     }
-    return data;
+    const { admins, ...rest } = data;
+    return {
+      ...rest,
+      email: admins?.email || '',
+    };
   }
 
-  async createAffiliate(payload: Partial<Affiliate> & { email?: string; password?: string }): Promise<Affiliate> {
+  async createAffiliate(payload: Partial<Affiliate> & { email?: string; password?: string; username?: string }): Promise<Affiliate> {
     const supabase = this.supabaseService.getClient();
     
-    const { email, password, ...affiliateData } = payload;
-    let adminId = affiliateData.admin_id;
+    const { email, password, username, ...affiliateData } = payload;
+    let adminId = affiliateData.admin_id || null;
 
-    if (email && password) {
-      // Create user in Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true,
-      });
-
-      if (authError) {
-        this.logger.error('Error creating auth user for affiliate:', authError.message);
-        throw authError;
-      }
-
-      adminId = authData.user.id;
-
-      // Insert into admins table
-      const { error: adminError } = await supabase.from('admins').insert({
-        id: adminId,
-        name: affiliateData.name,
-        email: email,
-        role: 'affiliate',
-        requires_password_change: true,
-      });
-
-      if (adminError) {
-        this.logger.error('Error creating admin record for affiliate:', adminError.message);
-        // We might have an orphaned auth user here, but for simplicity we proceed or throw
-        throw adminError;
-      }
+    let finalUsername = username || email;
+    if (finalUsername && finalUsername.includes('@acutistech.com.br')) {
+      finalUsername = finalUsername.split('@')[0];
     }
 
-    const { data, error } = await supabase.from('affiliates').insert({
+    let passwordHash: string | null = null;
+    if (password) {
+      passwordHash = password; // Armazenando em texto puro conforme solicitado para visualização
+    }
+
+    const insertData: any = {
       ...affiliateData,
       admin_id: adminId,
-    }).select().single();
+    };
+
+    if (finalUsername) insertData.username = finalUsername;
+    if (passwordHash) insertData.password_hash = passwordHash;
+
+    const { data, error } = await supabase.from('affiliates').insert(insertData).select().single();
     
     if (error) {
       this.logger.error('Error creating affiliate:', error.message);
       throw error;
     }
-    return data;
+    return { ...data, username: finalUsername || '', email: email || finalUsername || '' };
   }
 
-  async updateAffiliate(id: string, payload: Partial<Affiliate> & { email?: string; password?: string }): Promise<Affiliate> {
+  async updateAffiliate(id: string, payload: Partial<Affiliate> & { email?: string; password?: string; username?: string }): Promise<Affiliate> {
     const supabase = this.supabaseService.getClient();
-    const { email, password, ...updates } = payload;
+    const { email, password, username, ...updates } = payload;
     
-    // Obter o afiliado atual para saber o admin_id
-    const { data: currentAffiliate } = await supabase.from('affiliates').select('admin_id').eq('id', id).single();
-    
-    if (currentAffiliate?.admin_id) {
-      const adminUpdates: any = {};
-      if (email) adminUpdates.email = email;
-      if (updates.name) adminUpdates.name = updates.name;
-      
-      if (Object.keys(adminUpdates).length > 0) {
-        await supabase.from('admins').update(adminUpdates).eq('id', currentAffiliate.admin_id);
-      }
+    let finalUsername = username || email;
+    if (finalUsername && finalUsername.includes('@acutistech.com.br')) {
+      finalUsername = finalUsername.split('@')[0];
+    }
 
-      if (password) {
-        await supabase.auth.admin.updateUserById(currentAffiliate.admin_id, { password });
-      }
-      
-      if (email) {
-        await supabase.auth.admin.updateUserById(currentAffiliate.admin_id, { email, email_confirm: true });
-      }
+    if (finalUsername) {
+      (updates as any).username = finalUsername;
+    }
+
+    if (password) {
+      (updates as any).password_hash = password; // Armazenando em texto puro
     }
     
+    const { data: currentAffiliate } = await supabase.from('affiliates').select('admin_id').eq('id', id).single();
     const { data, error } = await supabase.from('affiliates').update(updates).eq('id', id).select().single();
     if (error) {
       this.logger.error('Error updating affiliate:', error.message);
       throw error;
     }
-    return data;
+    
+    // Se o email foi atualizado, retornar o novo, caso contrário, tentar buscar o atual
+    let finalEmail = email;
+    if (!finalEmail && currentAffiliate?.admin_id) {
+       const { data: adminData } = await supabase.from('admins').select('email').eq('id', currentAffiliate.admin_id).single();
+       finalEmail = adminData?.email;
+    }
+    
+    return { ...data, username: finalUsername || '', email: finalEmail || '' };
   }
 
   // Affiliate Dashboard

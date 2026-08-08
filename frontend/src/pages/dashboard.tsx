@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils"
 export default function DashboardPage() {
   const [stats, setStats] = useState<any>(null);
   const [waUsers, setWaUsers] = useState<any[]>([]);
+  const [isMonthlyView, setIsMonthlyView] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -203,15 +204,31 @@ export default function DashboardPage() {
       </div>
 
       <div className="mt-10 bg-white rounded-3xl shadow-sm p-8 border border-slate-100">
-        <h3 className="text-xl font-bold text-slate-800 mb-8">Controle de Uso de IA por Usuário</h3>
+        <div className="flex justify-between items-center mb-8">
+          <h3 className="text-xl font-bold text-slate-800">Controle de Uso de IA por Usuário</h3>
+          <div className="flex items-center gap-3">
+            <span className={`text-sm font-medium ${isMonthlyView ? 'text-primary' : 'text-slate-500'}`}>Mensal</span>
+            <button 
+              onClick={() => setIsMonthlyView(!isMonthlyView)}
+              className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+              style={{ backgroundColor: '#0047AB' }}
+            >
+              <span 
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${!isMonthlyView ? 'translate-x-6' : 'translate-x-1'}`}
+              />
+            </button>
+            <span className={`text-sm font-medium ${!isMonthlyView ? 'text-primary' : 'text-slate-500'}`}>Total</span>
+          </div>
+        </div>
         <div className="overflow-x-auto rounded-xl border border-slate-50">
           <Table>
             <TableHeader className="bg-slate-50/50">
               <TableRow className="hover:bg-transparent border-slate-100">
                 <TableHead className="font-bold">Usuário (Telefone)</TableHead>
                 <TableHead className="font-bold">Plano</TableHead>
-                <TableHead className="text-center font-bold">Mensagens IA Utilizadas</TableHead>
-                <TableHead className="text-center font-bold">Limite</TableHead>
+                <TableHead className="text-center font-bold">Membro Desde</TableHead>
+                <TableHead className="text-center font-bold">Mensagens IA Utilizadas ({isMonthlyView ? 'Mês' : 'Total'})</TableHead>
+                <TableHead className="text-center font-bold">Limite ({isMonthlyView ? 'Mês' : 'Total'})</TableHead>
                 <TableHead className="text-center font-bold">Status de Uso</TableHead>
               </TableRow>
             </TableHeader>
@@ -233,9 +250,10 @@ export default function DashboardPage() {
                   limit = '∞';
                   planName = 'Admin';
                 }
-                const used = user.metrics?.total_ai_messages || 0;
+                const used = isMonthlyView ? (user.metrics?.monthly_ai_messages || 0) : (user.metrics?.total_ai_messages || 0);
                 const exceeded = typeof limit === 'number' ? used >= limit : false;
                 const nearLimit = typeof limit === 'number' ? used >= limit * 0.8 && !exceeded : false;
+                const createdAt = user.created_at ? new Date(user.created_at).toLocaleDateString('pt-BR') : '-';
 
                 return (
                   <TableRow key={user.id} className="border-slate-50 hover:bg-slate-50/50 transition-all">
@@ -246,6 +264,9 @@ export default function DashboardPage() {
                       <Badge variant="outline" className="font-medium text-slate-600 bg-slate-50 border-slate-200">
                         {planName}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="text-center text-slate-500 font-medium">
+                      {createdAt}
                     </TableCell>
                     <TableCell className="text-center font-black text-slate-700">
                       {used}
@@ -273,7 +294,7 @@ export default function DashboardPage() {
               })}
               {waUsers.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-slate-500 py-8">
+                  <TableCell colSpan={6} className="text-center text-slate-500 py-8">
                     Nenhum usuário encontrado.
                   </TableCell>
                 </TableRow>

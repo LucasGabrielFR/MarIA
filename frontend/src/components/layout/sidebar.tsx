@@ -112,6 +112,7 @@ export function Sidebar() {
   const userStr = localStorage.getItem('maria_user');
   const user = userStr ? JSON.parse(userStr) : null;
   const isSuperAdmin = user?.role === 'superadmin' || user?.email === 'lucasgabriel@acutistech.com.br';
+  const isAffiliate = user?.role === 'affiliate';
 
   const [openMenus, setOpenMenus] = useState<string[]>([]);
 
@@ -127,103 +128,112 @@ export function Sidebar() {
     <SidebarContainer>
       <LogoSection>
         <img src="/maria_logo_premium.png" alt="MarIA Logo" />
-        <h1>MarIA Admin</h1>
+        <h1>{isAffiliate ? 'MarIA Afiliados' : 'MarIA Admin'}</h1>
       </LogoSection>
       
       <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
         <nav>
-          <NavItemLink to="/dashboard" $active={isActive('/dashboard')}>
-            <LayoutDashboard size={20} />
-            <span className="font-medium">Dashboard</span>
-          </NavItemLink>
-          
-          <NavItemLink to="/wa-users" $active={isActive('/wa-users')}>
-            <MessageSquare size={20} />
-            <span className="font-medium">Gestão de Fiéis</span>
-          </NavItemLink>
-
-          {/* Grupo: Disparos de Mensagens */}
-          <MenuGroup onClick={() => toggleMenu('disparos')} $active={isMenuOpen('disparos')}>
-            <div className="group-left">
-              <Send size={20} />
-              <span className="font-medium">Disparos</span>
-            </div>
-            {isMenuOpen('disparos') ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-          </MenuGroup>
-          <SubMenu $isOpen={isMenuOpen('disparos')}>
-            <NavItemLink to="/broadcasts" $active={isActive('/broadcasts')}>
-              <Megaphone size={18} />
-              <span className="font-medium">Em Massa</span>
+          {isAffiliate ? (
+            <NavItemLink to="/affiliate-dashboard" $active={isActive('/affiliate-dashboard')}>
+              <LayoutDashboard size={20} />
+              <span className="font-medium">Meu Painel</span>
             </NavItemLink>
-            <NavItemLink to="/scheduled-messages" $active={isActive('/scheduled-messages')}>
-              <CalendarClock size={18} />
-              <span className="font-medium">Agendadas (IA)</span>
-            </NavItemLink>
-          </SubMenu>
-
-          {/* Grupo: Ferramentas */}
-          <MenuGroup onClick={() => toggleMenu('ferramentas')} $active={isMenuOpen('ferramentas')}>
-            <div className="group-left">
-              <Wrench size={20} />
-              <span className="font-medium">Ferramentas</span>
-            </div>
-            {isMenuOpen('ferramentas') ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-          </MenuGroup>
-          <SubMenu $isOpen={isMenuOpen('ferramentas')}>
-            <NavItemLink to="/finance" $active={isActive('/finance')}>
-              <DollarSign size={18} />
-              <span className="font-medium">Financeiro</span>
-            </NavItemLink>
-            <NavItemLink to="/affiliates" $active={isActive('/affiliates')}>
-              <Handshake size={18} />
-              <span className="font-medium">Afiliados</span>
-            </NavItemLink>
-            {isSuperAdmin && (
-              <NavItemLink to="/users" $active={isActive('/users')}>
-                <Users size={18} />
-                <span className="font-medium">Administradores</span>
+          ) : (
+            <>
+              <NavItemLink to="/dashboard" $active={isActive('/dashboard')}>
+                <LayoutDashboard size={20} />
+                <span className="font-medium">Dashboard</span>
               </NavItemLink>
-            )}
-            <NavItemLink to="/logs" $active={isActive('/logs')}>
-              <Database size={18} />
-              <span className="font-medium">Dados e Logs</span>
-            </NavItemLink>
-          </SubMenu>
+              
+              <NavItemLink to="/wa-users" $active={isActive('/wa-users')}>
+                <MessageSquare size={20} />
+                <span className="font-medium">Gestão de Fiéis</span>
+              </NavItemLink>
 
-          {/* Grupo: Configurações */}
-          <MenuGroup onClick={() => toggleMenu('configuracoes')} $active={isMenuOpen('configuracoes')}>
-            <div className="group-left">
-              <Settings size={20} />
-              <span className="font-medium">Configurações</span>
-            </div>
-            {isMenuOpen('configuracoes') ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-          </MenuGroup>
-          <SubMenu $isOpen={isMenuOpen('configuracoes')}>
-            <NavItemLink to="/ai-settings" $active={isActive('/ai-settings')}>
-              <Brain size={18} />
-              <span className="font-medium">Parametrização IA</span>
-            </NavItemLink>
-            <NavItemLink to="/flows" $active={isActive('/flows')}>
-              <GitFork size={18} />
-              <span className="font-medium">Fluxos Automáticos</span>
-            </NavItemLink>
-            <NavItemLink to="/prayers" $active={isActive('/prayers')}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M11 6.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 1 0 0-5Z"/><path d="M12 11.5v3"/></svg>
-              <span className="font-medium">Orações</span>
-            </NavItemLink>
-            <NavItemLink to="/daily-content" $active={isActive('/daily-content')}>
-              <Calendar size={18} />
-              <span className="font-medium">Conteúdo Diário</span>
-            </NavItemLink>
-            <NavItemLink to="/settings" $active={isActive('/settings')}>
-              <Settings size={18} />
-              <span className="font-medium">Config. Gerais</span>
-            </NavItemLink>
-            <NavItemLink to="/plans" $active={isActive('/plans')}>
-              <DollarSign size={18} />
-              <span className="font-medium">Planos e Preços</span>
-            </NavItemLink>
-          </SubMenu>
+              {/* Grupo: Disparos de Mensagens */}
+              <MenuGroup onClick={() => toggleMenu('disparos')} $active={isMenuOpen('disparos')}>
+                <div className="group-left">
+                  <Send size={20} />
+                  <span className="font-medium">Disparos</span>
+                </div>
+                {isMenuOpen('disparos') ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              </MenuGroup>
+              <SubMenu $isOpen={isMenuOpen('disparos')}>
+                <NavItemLink to="/broadcasts" $active={isActive('/broadcasts')}>
+                  <Megaphone size={18} />
+                  <span className="font-medium">Em Massa</span>
+                </NavItemLink>
+                <NavItemLink to="/scheduled-messages" $active={isActive('/scheduled-messages')}>
+                  <CalendarClock size={18} />
+                  <span className="font-medium">Agendadas (IA)</span>
+                </NavItemLink>
+              </SubMenu>
+
+              {/* Grupo: Ferramentas */}
+              <MenuGroup onClick={() => toggleMenu('ferramentas')} $active={isMenuOpen('ferramentas')}>
+                <div className="group-left">
+                  <Wrench size={20} />
+                  <span className="font-medium">Ferramentas</span>
+                </div>
+                {isMenuOpen('ferramentas') ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              </MenuGroup>
+              <SubMenu $isOpen={isMenuOpen('ferramentas')}>
+                <NavItemLink to="/finance" $active={isActive('/finance')}>
+                  <DollarSign size={18} />
+                  <span className="font-medium">Financeiro</span>
+                </NavItemLink>
+                <NavItemLink to="/affiliates" $active={isActive('/affiliates')}>
+                  <Handshake size={18} />
+                  <span className="font-medium">Afiliados</span>
+                </NavItemLink>
+                {isSuperAdmin && (
+                  <NavItemLink to="/users" $active={isActive('/users')}>
+                    <Users size={18} />
+                    <span className="font-medium">Administradores</span>
+                  </NavItemLink>
+                )}
+                <NavItemLink to="/logs" $active={isActive('/logs')}>
+                  <Database size={18} />
+                  <span className="font-medium">Dados e Logs</span>
+                </NavItemLink>
+              </SubMenu>
+
+              {/* Grupo: Configurações */}
+              <MenuGroup onClick={() => toggleMenu('configuracoes')} $active={isMenuOpen('configuracoes')}>
+                <div className="group-left">
+                  <Settings size={20} />
+                  <span className="font-medium">Configurações</span>
+                </div>
+                {isMenuOpen('configuracoes') ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              </MenuGroup>
+              <SubMenu $isOpen={isMenuOpen('configuracoes')}>
+                <NavItemLink to="/ai-settings" $active={isActive('/ai-settings')}>
+                  <Brain size={18} />
+                  <span className="font-medium">Parametrização IA</span>
+                </NavItemLink>
+                <NavItemLink to="/flows" $active={isActive('/flows')}>
+                  <GitFork size={18} />
+                  <span className="font-medium">Fluxos Automáticos</span>
+                </NavItemLink>
+                <NavItemLink to="/prayers" $active={isActive('/prayers')}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M11 6.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 1 0 0-5Z"/><path d="M12 11.5v3"/></svg>
+                  <span className="font-medium">Orações</span>
+                </NavItemLink>
+                <NavItemLink to="/daily-content" $active={isActive('/daily-content')}>
+                  <Calendar size={18} />
+                  <span className="font-medium">Conteúdo Diário</span>
+                </NavItemLink>
+                <NavItemLink to="/settings" $active={isActive('/settings')}>
+                  <Settings size={18} />
+                  <span className="font-medium">Config. Gerais</span>
+                </NavItemLink>
+                <NavItemLink to="/plans" $active={isActive('/plans')}>
+                  <DollarSign size={18} />
+                  <span className="font-medium">Planos e Preços</span>
+                </NavItemLink>
+              </SubMenu>
+            </>
+          )}
         </nav>
       </div>
 

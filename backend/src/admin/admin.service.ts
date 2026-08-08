@@ -166,21 +166,24 @@ export class AdminService {
         const plan = user.subscription_tier || 'free';
         const isFree = plan === 'free';
 
-        let aiMsgQuery = supabase
+        const firstDayOfMonth = new Date();
+        firstDayOfMonth.setDate(1);
+        firstDayOfMonth.setHours(0, 0, 0, 0);
+
+        const { count: monthlyAiMsgCount } = await supabase
+          .from('messages')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('role', 'user')
+          .eq('is_llm', true)
+          .gte('created_at', firstDayOfMonth.toISOString());
+
+        const { count: totalAiMsgCount } = await supabase
           .from('messages')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', user.id)
           .eq('role', 'user')
           .eq('is_llm', true);
-
-        if (!isFree) {
-          const firstDayOfMonth = new Date();
-          firstDayOfMonth.setDate(1);
-          firstDayOfMonth.setHours(0, 0, 0, 0);
-          aiMsgQuery = aiMsgQuery.gte('created_at', firstDayOfMonth.toISOString());
-        }
-
-        const { count: aiMsgCount } = await aiMsgQuery;
 
         const totalMessages = (userMsgCount || 0) + (assistantMsgCount || 0);
 
@@ -212,7 +215,8 @@ export class AdminService {
             total_messages: totalMessages || 0,
             total_user_messages: userMsgCount || 0,
             total_assistant_messages: assistantMsgCount || 0,
-            total_ai_messages: aiMsgCount || 0,
+            total_ai_messages: totalAiMsgCount || 0,
+            monthly_ai_messages: monthlyAiMsgCount || 0,
             engagement,
           },
         };

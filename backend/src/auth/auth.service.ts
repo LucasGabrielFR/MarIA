@@ -29,6 +29,21 @@ export class AuthService {
       );
     }
 
+    let userRole = admin.role;
+    
+    // Se o cargo no banco for admin, verifica se é um afiliado (burlar a constraint)
+    if (userRole === 'admin') {
+      const { data: affiliate } = await supabase
+        .from('affiliates')
+        .select('id')
+        .eq('admin_id', data.user.id)
+        .single();
+        
+      if (affiliate) {
+        userRole = 'affiliate';
+      }
+    }
+
     // Registrar log de auditoria
     await supabase.from('activity_logs').insert({
       admin_id: data.user.id,
@@ -43,7 +58,7 @@ export class AuthService {
         id: data.user.id,
         email: data.user.email,
         name: admin.name,
-        role: admin.role,
+        role: userRole,
         requires_password_change: admin.requires_password_change,
       },
       session: data.session,

@@ -19,8 +19,8 @@ export function MainLayout({ children, title, subtitle }: MainLayoutProps) {
     }
   }, []);
 
-  const getInitials = (email: string) => {
-    return email ? email.substring(0, 2).toUpperCase() : 'UI';
+  const getInitials = (nameOrEmail: string) => {
+    return nameOrEmail ? nameOrEmail.substring(0, 2).toUpperCase() : 'UI';
   };
 
   return (
@@ -36,13 +36,13 @@ export function MainLayout({ children, title, subtitle }: MainLayoutProps) {
             </div>
             <div className="flex items-center gap-4">
               <div className="text-right hidden sm:block">
-                <p className="text-sm font-bold text-slate-800">{user?.email || 'Usuário'}</p>
+                <p className="text-sm font-bold text-slate-800">{user?.name || user?.email || 'Usuário'}</p>
                 <p className="text-xs text-slate-500 font-medium bg-blue-50 text-primary px-2 py-0.5 rounded-full inline-block">
-                  {user?.email === 'lucasgabriel@acutistech.com.br' ? 'Superadmin' : 'Admin'}
+                  {user?.role === 'affiliate' ? 'Afiliado' : user?.email === 'lucasgabriel@acutistech.com.br' ? 'Superadmin' : 'Admin'}
                 </p>
               </div>
               <Avatar className="h-10 w-10 border-2 border-primary/20 p-0.5">
-                <AvatarFallback className="bg-primary text-white font-bold">{getInitials(user?.email)}</AvatarFallback>
+                <AvatarFallback className="bg-primary text-white font-bold">{getInitials(user?.name || user?.email)}</AvatarFallback>
               </Avatar>
             </div>
           </header>

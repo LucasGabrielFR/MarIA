@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
-import { Handshake, Loader2, Plus, Copy, Tag, Trash } from 'lucide-react'
+import { Handshake, Loader2, Plus, Copy, Tag, Trash, Eye, EyeOff } from 'lucide-react'
 
 // Define the API url for WA link generation
 const FRONTEND_URL = window.location.origin;
@@ -17,15 +17,11 @@ export default function AffiliatesPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [editingAffiliateId, setEditingAffiliateId] = useState<string | null>(null)
+  const [showPassword, setShowPassword] = useState(false)
   const [newAffiliate, setNewAffiliate] = useState({ 
-    name: '', 
-    code: '', 
-    email: '', 
-    password: '', 
-    commission_type: 'percentage', 
-    commission_value: '', 
-    commission_duration_months: '', 
-    can_view_insights: false 
+    name: '', code: '', username: '', password: '', 
+    commission_type: 'percentage', commission_value: '', 
+    commission_duration_months: '', can_view_insights: false 
   })
   
   // States for promotions
@@ -65,13 +61,8 @@ export default function AffiliatesPage() {
     }
     setSaving(true)
     try {
-      const affiliateEmail = newAffiliate.email.includes('@') || newAffiliate.email === '' 
-        ? newAffiliate.email 
-        : `${newAffiliate.email}@acutistech.com.br`;
-
       const payload = {
         ...newAffiliate,
-        email: affiliateEmail,
         commission_value: newAffiliate.commission_value ? parseFloat(newAffiliate.commission_value.toString()) : 0,
         commission_duration_months: newAffiliate.commission_duration_months ? parseInt(newAffiliate.commission_duration_months.toString()) : null,
       }
@@ -115,7 +106,7 @@ export default function AffiliatesPage() {
   const cancelEdit = () => {
     setEditingAffiliateId(null)
     setNewAffiliate({ 
-      name: '', code: '', email: '', password: '', 
+      name: '', code: '', username: '', password: '', 
       commission_type: 'percentage', commission_value: '', 
       commission_duration_months: '', can_view_insights: false 
     })
@@ -123,11 +114,17 @@ export default function AffiliatesPage() {
 
   const startEdit = (affiliate: any) => {
     setEditingAffiliateId(affiliate.id)
+    
+    let initialUsername = affiliate.username || affiliate.email || '';
+    if (initialUsername.includes('@acutistech.com.br')) {
+      initialUsername = initialUsername.split('@')[0];
+    }
+    
     setNewAffiliate({
       name: affiliate.name || '',
       code: affiliate.code || '',
-      email: affiliate.email || '',
-      password: '', // Don't populate password for security, let them type a new one if they want to change it (assuming backend handles empty password as "don't change")
+      username: initialUsername,
+      password: affiliate.password_hash || '',
       commission_type: affiliate.commission_type || 'percentage',
       commission_value: affiliate.commission_value?.toString() || '',
       commission_duration_months: affiliate.commission_duration_months?.toString() || '',
@@ -258,12 +255,27 @@ export default function AffiliatesPage() {
                   <Input value={newAffiliate.code} onChange={e => setNewAffiliate({...newAffiliate, code: e.target.value})} placeholder="Ex: joao123" />
                 </div>
                 <div>
-                  <Label>Usuário ou E-mail (Para Login no Dashboard)</Label>
-                  <Input type="text" value={newAffiliate.email} onChange={e => setNewAffiliate({...newAffiliate, email: e.target.value.toLowerCase().trim()})} placeholder="Ex: joao123 ou joao@email.com" />
+                  <Label>Usuário (Para Login no Dashboard)</Label>
+                  <Input type="text" value={newAffiliate.username} onChange={e => setNewAffiliate({...newAffiliate, username: e.target.value.toLowerCase().trim()})} placeholder="Ex: joao123" />
                 </div>
                 <div>
                   <Label>Senha (Para Login no Dashboard)</Label>
-                  <Input type="password" value={newAffiliate.password} onChange={e => setNewAffiliate({...newAffiliate, password: e.target.value})} placeholder="Senha inicial" />
+                  <div className="relative">
+                    <Input 
+                      type={showPassword ? "text" : "password"} 
+                      value={newAffiliate.password} 
+                      onChange={e => setNewAffiliate({...newAffiliate, password: e.target.value})} 
+                      placeholder={editingAffiliateId ? "Deixe em branco para manter a atual" : "Senha inicial"} 
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <Label>Tipo de Comissão</Label>

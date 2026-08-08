@@ -32,8 +32,8 @@ export default function AffiliateDashboardPage() {
         return
       }
 
-      // Fetch affiliate details by admin_id
-      const resProfile = await fetch(`${API_URL}/affiliates/by-admin/${user.id}`)
+      // Fetch affiliate details by code (since they login with their credentials)
+      const resProfile = await fetch(`${API_URL}/affiliates/code/${user.code}`)
       const profileData = await resProfile.json()
       
       if (!profileData.success || !profileData.affiliate) {

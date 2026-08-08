@@ -14,6 +14,7 @@ import FinancePage from './pages/finance'
 import PlansPage from './pages/plans'
 import AffiliatesPage from './pages/affiliates'
 import AffiliateDashboardPage from './pages/affiliate-dashboard'
+import AffiliateLogin from './pages/affiliate-login'
 import ScheduledMessagesPage from './pages/scheduled-messages'
 import { Toaster } from "@/components/ui/sonner"
 
@@ -40,6 +41,7 @@ function App() {
         <Route path="/plans" element={<PlansPage />} />
         <Route path="/affiliates" element={<AffiliatesPage />} />
         <Route path="/affiliate-dashboard" element={<AffiliateDashboardPage />} />
+        <Route path="/affiliate-login" element={<AffiliateLogin />} />
         
         {/* Redirect unknown routes to login */}
         <Route path="*" element={<Navigate to="/" replace />} />
