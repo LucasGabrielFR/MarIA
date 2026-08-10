@@ -10,12 +10,22 @@ export default function Home() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   
   const [plans, setPlans] = useState<any[]>([]);
+  const [premiumActive, setPremiumActive] = useState<boolean>(false);
 
   useEffect(() => {
     fetch('/api/plans')
       .then((res) => res.json())
       .then((data) => setPlans(data))
       .catch((err) => console.error('Erro ao buscar planos:', err));
+
+    fetch('/api/admin/settings/public/premium_plan_active')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.value) {
+          setPremiumActive(data.value === 'true');
+        }
+      })
+      .catch((err) => console.error('Erro ao buscar config premium:', err));
   }, []);
 
   const getPrice = (tier: string, cycle: string) => {
@@ -393,7 +403,7 @@ export default function Home() {
             </div>
           </div>
           
-          <div className="grid lg:grid-cols-3 gap-8 items-stretch max-w-6xl mx-auto relative">
+          <div className={`grid gap-8 items-stretch mx-auto relative ${premiumActive ? 'lg:grid-cols-3 max-w-6xl' : 'md:grid-cols-2 max-w-4xl'}`}>
             
             {/* Plano Gratuito */}
             <div className="bg-white/5 backdrop-blur-xl rounded-[2.5rem] p-10 flex flex-col relative border border-white/10 hover:bg-white/10 transition-all duration-300 group">
@@ -486,7 +496,16 @@ export default function Home() {
                   <span className="text-white bg-[#0047AB] rounded-full p-1 shrink-0"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/></svg></span>
                   Tira dúvidas com base teológica e do Catecismo
                 </li>
+                <li className="flex items-start gap-4 text-sm text-slate-600 font-light">
+                  <span className="text-white bg-[#0047AB] rounded-full p-1 shrink-0"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/></svg></span>
+                  Liturgia diária enviada todos os dias
+                </li>
+                <li className="flex items-start gap-4 text-sm text-slate-600 font-light">
+                  <span className="text-white bg-[#0047AB] rounded-full p-1 shrink-0"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/></svg></span>
+                  Oração para finalizar o dia
+                </li>
               </ul>
+
               <div className="mt-auto w-full">
                 <button 
                   onClick={() => handleSubscribe('basic', isAnnual ? 'annual' : 'monthly')}
@@ -498,66 +517,65 @@ export default function Home() {
             </div>
 
             {/* Plano Premium */}
-            <div className="bg-white/5 backdrop-blur-xl rounded-[2.5rem] p-10 flex flex-col relative border border-white/10 hover:bg-white/10 transition-all duration-300 group">
-              {/* Promo Banner */}
-              {getDiscount('premium', isAnnual ? 'annual' : 'monthly') && (
-                <div className="absolute -top-4 -right-4 md:-right-6 bg-[#D4AF37] text-white font-black text-sm px-4 py-2 rounded-xl shadow-lg rotate-12 animate-pulse border-2 border-[#001b44] z-30">
-                  {getDiscount('premium', isAnnual ? 'annual' : 'monthly')}% OFF
+            {premiumActive && (
+              <div className="bg-white/5 backdrop-blur-xl rounded-[2.5rem] p-10 flex flex-col relative border border-white/10 hover:bg-white/10 transition-all duration-300 group">
+                {/* Promo Banner */}
+                {getDiscount('premium', isAnnual ? 'annual' : 'monthly') && (
+                  <div className="absolute -top-4 -right-4 md:-right-6 bg-[#D4AF37] text-white font-black text-sm px-4 py-2 rounded-xl shadow-lg rotate-12 animate-pulse border-2 border-[#001b44] z-30">
+                    {getDiscount('premium', isAnnual ? 'annual' : 'monthly')}% OFF
+                  </div>
+                )}
+                <div className="mb-8">
+                  <h4 className="text-2xl font-bold text-[#D4AF37] mb-2">Premium</h4>
+                  <p className="text-slate-400 text-sm font-light leading-relaxed">Para quem deseja viver uma imersão teológica e oração intensa.</p>
                 </div>
-              )}
-              <div className="mb-8">
-                <h4 className="text-2xl font-bold text-[#D4AF37] mb-2">Premium</h4>
-                <p className="text-slate-400 text-sm font-light leading-relaxed">Para quem deseja viver uma imersão teológica e oração intensa.</p>
-              </div>
-              <div className="mb-10">
-                <div className="flex items-end gap-1 mb-1">
-                  {getDiscount('premium', isAnnual ? 'annual' : 'monthly') && (
-                    <span className="text-xl line-through text-slate-500 font-medium mr-2 self-center">
-                      R$ {plans.find(p => p.tier === 'premium' && p.cycle === (isAnnual ? 'annual' : 'monthly'))?.price?.toFixed(2).replace('.', ',') || '0,00'}
+                <div className="mb-10">
+                  <div className="flex items-end gap-1 mb-1">
+                    {getDiscount('premium', isAnnual ? 'annual' : 'monthly') && (
+                      <span className="text-xl line-through text-slate-500 font-medium mr-2 self-center">
+                        R$ {plans.find(p => p.tier === 'premium' && p.cycle === (isAnnual ? 'annual' : 'monthly'))?.price?.toFixed(2).replace('.', ',') || '0,00'}
+                      </span>
+                    )}
+                    <span className="text-5xl font-extrabold text-white transition-all">
+                      R$ {isAnnual ? 
+                        (getPrice('premium', 'annual') ? (getPrice('premium', 'annual')! / 12).toFixed(2).replace('.', ',') : '26,90')
+                        : 
+                        (getPrice('premium', 'monthly') ? getPrice('premium', 'monthly')!.toFixed(2).replace('.', ',') : '29,90')
+                      }
                     </span>
-                  )}
-                  <span className="text-5xl font-extrabold text-white transition-all">
-                    R$ {isAnnual ? 
-                      (getPrice('premium', 'annual') ? (getPrice('premium', 'annual')! / 12).toFixed(2).replace('.', ',') : '26,90')
-                      : 
-                      (getPrice('premium', 'monthly') ? getPrice('premium', 'monthly')!.toFixed(2).replace('.', ',') : '29,90')
-                    }
-                  </span>
-                  <span className="text-slate-400 text-sm font-medium pb-1.5"> / mês</span>
+                    <span className="text-slate-400 text-sm font-medium pb-1.5"> / mês</span>
+                  </div>
+                  {isAnnual ? 
+                    <p className="text-[#D4AF37] text-xs font-bold animate-fade-in">
+                      Cobrado R$ {getPrice('premium', 'annual') ? getPrice('premium', 'annual')!.toFixed(2).replace('.', ',') : '322,80'} anualmente
+                    </p> : 
+                    <p className="text-transparent text-xs font-bold h-4">Espaço reservado</p>}
                 </div>
-                {isAnnual ? 
-                  <p className="text-[#D4AF37] text-xs font-bold animate-fade-in">
-                    Cobrado R$ {getPrice('premium', 'annual') ? getPrice('premium', 'annual')!.toFixed(2).replace('.', ',') : '322,80'} anualmente
-                  </p> : 
-                  <p className="text-transparent text-xs font-bold h-4">Espaço reservado</p>}
+                <ul className="space-y-5 mb-10 flex-1">
+                   <li className="flex items-start gap-4 text-sm text-slate-300 font-light">
+                    <span className="text-white bg-green-500 rounded-full p-1 shrink-0"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/></svg></span>
+                    Tudo do plano Básico +
+                  </li>
+                  <li className="flex items-start gap-4 text-sm text-[#D4AF37] font-bold bg-[#D4AF37]/10 p-3 rounded-xl border border-[#D4AF37]/25">
+                    <span className="shrink-0 text-xl">✨</span>
+                    300 mensagens exclusivas conversando com a IA
+                  </li>
+                  <li className="flex items-start gap-4 text-sm text-slate-300 font-light">
+                    <span className="text-[#D4AF37] bg-white/10 rounded-full p-1 shrink-0"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/></svg></span>
+                    Acompanhamento diário rigoroso
+                  </li>
+                </ul>
+                <div className="mt-auto w-full">
+                  <button 
+                    onClick={() => handleSubscribe('premium', isAnnual ? 'annual' : 'monthly')}
+                    className="w-full py-4 px-6 bg-white text-slate-900 rounded-full font-bold hover:bg-slate-100 transition-colors hover:shadow-[0_8px_30px_rgba(255,255,255,0.2)]"
+                  >
+                    Assinar Premium
+                  </button>
+                </div>
               </div>
-              <ul className="space-y-5 mb-10 flex-1">
-                 <li className="flex items-start gap-4 text-sm text-slate-300 font-light">
-                  <span className="text-white bg-green-500 rounded-full p-1 shrink-0"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/></svg></span>
-                  Tudo do plano Básico +
-                </li>
-                <li className="flex items-start gap-4 text-sm text-[#D4AF37] font-bold bg-[#D4AF37]/10 p-3 rounded-xl border border-[#D4AF37]/25">
-                  <span className="shrink-0 text-xl">✨</span>
-                  300 mensagens exclusivas conversando com a IA
-                </li>
-                <li className="flex items-start gap-4 text-sm text-slate-300 font-light">
-                  <span className="text-[#D4AF37] bg-white/10 rounded-full p-1 shrink-0"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/></svg></span>
-                  Respostas mais elaboradas e longas
-                </li>
-                <li className="flex items-start gap-4 text-sm text-slate-300 font-light">
-                  <span className="text-[#D4AF37] bg-white/10 rounded-full p-1 shrink-0"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/></svg></span>
-                  Acompanhamento diário rigoroso
-                </li>
-              </ul>
-              <div className="mt-auto w-full">
-                <button 
-                  onClick={() => handleSubscribe('premium', isAnnual ? 'annual' : 'monthly')}
-                  className="w-full py-4 px-6 bg-white text-slate-900 rounded-full font-bold hover:bg-slate-100 transition-colors hover:shadow-[0_8px_30px_rgba(255,255,255,0.2)]"
-                >
-                  Assinar Premium
-                </button>
-              </div>
-            </div>
+            )}
+
           </div>
           
           {/* ESG Banner */}

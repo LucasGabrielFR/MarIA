@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
-import { Handshake, Loader2, Plus, Copy, Tag, Trash, Eye, EyeOff } from 'lucide-react'
+import { Handshake, Loader2, Plus, Copy, Tag, Trash, Eye, EyeOff, Save } from 'lucide-react'
 
 // Define the API url for WA link generation
 const FRONTEND_URL = window.location.origin;
@@ -30,6 +30,8 @@ export default function AffiliatesPage() {
   const [loadingPromos, setLoadingPromos] = useState(false)
 
   const [newPromo, setNewPromo] = useState({ plan_tier: 'premium', plan_cycle: 'monthly', discount_percentage: '' })
+  const [waMessageTemplate, setWaMessageTemplate] = useState("Olá, gostaria de assinar [ref:{{code}}]")
+  const [savingTemplate, setSavingTemplate] = useState(false)
 
   useEffect(() => {
     fetchData()
@@ -46,11 +48,46 @@ export default function AffiliatesPage() {
       const plansData = await plansRes.json()
       setAffiliates(affData || [])
       setPlans(plansData || [])
+      
+      try {
+        const settingRes = await fetch(`${API_URL}/admin/settings/public/wa_message_template`)
+        if (settingRes.ok) {
+          const text = await settingRes.text()
+          if (text) {
+            const settingData = JSON.parse(text)
+            if (settingData && settingData.value) {
+              setWaMessageTemplate(settingData.value)
+            }
+          }
+        }
+      } catch (errSetting) {
+        console.error('Erro ao buscar template WA', errSetting)
+      }
     } catch (err) {
       console.error(err)
       toast.error("Erro ao carregar dados")
     } finally {
       setLoading(false)
+    }
+  }
+
+  const saveWaTemplate = async () => {
+    setSavingTemplate(true)
+    try {
+      const storedUser = localStorage.getItem('maria_user')
+      const adminId = storedUser ? JSON.parse(storedUser)?.id : ''
+      const res = await fetch(`${API_URL}/admin/settings/wa_message_template`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'x-admin-id': adminId },
+        body: JSON.stringify({ value: waMessageTemplate })
+      })
+      if (!res.ok) throw new Error('Falha ao salvar template')
+      toast.success('Mensagem padrão salva com sucesso!')
+    } catch (err) {
+      console.error(err)
+      toast.error("Erro ao salvar mensagem padrão")
+    } finally {
+      setSavingTemplate(false)
     }
   }
 
@@ -219,7 +256,7 @@ export default function AffiliatesPage() {
 
   const WA_NUMBER = "5562981949980";
   const generateWaLink = (code: string) => {
-    const msg = `Olá, gostaria de assinar [ref:${code}]`
+    const msg = waMessageTemplate.replace('{{code}}', code)
     return `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(msg)}`
   }
 
@@ -316,6 +353,24 @@ export default function AffiliatesPage() {
               <CardTitle>Lista de Afiliados</CardTitle>
             </CardHeader>
             <CardContent>
+              <div className="mb-6 p-4 bg-slate-50 border border-slate-200 rounded-lg">
+                <Label className="text-sm font-semibold text-slate-700">Mensagem Padrão do WhatsApp</Label>
+                <div className="mt-2 flex gap-2">
+                  <Input 
+                    value={waMessageTemplate} 
+                    onChange={e => setWaMessageTemplate(e.target.value)} 
+                    placeholder="Ex: Olá, gostaria de assinar [ref:{{code}}]"
+                  />
+                  <Button onClick={saveWaTemplate} disabled={savingTemplate} className="whitespace-nowrap">
+                    {savingTemplate ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                    Salvar
+                  </Button>
+                </div>
+                <p className="text-xs text-slate-500 mt-2">
+                  Personalize a mensagem que os clientes enviarão. Use <code className="bg-slate-200 px-1 py-0.5 rounded font-mono text-slate-700">{"{{code}}"}</code> onde o código do afiliado deve aparecer. Os links abaixo serão atualizados automaticamente.
+                </p>
+              </div>
+
               {loading ? (
                 <div className="flex justify-center p-4"><Loader2 className="animate-spin text-primary" /></div>
               ) : affiliates.length === 0 ? (

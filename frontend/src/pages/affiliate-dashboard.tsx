@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react'
 import { MainLayout } from '../components/layout/main-layout'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Users, DollarSign, BrainCircuit, Loader2 } from 'lucide-react'
+import { Button } from "@/components/ui/button"
+import { Users, DollarSign, BrainCircuit, Loader2, Copy, Link as LinkIcon, MessageCircle } from 'lucide-react'
 import { API_URL } from '../lib/api'
 import { toast } from 'sonner'
 import { useNavigate } from 'react-router-dom'
+
+const FRONTEND_URL = window.location.origin;
+const WA_NUMBER = "5562981949980";
 
 export default function AffiliateDashboardPage() {
   const navigate = useNavigate()
@@ -12,6 +16,7 @@ export default function AffiliateDashboardPage() {
   const [affiliate, setAffiliate] = useState<any>(null)
   const [stats, setStats] = useState<any>(null)
   const [insights, setInsights] = useState<any>(null)
+  const [waMessageTemplate, setWaMessageTemplate] = useState("Olá, gostaria de assinar [ref:{{code}}]")
 
   useEffect(() => {
     loadDashboard()
@@ -57,12 +62,39 @@ export default function AffiliateDashboardPage() {
         setInsights(insightsData)
       }
 
+      // Fetch WA Template
+      try {
+        const resSetting = await fetch(`${API_URL}/admin/settings/public/wa_message_template`)
+        if (resSetting.ok) {
+          const settingData = await resSetting.json()
+          if (settingData && settingData.value) {
+            setWaMessageTemplate(settingData.value)
+          }
+        }
+      } catch (e) {
+        console.error('Erro ao buscar template WA', e)
+      }
+
     } catch (error) {
       console.error(error)
       toast.error('Erro ao carregar o dashboard')
     } finally {
       setLoading(false)
     }
+  }
+
+  const generateWaLink = (code: string) => {
+    const msg = waMessageTemplate.replace('{{code}}', code)
+    return `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(msg)}`
+  }
+
+  const generateWebLink = (code: string) => {
+    return `${FRONTEND_URL}/?ref=${code}`
+  }
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+    toast.success('Link copiado!')
   }
 
   if (loading) {
@@ -93,6 +125,46 @@ export default function AffiliateDashboardPage() {
         </h1>
         <p className="text-slate-500 mt-2">Acompanhe seus resultados e indicações.</p>
       </div>
+
+      <Card className="mb-8 border-none shadow-md bg-white">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <LinkIcon className="text-primary w-5 h-5" /> Seus Links de Indicação
+          </CardTitle>
+          <CardDescription>
+            Compartilhe esses links para receber suas comissões por indicações bem sucedidas.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center p-4 bg-slate-50 rounded-lg border border-slate-100">
+            <div>
+              <p className="font-semibold text-sm text-slate-700 flex items-center gap-1.5 mb-1">
+                <LinkIcon size={14} /> Link do Site (Landing Page)
+              </p>
+              <code className="text-xs bg-slate-200/50 px-2 py-1 rounded text-slate-600 block max-w-full overflow-hidden text-ellipsis md:max-w-md">
+                {generateWebLink(affiliate.code)}
+              </code>
+            </div>
+            <Button onClick={() => copyToClipboard(generateWebLink(affiliate.code))} variant="outline" size="sm" className="whitespace-nowrap w-full md:w-auto">
+              <Copy className="w-4 h-4 mr-2" /> Copiar Link
+            </Button>
+          </div>
+
+          <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center p-4 bg-green-50 rounded-lg border border-green-100">
+            <div>
+              <p className="font-semibold text-sm text-green-700 flex items-center gap-1.5 mb-1">
+                <MessageCircle size={14} /> Link Direto para WhatsApp
+              </p>
+              <code className="text-xs bg-green-100/50 px-2 py-1 rounded text-green-700 block max-w-full overflow-hidden text-ellipsis md:max-w-md">
+                {generateWaLink(affiliate.code)}
+              </code>
+            </div>
+            <Button onClick={() => copyToClipboard(generateWaLink(affiliate.code))} variant="default" size="sm" className="bg-green-600 hover:bg-green-700 whitespace-nowrap w-full md:w-auto text-white">
+              <Copy className="w-4 h-4 mr-2" /> Copiar Link WA
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         <Card className="border-none shadow-md">

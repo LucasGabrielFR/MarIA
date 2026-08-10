@@ -6,28 +6,43 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
-import { Save, Loader2, ListTree } from 'lucide-react'
+import { Save, Loader2, ListTree, Power } from 'lucide-react'
 
 export default function PlansPage() {
   const [plans, setPlans] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  
+  // Nova configuração para ativar/desativar o plano premium na landing page
+  const [premiumActive, setPremiumActive] = useState<boolean>(false)
+  const [updatingPremiumToggle, setUpdatingPremiumToggle] = useState(false)
 
   useEffect(() => {
-    fetchPlans()
+    fetchData()
   }, [])
 
-  const fetchPlans = async () => {
+  const fetchData = async () => {
     setLoading(true)
     try {
-      const response = await fetch(`${API_URL}/plans`)
-      const data = await response.json()
-      // ensure we show only basic and premium, maybe allow adding new but we just need basic and premium monthly/annual
-      // for this MVP let's just display all and edit them
-      setPlans(data || [])
+      const storedUser = localStorage.getItem('maria_user')
+      const adminId = storedUser ? JSON.parse(storedUser)?.id : ''
+
+      const [plansResponse, settingsResponse] = await Promise.all([
+        fetch(`${API_URL}/plans`),
+        fetch(`${API_URL}/admin/settings`, { headers: { 'x-admin-id': adminId } })
+      ])
+      
+      const plansData = await plansResponse.json()
+      setPlans(plansData || [])
+
+      if (settingsResponse.ok) {
+        const settingsData = await settingsResponse.json()
+        const premiumSetting = settingsData.find((s: any) => s.key === 'premium_plan_active')
+        setPremiumActive(premiumSetting?.value === 'true')
+      }
     } catch (err) {
       console.error(err)
-      toast.error("Erro ao carregar planos")
+      toast.error("Erro ao carregar dados")
     } finally {
       setLoading(false)
     }
@@ -42,9 +57,15 @@ export default function PlansPage() {
   const savePlan = async (plan: any) => {
     setSaving(true)
     try {
-      const response = await fetch(`${API_URL}/plans/${plan.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+      const storedUser = localStorage.getItem('maria_user')
+      const adminId = storedUser ? JSON.parse(storedUser)?.id : ''
+
+      const response = await fetch(`${API_URL}/admin/plans/${plan.id}`, {
+        method: 'PATCH',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-admin-id': adminId
+        },
         body: JSON.stringify(plan)
       })
       if (!response.ok) throw new Error('Falha ao salvar plano')
@@ -57,15 +78,66 @@ export default function PlansPage() {
     }
   }
 
+  const togglePremiumPlan = async () => {
+    setUpdatingPremiumToggle(true)
+    const newValue = !premiumActive
+    try {
+      const storedUser = localStorage.getItem('maria_user')
+      const adminId = storedUser ? JSON.parse(storedUser)?.id : ''
+
+      const response = await fetch(`${API_URL}/admin/settings/premium_plan_active`, {
+        method: 'PATCH',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-admin-id': adminId
+        },
+        body: JSON.stringify({ value: newValue ? 'true' : 'false' })
+      })
+
+      if (response.ok) {
+        setPremiumActive(newValue)
+        toast.success(`Plano Premium ${newValue ? 'ativado' : 'desativado'} na Landing Page!`)
+      } else {
+        throw new Error()
+      }
+    } catch (error) {
+      toast.error("Erro ao atualizar o status do plano premium")
+    } finally {
+      setUpdatingPremiumToggle(false)
+    }
+  }
+
   return (
     <MainLayout title="Planos e Preços">
-      <div className="mb-6">
-        <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight flex items-center gap-3">
-          <ListTree className="text-[#0047AB]" size={32} />
-          Planos e Preços
-        </h1>
-        <p className="text-slate-500 mt-2">Gerencie os planos, ciclos e preços oferecidos no aplicativo e na landing page.</p>
+      <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight flex items-center gap-3">
+            <ListTree className="text-[#0047AB]" size={32} />
+            Planos e Preços
+          </h1>
+          <p className="text-slate-500 mt-2">Gerencie os planos, ciclos e preços oferecidos no aplicativo e na landing page.</p>
+        </div>
+        
+        {/* Toggle Premium Card */}
+        {!loading && (
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+            <div>
+              <p className="text-sm font-bold text-slate-800">Plano Premium (Landing Page)</p>
+              <p className="text-xs text-slate-500">{premiumActive ? 'Visível para novos usuários' : 'Oculto temporariamente'}</p>
+            </div>
+            <Button 
+              onClick={togglePremiumPlan} 
+              disabled={updatingPremiumToggle}
+              variant={premiumActive ? "default" : "secondary"}
+              className={`rounded-xl font-bold gap-2 ${premiumActive ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
+            >
+              {updatingPremiumToggle ? <Loader2 size={16} className="animate-spin" /> : <Power size={16} />}
+              {premiumActive ? 'Ativo' : 'Inativo'}
+            </Button>
+          </div>
+        )}
       </div>
+
       {loading ? (
         <div className="flex items-center justify-center p-12">
           <Loader2 className="w-8 h-8 animate-spin text-[#0047AB]" />
@@ -73,7 +145,12 @@ export default function PlansPage() {
       ) : (
         <div className="grid md:grid-cols-2 gap-6">
           {plans.map((plan, i) => (
-            <Card key={plan.id} className="border-slate-200">
+            <Card key={plan.id} className="border-slate-200 relative overflow-hidden">
+              {plan.tier === 'premium' && !premiumActive && (
+                <div className="absolute top-4 right-4 bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">
+                  Oculto na Landing
+                </div>
+              )}
               <CardHeader>
                 <CardTitle className="capitalize">{plan.name} - {plan.cycle}</CardTitle>
                 <CardDescription>Plano: {plan.name}, Ciclo: {plan.cycle}</CardDescription>
@@ -115,3 +192,4 @@ export default function PlansPage() {
     </MainLayout>
   )
 }
+

@@ -102,7 +102,7 @@ Para que o lançamento seja seguro e o marketing eficiente, o projeto seguirá u
 ### Mês 4: Lançamento Oficial (Go-to-Market)
 - **Campanhas de Aquisição (Tráfego Pago):** Iniciar campanhas no Facebook e Instagram Ads hiper-segmentadas para o público católico (Interesses como: *Igreja Católica, Terço, Canção Nova, Padre Marcelo Rossi, Papa Francisco*).
 - **Conteúdo Viral (Tiktok/Reels):** Criar vídeos curtos com a narrativa: *"Descubra como a inteligência artificial pode te ajudar a estar mais perto da fé todos os dias"*, mostrando trechos borrados de conversas reais de acolhimento.
-- **Parcerias (Influenciadores):** Fechar parcerias de permuta ou afiliado com micro-influenciadores católicos para divulgarem o link do WhatsApp do bot.
+- **Parcerias (Influenciadores):** Fechar parcerias de permuta ou afiliado com micro-influenciadores católicos para divulgarem o link do WhatsApp do bot. O sistema de afiliados contará com links únicos e dinâmicos para a Landing Page e para o WhatsApp (com mensagens pré-preenchidas configuráveis pelo administrador, disponíveis para cópia no próprio painel do afiliado).
 
 ### Mês 5 ao 12: Tração e Fase 2 (Retenção)
 - **Engajamento Ativo:** Implementação pesada do n8n para enviar lembretes proativos aos assinantes Premium (ex: "Bom dia filho, não se esqueça do seu propósito de ler o Evangelho hoje"). Isso evita o churn (cancelamento da assinatura).

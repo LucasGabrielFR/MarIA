@@ -496,7 +496,7 @@ export class AdminService {
   }
 
   async getPublicSystemSetting(key: string) {
-    const allowedKeys = ['terms_of_use', 'privacy_policy'];
+    const allowedKeys = ['terms_of_use', 'privacy_policy', 'wa_message_template'];
     if (!allowedKeys.includes(key)) {
       throw new Error(`Acesso negado: a configuração '${key}' não é pública.`);
     }
@@ -508,6 +508,10 @@ export class AdminService {
       .eq('key', key)
       .single();
 
+    if (error && error.code === 'PGRST116') {
+      return null;
+    }
+
     if (error) throw error;
     return data;
   }
@@ -515,12 +519,22 @@ export class AdminService {
   async updateSystemSetting(adminId: string, key: string, value: string) {
     const requester = await this.getRequesterAdmin(adminId);
     const supabase = this.supabaseService.getClient();
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('system_settings')
       .update({ value, updated_at: new Date() })
       .eq('key', key)
       .select()
       .single();
+
+    if (error && error.code === 'PGRST116') {
+      const insertResult = await supabase
+        .from('system_settings')
+        .insert({ key, value, updated_at: new Date() })
+        .select()
+        .single();
+      data = insertResult.data;
+      error = insertResult.error;
+    }
 
     if (error) throw error;
 
