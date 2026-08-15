@@ -121,7 +121,7 @@ const WaUsersPage = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch(`${API_URL}/admin/wa-users`, {
+      const response = await fetch(`${API_URL}/panel/wa-users`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
         }
@@ -139,7 +139,7 @@ const WaUsersPage = () => {
   const fetchMessages = async (userId: string) => {
     setShowHistory(false)
     try {
-      const response = await fetch(`${API_URL}/admin/wa-users/${userId}/messages`, {
+      const response = await fetch(`${API_URL}/panel/wa-users/${userId}/messages`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
         }
@@ -160,7 +160,7 @@ const WaUsersPage = () => {
       const storedUser = localStorage.getItem('maria_user')
       const adminId = storedUser ? JSON.parse(storedUser)?.id : ''
       
-      const response = await fetch(`${API_URL}/admin/wa-users/${selectedUser.id}/clear-data`, {
+      const response = await fetch(`${API_URL}/panel/wa-users/${selectedUser.id}/clear-data`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
@@ -263,7 +263,7 @@ const WaUsersPage = () => {
       const storedUser = localStorage.getItem('maria_user')
       const adminId = storedUser ? JSON.parse(storedUser)?.id : ''
 
-      const response = await fetch(`${API_URL}/admin/wa-users/${userId}/subscription`, {
+      const response = await fetch(`${API_URL}/panel/wa-users/${userId}/subscription`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
@@ -301,7 +301,7 @@ const WaUsersPage = () => {
     }
 
     try {
-      const response = await fetch(`${API_URL}/admin/finance/record-manual`, {
+      const response = await fetch(`${API_URL}/panel/finance/record-manual`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
@@ -339,7 +339,7 @@ const WaUsersPage = () => {
       const storedUser = localStorage.getItem('maria_user')
       const adminId = storedUser ? JSON.parse(storedUser)?.id : ''
 
-      const response = await fetch(`${API_URL}/admin/wa-users/${userId}/settings`, {
+      const response = await fetch(`${API_URL}/panel/wa-users/${userId}/settings`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,

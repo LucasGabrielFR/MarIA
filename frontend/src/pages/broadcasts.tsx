@@ -89,7 +89,7 @@ export default function BroadcastsPage() {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch('/api/admin/wa-users', {
+      const response = await fetch('/api/panel/wa-users', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('maria_session')}`,
         }

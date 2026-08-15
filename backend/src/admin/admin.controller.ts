@@ -13,7 +13,7 @@ import {
 import { AdminService } from './admin.service';
 import { PlansService } from '../plans/plans.service';
 
-@Controller('admin')
+@Controller('panel')
 export class AdminController {
   constructor(
     private adminService: AdminService,
@@ -255,5 +255,40 @@ export class AdminController {
   ) {
     if (!adminId) throw new UnauthorizedException();
     return this.adminService.deleteScheduledMessage(adminId, id);
+  }
+
+  // Orações e Guias (Prayers)
+  @Get('prayers')
+  async getPrayers(@Headers('x-admin-id') adminId: string) {
+    if (!adminId) throw new UnauthorizedException();
+    return this.adminService.getPrayers();
+  }
+
+  @Post('prayers')
+  async createPrayer(
+    @Headers('x-admin-id') adminId: string,
+    @Body() body: any,
+  ) {
+    if (!adminId) throw new UnauthorizedException();
+    return this.adminService.createPrayer(adminId, body);
+  }
+
+  @Patch('prayers/:id')
+  async updatePrayer(
+    @Headers('x-admin-id') adminId: string,
+    @Param('id') id: string,
+    @Body() body: any,
+  ) {
+    if (!adminId) throw new UnauthorizedException();
+    return this.adminService.updatePrayer(adminId, id, body);
+  }
+
+  @Delete('prayers/:id')
+  async deletePrayer(
+    @Headers('x-admin-id') adminId: string,
+    @Param('id') id: string,
+  ) {
+    if (!adminId) throw new UnauthorizedException();
+    return this.adminService.deletePrayer(adminId, id);
   }
 }

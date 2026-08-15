@@ -85,9 +85,9 @@ export default function LogsPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      let statsUrl = `${API_URL}/admin/stats/daily`;
-      let usageUrl = `${API_URL}/admin/logs/usage?limit=50`;
-      let webhookUrl = `${API_URL}/admin/logs/webhooks?limit=50`;
+      let statsUrl = `${API_URL}/panel/stats/daily`;
+      let usageUrl = `${API_URL}/panel/logs/usage?limit=50`;
+      let webhookUrl = `${API_URL}/panel/logs/webhooks?limit=50`;
 
       const params = [];
       if (startDate) params.push(`startDate=${encodeURIComponent(startDate)}`);

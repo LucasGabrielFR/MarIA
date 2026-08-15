@@ -29,7 +29,7 @@ export default function PlansPage() {
 
       const [plansResponse, settingsResponse] = await Promise.all([
         fetch(`${API_URL}/plans`),
-        fetch(`${API_URL}/admin/settings`, { headers: { 'x-admin-id': adminId } })
+        fetch(`${API_URL}/panel/settings`, { headers: { 'x-admin-id': adminId } })
       ])
       
       const plansData = await plansResponse.json()
@@ -60,7 +60,7 @@ export default function PlansPage() {
       const storedUser = localStorage.getItem('maria_user')
       const adminId = storedUser ? JSON.parse(storedUser)?.id : ''
 
-      const response = await fetch(`${API_URL}/admin/plans/${plan.id}`, {
+      const response = await fetch(`${API_URL}/panel/plans/${plan.id}`, {
         method: 'PATCH',
         headers: { 
           'Content-Type': 'application/json',
@@ -85,7 +85,7 @@ export default function PlansPage() {
       const storedUser = localStorage.getItem('maria_user')
       const adminId = storedUser ? JSON.parse(storedUser)?.id : ''
 
-      const response = await fetch(`${API_URL}/admin/settings/premium_plan_active`, {
+      const response = await fetch(`${API_URL}/panel/settings/premium_plan_active`, {
         method: 'PATCH',
         headers: { 
           'Content-Type': 'application/json',

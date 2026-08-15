@@ -50,7 +50,7 @@ export default function AffiliatesPage() {
       setPlans(plansData || [])
       
       try {
-        const settingRes = await fetch(`${API_URL}/admin/settings/public/wa_message_template`)
+        const settingRes = await fetch(`${API_URL}/panel/settings/public/wa_message_template`)
         if (settingRes.ok) {
           const text = await settingRes.text()
           if (text) {
@@ -76,7 +76,7 @@ export default function AffiliatesPage() {
     try {
       const storedUser = localStorage.getItem('maria_user')
       const adminId = storedUser ? JSON.parse(storedUser)?.id : ''
-      const res = await fetch(`${API_URL}/admin/settings/wa_message_template`, {
+      const res = await fetch(`${API_URL}/panel/settings/wa_message_template`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'x-admin-id': adminId },
         body: JSON.stringify({ value: waMessageTemplate })

@@ -64,7 +64,7 @@ export default function AffiliateDashboardPage() {
 
       // Fetch WA Template
       try {
-        const resSetting = await fetch(`${API_URL}/admin/settings/public/wa_message_template`)
+        const resSetting = await fetch(`${API_URL}/panel/settings/public/wa_message_template`)
         if (resSetting.ok) {
           const settingData = await resSetting.json()
           if (settingData && settingData.value) {

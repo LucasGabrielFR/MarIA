@@ -1224,4 +1224,111 @@ export class AdminService {
 
     return { success: true };
   }
+
+  // --- Prayers CRUD ---
+  async getPrayers() {
+    const supabase = this.supabaseService.getClient();
+    const { data, error } = await supabase
+      .from('prayers')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data;
+  }
+
+  async createPrayer(adminId: string, payload: any) {
+    const requester = await this.getRequesterAdmin(adminId);
+    const supabase = this.supabaseService.getClient();
+    
+    const { data, error } = await supabase
+      .from('prayers')
+      .insert({
+        title: payload.title,
+        content: payload.content,
+        category: payload.category,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    await this.logActivity(
+      requester.id,
+      requester.email,
+      requester.name,
+      'create_prayer',
+      {
+        prayer_title: payload.title,
+        description: `Criou a oração/guia "${payload.title}".`,
+      },
+    );
+
+    return data;
+  }
+
+  async updatePrayer(adminId: string, id: string, payload: any) {
+    const requester = await this.getRequesterAdmin(adminId);
+    const supabase = this.supabaseService.getClient();
+
+    const updateData: any = {};
+    if (payload.title !== undefined) updateData.title = payload.title;
+    if (payload.content !== undefined) updateData.content = payload.content;
+    if (payload.category !== undefined) updateData.category = payload.category;
+
+    const { data, error } = await supabase
+      .from('prayers')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    await this.logActivity(
+      requester.id,
+      requester.email,
+      requester.name,
+      'update_prayer',
+      {
+        prayer_title: data.title,
+        description: `Atualizou a oração/guia "${data.title}".`,
+      },
+    );
+
+    return data;
+  }
+
+  async deletePrayer(adminId: string, id: string) {
+    const requester = await this.getRequesterAdmin(adminId);
+    const supabase = this.supabaseService.getClient();
+
+    const { data: existing } = await supabase
+      .from('prayers')
+      .select('title')
+      .eq('id', id)
+      .single();
+
+    const { error } = await supabase
+      .from('prayers')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
+    if (existing) {
+      await this.logActivity(
+        requester.id,
+        requester.email,
+        requester.name,
+        'delete_prayer',
+        {
+          prayer_title: existing.title,
+          description: `Removeu a oração/guia "${existing.title}".`,
+        },
+      );
+    }
+
+    return { success: true };
+  }
 }

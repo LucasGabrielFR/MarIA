@@ -90,8 +90,8 @@ export default function FinancePage() {
   const fetchFinanceData = async () => {
     setLoading(true);
     try {
-      let summaryUrl = `${API_URL}/admin/finance/summary`;
-      let subsUrl = `${API_URL}/admin/finance/subscriptions?limit=20`;
+      let summaryUrl = `${API_URL}/panel/finance/summary`;
+      let subsUrl = `${API_URL}/panel/finance/subscriptions?limit=20`;
 
       const params = [];
       if (startDate) params.push(`startDate=${encodeURIComponent(startDate)}`);
@@ -171,7 +171,7 @@ export default function FinancePage() {
     setActionLoading(true);
     try {
       if (actionType === 'cancel') {
-        await apiRequest(`/admin/finance/subscriptions/${selectedSub.id}/cancel`, {
+        await apiRequest(`/panel/finance/subscriptions/${selectedSub.id}/cancel`, {
           method: 'POST',
           headers: {
             'x-admin-email': currentUser?.email || '',
@@ -179,7 +179,7 @@ export default function FinancePage() {
         });
         toast.success('Assinatura cancelada com sucesso!');
       } else if (actionType === 'delete') {
-        await apiRequest(`/admin/finance/subscriptions/${selectedSub.id}`, {
+        await apiRequest(`/panel/finance/subscriptions/${selectedSub.id}`, {
           method: 'DELETE',
           headers: {
             'x-admin-email': currentUser?.email || '',
@@ -204,7 +204,7 @@ export default function FinancePage() {
   const handleSyncAsaas = async () => {
     setSyncing(true);
     try {
-      const res = await apiRequest('/admin/finance/sync-asaas', {
+      const res = await apiRequest('/panel/finance/sync-asaas', {
         method: 'POST',
         headers: {
           'x-admin-email': currentUser?.email || '',
@@ -224,7 +224,7 @@ export default function FinancePage() {
     if (!selectedSub) return;
     setUpdateLoading(true);
     try {
-      await apiRequest(`/admin/finance/subscriptions/${selectedSub.id}/update`, {
+      await apiRequest(`/panel/finance/subscriptions/${selectedSub.id}/update`, {
         method: 'POST',
         headers: {
           'x-admin-email': currentUser?.email || '',

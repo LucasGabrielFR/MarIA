@@ -18,7 +18,7 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const response = await fetch(`${API_URL}/admin/stats`);
+        const response = await fetch(`${API_URL}/panel/stats`);
         const data = await response.json();
         setStats(data);
       } catch (error) {
@@ -30,7 +30,7 @@ export default function DashboardPage() {
 
     const fetchWaUsers = async () => {
       try {
-        const response = await fetch(`${API_URL}/admin/wa-users`);
+        const response = await fetch(`${API_URL}/panel/wa-users`);
         const data = await response.json();
         const sorted = data.sort((a: any, b: any) => (b.metrics?.total_ai_messages || 0) - (a.metrics?.total_ai_messages || 0));
         setWaUsers(sorted);
@@ -233,7 +233,11 @@ export default function DashboardPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {waUsers.slice(0, 50).map((user: any) => {
+              {[...waUsers].sort((a: any, b: any) => {
+                const aUsed = isMonthlyView ? (a.metrics?.monthly_ai_messages || 0) : (a.metrics?.total_ai_messages || 0);
+                const bUsed = isMonthlyView ? (b.metrics?.monthly_ai_messages || 0) : (b.metrics?.total_ai_messages || 0);
+                return bUsed - aUsed;
+              }).slice(0, 50).map((user: any) => {
                 const planId = user.subscription_tier || 'free';
                 let limit: number | string = 20;
                 let planName = 'Gratuito';

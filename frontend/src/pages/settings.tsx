@@ -51,7 +51,7 @@ export default function SettingsPage() {
     try {
       const storedUser = localStorage.getItem('maria_user');
       const adminId = storedUser ? JSON.parse(storedUser)?.id : '';
-      const response = await fetch(`${API_URL}/admin/settings`, {
+      const response = await fetch(`${API_URL}/panel/settings`, {
         headers: { 'x-admin-id': adminId }
       });
       const data = await response.json();
@@ -66,7 +66,7 @@ export default function SettingsPage() {
 
   const fetchAiModels = async () => {
     try {
-      const response = await fetch(`${API_URL}/admin/ai-models`);
+      const response = await fetch(`${API_URL}/panel/ai-models`);
       const data = await response.json();
       // Ordenar por nome em ordem alfabética
       const sorted = Array.isArray(data) ? data.sort((a: any, b: any) => a.name.localeCompare(b.name)) : [];
@@ -80,7 +80,7 @@ export default function SettingsPage() {
     try {
       const storedUser = localStorage.getItem('maria_user');
       const adminId = storedUser ? JSON.parse(storedUser)?.id : '';
-      const response = await fetch(`${API_URL}/admin/settings/${key}`, {
+      const response = await fetch(`${API_URL}/panel/settings/${key}`, {
         method: 'PATCH',
         headers: { 
           'Content-Type': 'application/json',
@@ -105,7 +105,7 @@ export default function SettingsPage() {
     try {
       const storedUser = localStorage.getItem('maria_user');
       const adminId = storedUser ? JSON.parse(storedUser)?.id : '';
-      const response = await fetch(`${API_URL}/admin/settings/sync-exchange`, { 
+      const response = await fetch(`${API_URL}/panel/settings/sync-exchange`, { 
         method: 'POST',
         headers: { 'x-admin-id': adminId }
       });
@@ -128,7 +128,7 @@ export default function SettingsPage() {
     try {
       const storedUser = localStorage.getItem('maria_user');
       const adminId = storedUser ? JSON.parse(storedUser)?.id : '';
-      const response = await fetch(`${API_URL}/admin/settings/clear-cache`, { 
+      const response = await fetch(`${API_URL}/panel/settings/clear-cache`, { 
         method: 'POST',
         headers: { 'x-admin-id': adminId }
       });
@@ -150,7 +150,7 @@ export default function SettingsPage() {
     try {
       const storedUser = localStorage.getItem('maria_user');
       const adminId = storedUser ? JSON.parse(storedUser)?.id : '';
-      const response = await fetch(`${API_URL}/admin/settings/toggle-maintenance`, { 
+      const response = await fetch(`${API_URL}/panel/settings/toggle-maintenance`, { 
         method: 'POST',
         headers: { 'x-admin-id': adminId }
       });

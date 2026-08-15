@@ -128,6 +128,32 @@ export class AiService implements OnModuleInit {
               required: ['query']
             }
           }
+        },
+        {
+          type: 'function',
+          function: {
+            name: 'get_prayer',
+            description: 'Busca o texto completo de uma oração ou guia específico quando o usuário pedir diretamente, ou quando você identificar a necessidade pastoral.',
+            parameters: {
+              type: 'object',
+              properties: {
+                title: { type: 'string', description: 'Nome da oração (ex: Oração de São Bento, Terço da Misericórdia, Angelus)' }
+              },
+              required: ['title']
+            }
+          }
+        },
+        {
+          type: 'function',
+          function: {
+            name: 'list_prayers',
+            description: 'Lista todas as orações e guias disponíveis no sistema. Use isso quando o usuário pedir o menu de orações ou perguntar o que você sabe rezar.',
+            parameters: {
+              type: 'object',
+              properties: {},
+              required: []
+            }
+          }
         }
       ] : undefined;
 
@@ -165,18 +191,28 @@ export class AiService implements OnModuleInit {
       // Check for tool calls
       if (data.choices?.[0]?.message?.tool_calls && data.choices[0].message.tool_calls.length > 0) {
         const toolCall = data.choices[0].message.tool_calls[0];
+        let toolResult = '';
+
         if (toolCall.function.name === 'search_web') {
           const args = JSON.parse(toolCall.function.arguments || '{}');
-          
           this.logger.debug(`Executando busca na web (DuckDuckGo): ${args.query}`);
-          const searchResult = await this.searchWeb(args.query);
+          toolResult = await this.searchWeb(args.query);
+        } else if (toolCall.function.name === 'get_prayer') {
+          const args = JSON.parse(toolCall.function.arguments || '{}');
+          this.logger.debug(`Buscando oração: ${args.title}`);
+          toolResult = await this.searchPrayer(args.title);
+        } else if (toolCall.function.name === 'list_prayers') {
+          this.logger.debug(`Listando orações disponíveis`);
+          toolResult = await this.listPrayers();
+        }
 
+        if (toolResult) {
           messagesPayload.push(data.choices[0].message);
           messagesPayload.push({
             role: 'tool',
             tool_call_id: toolCall.id,
-            name: 'search_web',
-            content: searchResult
+            name: toolCall.function.name,
+            content: toolResult
           });
 
           // Second call
@@ -714,6 +750,78 @@ export class AiService implements OnModuleInit {
     const user = await this.getOrCreateUser(waChatId, pushName, phone, affiliateCode);
     const userId = user.id;
 
+    // --- Tratamento de Código Promocional (Affiliates) ---
+    const cleanMsgUpper = message.trim().toUpperCase();
+    if (cleanMsgUpper.length >= 4 && cleanMsgUpper.length <= 20 && /^[A-Z0-9_-]+$/.test(cleanMsgUpper)) {
+      const { data: affiliate } = await supabase
+        .from('affiliates')
+        .select('id, code, is_active')
+        .eq('code', cleanMsgUpper)
+        .maybeSingle();
+        
+      if (affiliate) {
+        if (!affiliate.is_active) {
+          return "❌ Este código promocional não é válido ou já expirou. Verifique se digitou corretamente.";
+        }
+        
+        if (!user.affiliate_code) {
+          await supabase.from('users').update({ affiliate_code: affiliate.code }).eq('id', user.id);
+          return "✅ Código promocional ativado com sucesso! Seu benefício será aplicado no momento da assinatura.";
+        } else if (user.affiliate_code === affiliate.code) {
+          return "✅ Você já está usando este código promocional.";
+        } else {
+          await supabase.from('users').update({ 
+            pending_affiliate_code: affiliate.code, 
+            status: 'confirming_promo' 
+          }).eq('id', user.id);
+          return {
+            type: 'interactive',
+            text: `Você já possui o código promocional *${user.affiliate_code}* ativo. Deseja trocar para o novo código *${affiliate.code}*?`,
+            buttons: [
+              { id: 'sim_trocar', text: 'Sim, trocar' },
+              { id: 'nao_manter', text: 'Não, manter' }
+            ]
+          };
+        }
+      }
+    }
+
+    let userStatus = user.status || 'active';
+
+    if (userStatus === 'confirming_promo') {
+      const msgLower = message.trim().toLowerCase();
+      const confirmSim = ['sim, trocar', 'sim_trocar', 'sim'];
+      const confirmNao = ['não, manter', 'nao, manter', 'nao_manter', 'não', 'nao'];
+      
+      if (confirmSim.some(opt => msgLower.includes(opt) || msgLower === opt)) {
+        const newCode = user.pending_affiliate_code;
+        await supabase.from('users').update({
+            affiliate_code: newCode,
+            pending_affiliate_code: null,
+            status: 'active' // ou voltar para triage_intro se não for assinante? Vamos de active para simplificar e recair na IA
+        }).eq('id', user.id);
+        return `✅ Código promocional trocado para *${newCode}* com sucesso!`;
+      } else if (confirmNao.some(opt => msgLower.includes(opt) || msgLower === opt)) {
+        await supabase.from('users').update({
+            pending_affiliate_code: null,
+            status: 'active'
+        }).eq('id', user.id);
+        return `✅ Tudo bem, seu código promocional anterior (*${user.affiliate_code}*) foi mantido.`;
+      } else {
+        // Se a pessoa respondeu algo que não é sim/não
+        return {
+          type: 'interactive',
+          text: `Por favor, escolha uma das opções para continuar. Deseja trocar seu código *${user.affiliate_code}* pelo novo código *${user.pending_affiliate_code}*?`,
+          buttons: [
+            { id: 'sim_trocar', text: 'Sim, trocar' },
+            { id: 'nao_manter', text: 'Não, manter' }
+          ]
+        };
+      }
+    }
+    // --- Fim Tratamento Promo Code ---
+
+
     // 2. Verificar se o bot está pausado para este fiel (Pausa Pastoral)
     if (user.is_paused) {
       this.logger.log(
@@ -723,7 +831,7 @@ export class AiService implements OnModuleInit {
       return null;
     }
 
-    let userStatus = user.status || 'active';
+    userStatus = user.status || 'active';
 
     if (userStatus.startsWith('flow:')) {
       await this.saveMessage(userId, 'user', message, false);
@@ -1178,6 +1286,81 @@ export class AiService implements OnModuleInit {
       .eq('cache_date', date)
       .maybeSingle();
     return data?.content;
+  }
+
+  private async logLlmUsage(
+    usage: any,
+    provider: string,
+    model: string,
+  ): Promise<void> {
+    try {
+      if (!usage || typeof usage.total_tokens !== 'number') return;
+      const supabase = this.supabaseService.getClient();
+
+      // Cálculo de custo estimado simplificado
+      let estimatedCostUsd = 0;
+      if (model.includes('gpt-4o-mini')) {
+        estimatedCostUsd =
+          (usage.prompt_tokens / 1_000_000) * 0.15 +
+          (usage.completion_tokens / 1_000_000) * 0.6;
+      } else if (model.includes('flash')) {
+        estimatedCostUsd =
+          (usage.prompt_tokens / 1_000_000) * 0.075 +
+          (usage.completion_tokens / 1_000_000) * 0.3;
+      } else if (provider === 'magisterium') {
+        estimatedCostUsd = (usage.total_tokens / 1_000_000) * 0.5;
+      }
+
+      await supabase.from('llm_usage_logs').insert({
+        provider,
+        model,
+        prompt_tokens: usage.prompt_tokens || 0,
+        completion_tokens: usage.completion_tokens || 0,
+        total_tokens: usage.total_tokens,
+        estimated_cost_usd: estimatedCostUsd,
+      });
+    } catch (e) {
+      this.logger.error('Erro ao logar uso do LLM', e);
+    }
+  }
+
+  /**
+   * Helper function to search for a prayer in the database
+   */
+  private async searchPrayer(title: string): Promise<string> {
+    const supabase = this.supabaseService.getClient();
+    const { data, error } = await supabase
+      .from('prayers')
+      .select('title, content')
+      .ilike('title', `%${title}%`)
+      .limit(1);
+
+    if (error || !data || data.length === 0) {
+      return `Nenhuma oração encontrada com o termo '${title}'. Sugira ao usuário pedir o 'Menu de Orações' para ver o que está disponível ou responda cordialmente.`;
+    }
+    return `TÍTULO: ${data[0].title}\n\nCONTEÚDO:\n${data[0].content}`;
+  }
+
+  /**
+   * Helper function to list all prayers
+   */
+  private async listPrayers(): Promise<string> {
+    const supabase = this.supabaseService.getClient();
+    const { data, error } = await supabase
+      .from('prayers')
+      .select('title, category')
+      .order('title', { ascending: true });
+
+    if (error || !data || data.length === 0) {
+      return "Não há orações cadastradas no momento.";
+    }
+    
+    let result = "Lista de Orações Disponíveis no sistema (ofereça essas opções ao usuário):\n";
+    data.forEach((p, idx) => {
+      const cat = p.category === 'guia' ? 'Guia de Oração' : p.category === 'terco' ? 'Terço' : 'Oração';
+      result += `${idx + 1}. ${p.title} (${cat})\n`;
+    });
+    return result;
   }
 
   /**

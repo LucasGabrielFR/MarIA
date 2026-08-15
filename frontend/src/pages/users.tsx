@@ -97,7 +97,7 @@ export default function UsersPage() {
       const storedUser = localStorage.getItem('maria_user');
       const requesterId = storedUser ? JSON.parse(storedUser)?.id : '';
       
-      const data = await apiRequest('/admin/users', {
+      const data = await apiRequest('/panel/users', {
         headers: { 'x-admin-id': requesterId }
       });
       setUsers(data);
@@ -117,7 +117,7 @@ export default function UsersPage() {
 
     setIsInviting(true);
     try {
-      const data = await apiRequest('/admin/admins', {
+      const data = await apiRequest('/panel/admins', {
         method: 'POST',
         headers: { 'x-admin-id': currentUser?.id || '' },
         body: JSON.stringify({
@@ -167,7 +167,7 @@ export default function UsersPage() {
         payload.password = editPassword;
       }
 
-      await apiRequest(`/admin/admins/${selectedUserForEdit.id}`, {
+      await apiRequest(`/panel/admins/${selectedUserForEdit.id}`, {
         method: 'PATCH',
         headers: { 'x-admin-id': currentUser?.id || '' },
         body: JSON.stringify(payload)
@@ -195,7 +195,7 @@ export default function UsersPage() {
     }
 
     try {
-      await apiRequest(`/admin/admins/${user.id}`, {
+      await apiRequest(`/panel/admins/${user.id}`, {
         method: 'DELETE',
         headers: { 'x-admin-id': currentUser?.id || '' }
       });
@@ -214,7 +214,7 @@ export default function UsersPage() {
     setActivities([]);
 
     try {
-      const data = await apiRequest(`/admin/activities?targetId=${user.id}`, {
+      const data = await apiRequest(`/panel/activities?targetId=${user.id}`, {
         headers: { 'x-admin-id': currentUser?.id || '' }
       });
       setActivities(data);

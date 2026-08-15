@@ -24,7 +24,7 @@ export default function ScheduledMessagesPage() {
     try {
       const storedUser = localStorage.getItem('maria_user');
       const adminId = storedUser ? JSON.parse(storedUser)?.id : '';
-      const res = await fetch(`${API_URL}/admin/scheduled-messages`, {
+      const res = await fetch(`${API_URL}/panel/scheduled-messages`, {
         headers: { 'x-admin-id': adminId }
       })
       if (!res.ok) throw new Error('Falha ao carregar agendamentos.')
@@ -52,7 +52,7 @@ export default function ScheduledMessagesPage() {
         is_active: true
       };
       
-      const response = await fetch(`${API_URL}/admin/scheduled-messages`, {
+      const response = await fetch(`${API_URL}/panel/scheduled-messages`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -76,7 +76,7 @@ export default function ScheduledMessagesPage() {
     try {
       const storedUser = localStorage.getItem('maria_user');
       const adminId = storedUser ? JSON.parse(storedUser)?.id : '';
-      const response = await fetch(`${API_URL}/admin/scheduled-messages/${campaign.id}`, {
+      const response = await fetch(`${API_URL}/panel/scheduled-messages/${campaign.id}`, {
         method: 'PATCH',
         headers: { 
           'Content-Type': 'application/json',
@@ -99,7 +99,7 @@ export default function ScheduledMessagesPage() {
     try {
       const storedUser = localStorage.getItem('maria_user');
       const adminId = storedUser ? JSON.parse(storedUser)?.id : '';
-      const response = await fetch(`${API_URL}/admin/scheduled-messages/${id}`, {
+      const response = await fetch(`${API_URL}/panel/scheduled-messages/${id}`, {
         method: 'DELETE',
         headers: { 'x-admin-id': adminId }
       });
