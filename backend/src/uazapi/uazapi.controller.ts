@@ -141,16 +141,20 @@ export class UazapiController {
         }
       }
 
-      // Adiciona ao buffer para agrupar mensagens sequenciais rápidas (10s de espera)
+      // Adiciona ao buffer para agrupar mensagens sequenciais rápidas (3s de espera)
       if (this.messageBuffers.has(chatId)) {
         const buffer = this.messageBuffers.get(chatId)!;
         buffer.messages.push(messageContent);
         clearTimeout(buffer.timer);
-        buffer.timer = setTimeout(() => this.flushBuffer(chatId), 10000);
+        buffer.timer = setTimeout(() => this.flushBuffer(chatId), 3000);
       } else {
+        // Feedback imediato na primeira mensagem recebida
+        this.uazapiService.markRead(chatId).catch(e => this.logger.warn(e));
+        this.uazapiService.sendPresence(chatId, 'composing').catch(e => this.logger.warn(e));
+
         this.messageBuffers.set(chatId, {
           messages: [messageContent],
-          timer: setTimeout(() => this.flushBuffer(chatId), 10000),
+          timer: setTimeout(() => this.flushBuffer(chatId), 3000),
           pushName,
           phoneNumber,
         });

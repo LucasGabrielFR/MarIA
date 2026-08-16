@@ -55,7 +55,15 @@ export class PromptService implements OnModuleInit {
 
   getCorePersona(): string {
     const basePersona = this.getPrompt('core_persona');
+    const catholicDogma = this.getPrompt('catholic_dogma');
     const whatsappRule = '\n\nATENÇÃO MÁXIMA À FORMATAÇÃO: O usuário recebe as mensagens no WhatsApp. O WhatsApp NÃO suporta Markdown tradicional (como #, ##, ###, **, etc). Você DEVE usar APENAS a formatação suportada pelo WhatsApp:\n- *negrito* (asteriscos simples)\n- _itálico_ (underline)\n- ~tachado~ (til)\nNUNCA use #, ##, ### para títulos. Se precisar de um título, use *Título* (apenas asterisco simples para negrito) ou escreva em maiúsculas.';
-    return basePersona + whatsappRule;
+    
+    let result = basePersona;
+    if (catholicDogma) {
+      result += '\n\n' + catholicDogma;
+    }
+    result += whatsappRule;
+    
+    return result;
   }
 }
