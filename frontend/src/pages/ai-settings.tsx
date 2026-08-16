@@ -121,7 +121,7 @@ export default function AiSettingsPage() {
       label: 'Identidade',
       icon: <Bot className="w-5 h-5" />,
       description: 'Define quem é a MarIA e como ela se comporta globalmente.',
-      keys: ['core_persona', 'intent_router']
+      keys: ['core_persona', 'intent_router', 'catholic_dogma']
     },
     intentions: {
       label: 'Especialidades',
