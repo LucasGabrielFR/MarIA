@@ -59,11 +59,20 @@ function normalizeFlowSteps(steps: any): FlowSteps {
   if (steps.select_plan || steps.select_cycle || steps.payment_confirmed) {
     if (!normalized.select_plan) normalized.select_plan = { text: '', buttons: [] };
     if (!normalized.select_cycle) normalized.select_cycle = { text: '', buttons: [] };
-    if (!normalized.payment_confirmed) normalized.payment_confirmed = { text: PAYMENT_CONFIRMED_MESSAGE_TEXT, buttons: [] };
+    if (!normalized.payment_confirmed) normalized.payment_confirmed = { text: '', buttons: [] };
+  } else if (steps.coupon_activated) {
+    // É o coupon_flow
+    if (!normalized.coupon_activated) normalized.coupon_activated = { text: '', buttons: [] };
   }
   
   return normalized;
 }
+
+/** Texto padrão da etapa Cupom Ativado. */
+const COUPON_ACTIVATED_MESSAGE_TEXT =
+  '🎉 *Cupom ativado com sucesso!*\n\n' +
+  'O código *{coupon_code}* foi aplicado à sua conta. Você terá um desconto de {discount_percentage}% em nossos planos!\n\n' +
+  'Quer conhecer os planos e garantir esse desconto agora mesmo?';
 
 function formatFlowPreviewText(text: string): string {
   return (text || '').replace(/\\n/g, '\n');
@@ -71,7 +80,7 @@ function formatFlowPreviewText(text: string): string {
 
 /** Texto padrão da etapa 1 — alinhado à landing (planos e benefícios). */
 const SELECT_PLAN_MESSAGE_TEXT =
-  'Olá! Que bom que você quer assinar a MarIA. ✨\n\n' +
+  '{coupon_info}Olá! Que bom que você quer assinar a MarIA. ✨\n\n' +
   'Conheça nossos planos:\n\n' +
   '*📘 Plano Básico*\n' +
   'Para quem busca direcionamento e uma companhia diária constante.\n' +
@@ -79,15 +88,21 @@ const SELECT_PLAN_MESSAGE_TEXT =
   '• *300 mensagens/mês* conversando com a IA\n' +
   '• Aconselhamento emocional profundo\n' +
   '• Tira-dúvidas com base teológica e do Catecismo\n' +
-  '• A partir de *R$ 14,90/mês* (ou *R$ 12,90/mês* no anual)\n\n' +
+  '• A partir de *R$ {basic_price_month}/mês* (ou *R$ {basic_price_year_monthly}/mês* no anual)\n\n' +
   '*✨ Plano Premium*\n' +
   'Para quem deseja imersão teológica e oração intensa.\n' +
   '• Tudo do plano Básico\n' +
   '• *600 mensagens/mês* conversando com a IA\n' +
   '• Respostas mais elaboradas e longas\n' +
   '• Acompanhamento diário rigoroso\n' +
-  '• A partir de *R$ 29,90/mês* (ou *R$ 26,90/mês* no anual)\n\n' +
+  '• A partir de *R$ {premium_price_month}/mês* (ou *R$ {premium_price_year_monthly}/mês* no anual)\n\n' +
   '_Escolha o plano nos botões abaixo. Na próxima etapa você define se prefere pagamento mensal ou anual._';
+
+const SELECT_CYCLE_MESSAGE_TEXT =
+  '{upgrade_warning}Plano *{tier_label}* selecionado.\n\n' +
+  'Escolha a *forma de pagamento*:\n\n' +
+  '{plan_options}\n\n' +
+  '_Use os botões abaixo._';
 
 /** Texto padrão da etapa 3 — Confirmação de pagamento e boas-vindas. */
 const PAYMENT_CONFIRMED_MESSAGE_TEXT =
@@ -112,14 +127,52 @@ export default function FlowsPage() {
     setLoading(true);
     try {
       const data = await apiRequest('/ai/prompts/automatic-flows');
-      setFlows(data || []);
       if (data && data.length > 0) {
-        // Seleciona o fluxo de assinatura por padrão
+        // Verifica se coupon_flow existe, senão injeta localmente para edição (será salvo depois)
+        if (!data.find((f: AutomaticFlow) => f.key === 'coupon_flow')) {
+          data.push({
+            id: 'local_coupon_flow',
+            key: 'coupon_flow',
+            name: 'Ativação de Cupom',
+            steps: { coupon_activated: { text: COUPON_ACTIVATED_MESSAGE_TEXT, buttons: [{ id: 'ver_planos', text: 'Ver Planos' }] } },
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+        }
+        
+        setFlows(data);
         const subFlow = data.find((f: AutomaticFlow) => f.key === 'subscription_flow') || data[0];
         const copy = JSON.parse(JSON.stringify(subFlow)) as AutomaticFlow;
         copy.steps = normalizeFlowSteps(copy.steps);
         setSelectedFlow(copy);
         setActiveStep(Object.keys(copy.steps)[0]);
+      } else {
+        const initialSteps: FlowSteps = {
+          select_plan: { text: SELECT_PLAN_MESSAGE_TEXT, buttons: [] },
+          select_cycle: { text: SELECT_CYCLE_MESSAGE_TEXT, buttons: [] },
+          payment_confirmed: { text: PAYMENT_CONFIRMED_MESSAGE_TEXT, buttons: [] }
+        };
+        const defaultFlows: AutomaticFlow[] = [
+          {
+            id: 'temp',
+            key: 'subscription_flow',
+            name: 'Assinatura (Fluxo de Vendas)',
+            steps: initialSteps,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          },
+          {
+            id: 'temp_coupon',
+            key: 'coupon_flow',
+            name: 'Ativação de Cupom',
+            steps: { coupon_activated: { text: COUPON_ACTIVATED_MESSAGE_TEXT, buttons: [{ id: 'ver_planos', text: 'Ver Planos' }] } },
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }
+        ];
+        setFlows(defaultFlows);
+        setSelectedFlow(defaultFlows[0]);
+        setActiveStep('select_plan');
       }
     } catch (error) {
       toast.error('Erro ao carregar fluxos automáticos');
@@ -252,11 +305,7 @@ export default function FlowsPage() {
             ],
           },
           select_cycle: {
-            text:
-              '{upgrade_warning}Plano *{tier_label}* selecionado.\n\n' +
-              'Escolha a *forma de pagamento*:\n\n' +
-              '{plan_options}\n\n' +
-              '_Use os botões abaixo._',
+            text: SELECT_CYCLE_MESSAGE_TEXT,
             buttons: [
               { id: '1', text: 'Mensal' },
               { id: '2', text: 'Anual' },
@@ -435,16 +484,14 @@ export default function FlowsPage() {
                              {stepKey === 'select_plan' ? 'Escolha do Plano' :
                              stepKey === 'select_cycle' ? 'Forma de Pagamento' :
                              stepKey === 'payment_confirmed' ? 'Boas-Vindas (Plano Ativo)' :
-                             stepKey === 'ask_name' ? 'Acolhimento e Pergunta do Nome' :
-                             stepKey === 'presentation' ? 'Apresentação da MarIA, site, funcionalidades, orientações' :
+                             stepKey === 'coupon_activated' ? 'Cupom Ativado' :
                              stepKey}
                           </span>
                           <span className="text-xs text-slate-400">
                             {stepKey === 'select_plan' ? 'Básico / Premium / Cancelar' :
                              stepKey === 'select_cycle' ? 'Mensal / Anual / Voltar' :
                              stepKey === 'payment_confirmed' ? 'Mensagem final de sucesso' :
-                             stepKey === 'ask_name' ? 'Início da triagem' :
-                             stepKey === 'presentation' ? 'Final do fluxo de triagem' :
+                             stepKey === 'coupon_activated' ? 'Mensagem de cupom' :
                              stepKey}
                           </span>
                         </div>
@@ -482,16 +529,14 @@ export default function FlowsPage() {
                       {activeStep === 'select_plan' ? 'Etapa 1: Escolha do Plano' :
                        activeStep === 'select_cycle' ? 'Etapa 2: Forma de Pagamento' :
                        activeStep === 'payment_confirmed' ? 'Mensagem de Boas-Vindas' :
-                       activeStep === 'ask_name' ? 'Etapa 1: Acolhimento e Pergunta do Nome' :
-                       activeStep === 'presentation' ? 'Etapa 2: Apresentação da MarIA, site, funcionalidades, orientações' :
+                       activeStep === 'coupon_activated' ? 'Mensagem de Ativação de Cupom' :
                        activeStep.replace(/_/g, ' ')}
                     </h3>
                     <p className="text-slate-400 font-bold text-sm mt-1">
                       {activeStep === 'select_plan' ? 'Botões Básico, Premium e Cancelar (máx. 3 — nativos no WhatsApp).' :
                        activeStep === 'select_cycle' ? 'As variáveis {tier_label} e {plan_options} serão trocadas no código.' :
                        activeStep === 'payment_confirmed' ? 'Enviada quando a assinatura é ativada. Use {tier_label}.' :
-                       activeStep === 'ask_name' ? 'Mensagem estática enviada para acolher o usuário e perguntar o nome.' :
-                       activeStep === 'presentation' ? 'Mensagem estática final que detalha o que a IA faz. Use {nome}.' :
+                       activeStep === 'coupon_activated' ? 'Resposta enviada ao aplicar um cupom válido.' :
                        'Configure os botões interativos e as opções de texto da etapa selecionada.'}
                     </p>
                   </div>
@@ -553,14 +598,9 @@ export default function FlowsPage() {
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider mr-1">Inserir:</span>
                     {[
                       { label: '*Negrito*', insert: '*texto*', title: 'Negrito WhatsApp' },
-                      { label: '_Itálico_', insert: '_texto_', title: 'Itálico WhatsApp' },
+                      { label: '_Itálico_', insert: '_texto*', title: 'Itálico WhatsApp' },
                       { label: '↵ Nova linha', insert: '\n', title: 'Quebra de linha' },
                       { label: '↵↵ Parágrafo', insert: '\n\n', title: 'Parágrafo (linha em branco)' },
-                      { label: '1️⃣', insert: '1️⃣ ', title: 'Emoji 1' },
-                      { label: '2️⃣', insert: '2️⃣ ', title: 'Emoji 2' },
-                      { label: '3️⃣', insert: '3️⃣ ', title: 'Emoji 3' },
-                      { label: '4️⃣', insert: '4️⃣ ', title: 'Emoji 4' },
-                      { label: '5️⃣', insert: '5️⃣ ', title: 'Emoji 5' },
                     ].map((item) => (
                       <button
                         key={item.label}
@@ -639,6 +679,22 @@ export default function FlowsPage() {
                     </div>
                   </div>
 
+                  {activeStep === 'select_plan' && (
+                    <div className="p-4 rounded-2xl bg-amber-50/50 border border-amber-100 text-amber-800 text-xs font-medium leading-relaxed flex items-start gap-3">
+                      <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-extrabold mb-1">Placeholders nesta etapa:</p>
+                        <ul className="list-disc list-inside mt-1 pl-2 space-y-1 font-bold font-mono text-[10px] text-slate-600">
+                          <li>{`{basic_price_month}`} — Preço mensal do plano Básico</li>
+                          <li>{`{basic_price_year_monthly}`} — Equivalente mensal do plano Básico anual</li>
+                          <li>{`{premium_price_month}`} — Preço mensal do plano Premium</li>
+                          <li>{`{premium_price_year_monthly}`} — Equivalente mensal do plano Premium anual</li>
+                          <li>{`{coupon_info}`} — Mensagem de desconto, se o cupom estiver ativo</li>
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+
                   {activeStep === 'select_cycle' && (
                     <div className="p-4 rounded-2xl bg-amber-50/50 border border-amber-100 text-amber-800 text-xs font-medium leading-relaxed flex items-start gap-3">
                       <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
@@ -666,7 +722,6 @@ export default function FlowsPage() {
                     </div>
                   )}
                 </div>
-
 
                 {/* Editor de Botões Interativos (WhatsApp) */}
                 <div className="border-t border-slate-100 pt-8 space-y-6">

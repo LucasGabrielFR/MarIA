@@ -8,6 +8,7 @@ import { EmbeddingService } from './embedding.service';
 import { ModuleRef } from '@nestjs/core';
 import { AsaasService } from '../asaas/asaas.service';
 import { PlansService } from '../plans/plans.service';
+import { AffiliatesService } from '../affiliates/affiliates.service';
 
 const MAGISTERIUM_INSTRUCTION =
   '\n\nOBRIGATÓRIO: Ao final da sua resposta, você deve listar as referências exatas de onde a informação foi extraída. ' +
@@ -23,6 +24,7 @@ export class AiService implements OnModuleInit {
 
   private asaasService: AsaasService;
   private plansService: PlansService;
+  private affiliatesService: AffiliatesService;
 
   constructor(
     private readonly promptService: PromptService,
@@ -751,75 +753,48 @@ export class AiService implements OnModuleInit {
     const userId = user.id;
 
     // --- Tratamento de Código Promocional (Affiliates) ---
-    const cleanMsgUpper = message.trim().toUpperCase();
-    if (cleanMsgUpper.length >= 4 && cleanMsgUpper.length <= 20 && /^[A-Z0-9_-]+$/.test(cleanMsgUpper)) {
-      const { data: affiliate } = await supabase
+    const msgLower = message.trim().toLowerCase();
+    
+    // Extrai palavras e o padrão [ref:code]
+    const wordsMatch: string[] = msgLower.match(/[a-z0-9_-]+/g) || [];
+    const refMatch = msgLower.match(/\[ref:([\w-]+)\]/);
+    if (refMatch) wordsMatch.push(refMatch[1].toLowerCase());
+    
+    if (wordsMatch.length > 0) {
+      // Busca afiliados ativos para cruzar
+      const { data: activeAffiliates } = (await supabase
         .from('affiliates')
-        .select('id, code, is_active')
-        .eq('code', cleanMsgUpper)
-        .maybeSingle();
+        .select('id, code')
+        .eq('is_active', true)) as { data: any[] | null };
         
-      if (affiliate) {
-        if (!affiliate.is_active) {
-          return "❌ Este código promocional não é válido ou já expirou. Verifique se digitou corretamente.";
+      if (activeAffiliates) {
+        let foundAffiliate: any = null;
+        for (const aff of activeAffiliates) {
+          if (wordsMatch.includes(aff.code.toLowerCase())) {
+            foundAffiliate = aff;
+            break;
+          }
         }
         
-        if (!user.affiliate_code) {
-          await supabase.from('users').update({ affiliate_code: affiliate.code }).eq('id', user.id);
-          return "✅ Código promocional ativado com sucesso! Seu benefício será aplicado no momento da assinatura.";
-        } else if (user.affiliate_code === affiliate.code) {
-          return "✅ Você já está usando este código promocional.";
-        } else {
-          await supabase.from('users').update({ 
-            pending_affiliate_code: affiliate.code, 
-            status: 'confirming_promo' 
-          }).eq('id', user.id);
-          return {
-            type: 'interactive',
-            text: `Você já possui o código promocional *${user.affiliate_code}* ativo. Deseja trocar para o novo código *${affiliate.code}*?`,
-            buttons: [
-              { id: 'sim_trocar', text: 'Sim, trocar' },
-              { id: 'nao_manter', text: 'Não, manter' }
-            ]
-          };
+        if (foundAffiliate) {
+          if (!user.affiliate_code || user.affiliate_code !== foundAffiliate.code) {
+            await supabase.from('users').update({ 
+              affiliate_code: foundAffiliate.code, 
+              pending_affiliate_code: null, 
+              status: 'active' 
+            }).eq('id', user.id);
+            user.affiliate_code = foundAffiliate.code;
+            
+            return await this.buildCouponActivatedMessage(foundAffiliate.code);
+          } else if (user.affiliate_code === foundAffiliate.code && msgLower === foundAffiliate.code.toLowerCase()) {
+            return "✅ Você já está usando este código promocional.";
+          }
         }
-      }
-    }
-
-    let userStatus = user.status || 'active';
-
-    if (userStatus === 'confirming_promo') {
-      const msgLower = message.trim().toLowerCase();
-      const confirmSim = ['sim, trocar', 'sim_trocar', 'sim'];
-      const confirmNao = ['não, manter', 'nao, manter', 'nao_manter', 'não', 'nao'];
-      
-      if (confirmSim.some(opt => msgLower.includes(opt) || msgLower === opt)) {
-        const newCode = user.pending_affiliate_code;
-        await supabase.from('users').update({
-            affiliate_code: newCode,
-            pending_affiliate_code: null,
-            status: 'active' // ou voltar para triage_intro se não for assinante? Vamos de active para simplificar e recair na IA
-        }).eq('id', user.id);
-        return `✅ Código promocional trocado para *${newCode}* com sucesso!`;
-      } else if (confirmNao.some(opt => msgLower.includes(opt) || msgLower === opt)) {
-        await supabase.from('users').update({
-            pending_affiliate_code: null,
-            status: 'active'
-        }).eq('id', user.id);
-        return `✅ Tudo bem, seu código promocional anterior (*${user.affiliate_code}*) foi mantido.`;
-      } else {
-        // Se a pessoa respondeu algo que não é sim/não
-        return {
-          type: 'interactive',
-          text: `Por favor, escolha uma das opções para continuar. Deseja trocar seu código *${user.affiliate_code}* pelo novo código *${user.pending_affiliate_code}*?`,
-          buttons: [
-            { id: 'sim_trocar', text: 'Sim, trocar' },
-            { id: 'nao_manter', text: 'Não, manter' }
-          ]
-        };
       }
     }
     // --- Fim Tratamento Promo Code ---
+
+    let userStatus = user.status || 'active';
 
 
     // 2. Verificar se o bot está pausado para este fiel (Pausa Pastoral)
@@ -1049,15 +1024,11 @@ export class AiService implements OnModuleInit {
         text: 'Escolha seu plano:',
         buttons: [],
       };
-      const responseText = upgradeIntro + this.formatFlowText(selectStep.text);
+      
+      const interactiveResponse = await this.buildSelectPlanMessage(selectStep, user.affiliate_code);
+      interactiveResponse.text = upgradeIntro + interactiveResponse.text;
 
-      const interactiveResponse = {
-        type: 'interactive',
-        text: responseText,
-        buttons: selectStep.buttons,
-      };
-
-      await this.saveMessage(userId, 'assistant', responseText, false);
+      await this.saveMessage(userId, 'assistant', interactiveResponse.text, false);
       return interactiveResponse;
     }
 
@@ -1545,6 +1516,20 @@ export class AiService implements OnModuleInit {
     return this.asaasService;
   }
 
+  private getPlansService(): PlansService {
+    if (!this.plansService) {
+      this.plansService = this.moduleRef.get(PlansService, { strict: false });
+    }
+    return this.plansService;
+  }
+
+  private getAffiliatesService(): AffiliatesService {
+    if (!this.affiliatesService) {
+      this.affiliatesService = this.moduleRef.get(AffiliatesService, { strict: false });
+    }
+    return this.affiliatesService;
+  }
+
   private formatFlowText(text: string): string {
     return (text || '').replace(/\\n/g, '\n');
   }
@@ -1569,15 +1554,37 @@ export class AiService implements OnModuleInit {
     cycleStep: { text?: string; buttons?: any[] },
     tier: 'basic' | 'premium',
     previousTier: string,
+    userAffiliateCode?: string,
   ) {
     const tierLabel = tier === 'basic' ? 'Básico' : 'Premium';
     
-    const monthlyPlan = await this.plansService.getPlan(tier, 'monthly');
-    const annualPlan = await this.plansService.getPlan(tier, 'annual');
+    const plansService = this.getPlansService();
+    const affiliatesService = this.getAffiliatesService();
+
+    const monthlyPlan = await plansService.getPlan(tier, 'monthly');
+    const annualPlan = await plansService.getPlan(tier, 'annual');
+
+    let mPriceVal = monthlyPlan ? monthlyPlan.price : 0;
+    let aPriceVal = annualPlan ? annualPlan.price : 0;
+
+    if (userAffiliateCode) {
+      const affiliate = await affiliatesService.getAffiliateByCode(userAffiliateCode);
+      if (affiliate && affiliate.is_active) {
+        const mPromo = await affiliatesService.getPromotionForAffiliateAndPlan(affiliate.id, tier, 'monthly');
+        const aPromo = await affiliatesService.getPromotionForAffiliateAndPlan(affiliate.id, tier, 'annual');
+        
+        if (mPromo && mPromo.is_active && mPromo.discount_percentage) {
+          mPriceVal = mPriceVal - (mPriceVal * (mPromo.discount_percentage / 100));
+        }
+        if (aPromo && aPromo.is_active && aPromo.discount_percentage) {
+          aPriceVal = aPriceVal - (aPriceVal * (aPromo.discount_percentage / 100));
+        }
+      }
+    }
     
-    const mPrice = monthlyPlan ? monthlyPlan.price.toFixed(2).replace('.', ',') : '0,00';
-    const aPrice = annualPlan ? annualPlan.price.toFixed(2).replace('.', ',') : '0,00';
-    const aPriceMonthly = annualPlan ? (annualPlan.price / 12).toFixed(2).replace('.', ',') : '0,00';
+    const mPrice = mPriceVal.toFixed(2).replace('.', ',');
+    const aPrice = aPriceVal.toFixed(2).replace('.', ',');
+    const aPriceMonthly = (aPriceVal / 12).toFixed(2).replace('.', ',');
 
     const planOptions = `• *Mensal* — R$ ${mPrice}/mês\n• *Anual* — 12x R$ ${aPriceMonthly} (R$ ${aPrice}/ano)`;
 
@@ -1597,6 +1604,117 @@ export class AiService implements OnModuleInit {
       text,
       buttons: cycleStep.buttons || [],
     };
+  }
+
+  private async buildSelectPlanMessage(
+    selectStep: { text?: string; buttons?: any[] },
+    userAffiliateCode?: string,
+  ) {
+    const plansService = this.getPlansService();
+    const affiliatesService = this.getAffiliatesService();
+
+    const bMonthly = await plansService.getPlan('basic', 'monthly');
+    const bAnnual = await plansService.getPlan('basic', 'annual');
+    const pMonthly = await plansService.getPlan('premium', 'monthly');
+    const pAnnual = await plansService.getPlan('premium', 'annual');
+
+    let bpMonthVal = bMonthly ? bMonthly.price : 0;
+    let bpYearVal = bAnnual ? bAnnual.price : 0;
+    let ppMonthVal = pMonthly ? pMonthly.price : 0;
+    let ppYearVal = pAnnual ? pAnnual.price : 0;
+
+    let couponInfo = '';
+
+    if (userAffiliateCode) {
+      const affiliate = await affiliatesService.getAffiliateByCode(userAffiliateCode);
+      if (affiliate && affiliate.is_active) {
+        couponInfo = `🎁 *Desconto do cupom ${userAffiliateCode} aplicado!*\n`;
+        const promos = await affiliatesService.getPromotionsByAffiliate(affiliate.id);
+        
+        for (const promo of promos) {
+          if (!promo.is_active || !promo.discount_percentage) continue;
+          const factor = 1 - (promo.discount_percentage / 100);
+          
+          if (promo.plan_tier === 'basic' && promo.plan_cycle === 'monthly') bpMonthVal *= factor;
+          if (promo.plan_tier === 'basic' && promo.plan_cycle === 'annual') bpYearVal *= factor;
+          if (promo.plan_tier === 'premium' && promo.plan_cycle === 'monthly') ppMonthVal *= factor;
+          if (promo.plan_tier === 'premium' && promo.plan_cycle === 'annual') ppYearVal *= factor;
+        }
+      }
+    }
+
+    const basicPriceMonth = bpMonthVal.toFixed(2).replace('.', ',');
+    const basicPriceYearMonthly = (bpYearVal / 12).toFixed(2).replace('.', ',');
+    const premiumPriceMonth = ppMonthVal.toFixed(2).replace('.', ',');
+    const premiumPriceYearMonthly = (ppYearVal / 12).toFixed(2).replace('.', ',');
+
+    let text = this.formatFlowText(selectStep.text || '')
+      .replace(/{basic_price_month}/g, basicPriceMonth)
+      .replace(/{basic_price_year_monthly}/g, basicPriceYearMonthly)
+      .replace(/{premium_price_month}/g, premiumPriceMonth)
+      .replace(/{premium_price_year_monthly}/g, premiumPriceYearMonthly)
+      .replace(/{coupon_info}/g, couponInfo);
+
+    // Filter out premium options if premium plan is not active
+    const premiumActive = await this.getSystemSetting('premium_plan_active', 'false');
+    let buttons = selectStep.buttons || [];
+    
+    if (premiumActive !== 'true') {
+      // Remove text related to premium if possible. 
+      // We will look for "*✨ Plano Premium*" and cut to the next double break or something.
+      // But a robust way is to just remove the Premium button. The text should ideally adapt, 
+      // but without complex parsing, we can just remove lines containing Premium if they are simple, 
+      // but let's just use regex to remove the premium block assuming it starts with *✨ Plano Premium*
+      const premiumRegex = /\*✨ Plano Premium\*[\s\S]*?(?=\n\n_|\n\n\*|$)/i;
+      text = text.replace(premiumRegex, '').trim();
+      
+      buttons = buttons.filter(btn => !btn.text.toLowerCase().includes('premium'));
+    }
+
+    return {
+      type: 'interactive',
+      text,
+      buttons,
+    };
+  }
+
+  private async buildCouponActivatedMessage(affiliateCode: string) {
+    const supabase = this.supabaseService.getClient();
+    let couponFlowData: any = null;
+    const { data: cData } = (await supabase.from('automatic_flows').select('steps').eq('key', 'coupon_flow').maybeSingle()) as { data: any };
+    if (cData) couponFlowData = cData;
+
+    const couponStep = couponFlowData?.steps?.coupon_activated || {
+      text: '🎉 *Cupom ativado com sucesso!*\n\nO código *{coupon_code}* foi aplicado à sua conta. Você terá um desconto de {discount_percentage}% em nossos planos!\n\nQuer conhecer os planos e garantir esse desconto agora mesmo?',
+      buttons: [{ id: 'ver_planos', text: 'Ver Planos' }]
+    };
+
+    let discountPercentage = 0;
+    const affiliatesService = this.getAffiliatesService();
+    const affiliate = await affiliatesService.getAffiliateByCode(affiliateCode);
+    
+    if (affiliate && affiliate.is_active) {
+      const promos = await affiliatesService.getPromotionsByAffiliate(affiliate.id);
+      for (const promo of promos) {
+        if (promo.is_active && promo.discount_percentage && promo.discount_percentage > discountPercentage) {
+          discountPercentage = promo.discount_percentage;
+        }
+      }
+    }
+
+    const text = this.formatFlowText(couponStep.text)
+      .replace(/{coupon_code}/g, affiliateCode)
+      .replace(/{discount_percentage}/g, discountPercentage.toString());
+
+    if (couponStep.buttons && couponStep.buttons.length > 0) {
+      return {
+        type: 'interactive',
+        text,
+        buttons: couponStep.buttons
+      };
+    }
+
+    return text;
   }
 
   async handleFlowStep(
@@ -1684,10 +1802,11 @@ export class AiService implements OnModuleInit {
       else if (isBasic && isPremium) tier = 'premium';
 
       if (!tier) {
+        const selectMessage = await this.buildSelectPlanMessage(selectStep, user.affiliate_code);
         return {
           type: 'interactive',
-          text: `⚠️ Opção inválida. Por favor, escolha uma das opções abaixo:\n\n${this.formatFlowText(selectStep.text)}`,
-          buttons: selectStep.buttons,
+          text: `⚠️ Opção inválida. Por favor, escolha uma das opções abaixo:\n\n${selectMessage.text}`,
+          buttons: selectMessage.buttons,
         };
       }
 
@@ -1702,12 +1821,13 @@ export class AiService implements OnModuleInit {
       }
 
       if (userTier === 'basic' && tier === 'basic') {
+        const selectMessage = await this.buildSelectPlanMessage(selectStep, user.affiliate_code);
         return {
           type: 'interactive',
           text:
             'Você já possui o *Plano Básico* ativo! Não é necessário assinar novamente o mesmo plano. Se quiser ter acesso ilimitado, escolha o *Plano Premium*. 😊\n\n' +
-            this.formatFlowText(selectStep.text),
-          buttons: selectStep.buttons,
+            selectMessage.text,
+          buttons: selectMessage.buttons,
         };
       }
 
@@ -1721,7 +1841,7 @@ export class AiService implements OnModuleInit {
 
       const cycleStep = steps.select_cycle ||
         steps.confirm_plan || { text: '', buttons: [] };
-      return await this.buildCycleStepMessage(cycleStep, tier, userTier);
+      return await this.buildCycleStepMessage(cycleStep, tier, userTier, user.affiliate_code);
     }
 
     if (stepId === 'select_cycle' || stepId === 'confirm_plan') {
@@ -1765,11 +1885,7 @@ export class AiService implements OnModuleInit {
             .update({ status: 'flow:subscription_flow:select_plan' })
             .eq('id', user.id);
           const selectStep = steps.select_plan;
-          return {
-            type: 'interactive',
-            text: this.formatFlowText(selectStep.text),
-            buttons: selectStep.buttons,
-          };
+          return await this.buildSelectPlanMessage(selectStep, user.affiliate_code);
         }
         if (!isYes) {
           const bMonthly = await this.plansService.getPlan('basic', 'monthly');
@@ -1867,11 +1983,7 @@ export class AiService implements OnModuleInit {
           .update({ status: 'flow:subscription_flow:select_plan' })
           .eq('id', user.id);
         const selectStep = steps.select_plan;
-        return {
-          type: 'interactive',
-          text: this.formatFlowText(selectStep.text),
-          buttons: selectStep.buttons,
-        };
+        return await this.buildSelectPlanMessage(selectStep, user.affiliate_code);
       }
 
       const isMonthly = this.matchesFlowOption(cleanMsg, '1', getBtnText('1'), [

@@ -13,9 +13,10 @@ import { ScheduledMessagesService } from './scheduled-messages.service';
 import { SupabaseModule } from '../supabase/supabase.module';
 import { AdminModule } from '../admin/admin.module';
 import { PlansModule } from '../plans/plans.module';
+import { AffiliatesModule } from '../affiliates/affiliates.module';
 
 @Module({
-  imports: [ConfigModule, SupabaseModule, AdminModule, PlansModule],
+  imports: [ConfigModule, SupabaseModule, AdminModule, PlansModule, AffiliatesModule],
   controllers: [AiController, DailyCacheController],
   providers: [
     AiService,

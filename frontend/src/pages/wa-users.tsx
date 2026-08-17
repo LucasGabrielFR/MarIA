@@ -66,6 +66,7 @@ interface WaUser {
   }
   subscription_tier: string
   subscription_expires_at: string | null
+  affiliate_code?: string | null
   metrics: {
     total_tokens: number
     total_cost_usd: number
@@ -511,6 +512,7 @@ const WaUsersPage = () => {
                     <TableHead className="font-bold text-slate-800 py-5">Status</TableHead>
                     <TableHead className="font-bold text-slate-800 py-5">Interesses</TableHead>
                     <TableHead className="font-bold text-slate-800 py-5">Assinatura</TableHead>
+                    <TableHead className="font-bold text-slate-800 py-5">Cupom</TableHead>
                     <TableHead className="font-bold text-slate-800 py-5">Tokens Totais</TableHead>
                     <TableHead className="font-bold text-slate-800 py-5">Última Atividade</TableHead>
                     <TableHead className="text-right font-bold text-slate-800 py-5 pr-8">Ações</TableHead>
@@ -519,13 +521,13 @@ const WaUsersPage = () => {
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-20 text-slate-400 font-medium">
+                      <TableCell colSpan={7} className="text-center py-20 text-slate-400 font-medium">
                         Carregando fiéis...
                       </TableCell>
                     </TableRow>
                   ) : filteredUsers.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-20 text-slate-400 font-medium">
+                      <TableCell colSpan={7} className="text-center py-20 text-slate-400 font-medium">
                         Nenhum usuário encontrado.
                       </TableCell>
                     </TableRow>
@@ -598,6 +600,15 @@ const WaUsersPage = () => {
                              user.subscription_tier === 'premium' ? 'Premium' : 
                              user.subscription_tier === 'unlimited' ? 'Ilimitado' : 'Gratuito'}
                           </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {user.affiliate_code ? (
+                            <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200 text-xs font-bold px-2 py-0.5">
+                              {user.affiliate_code}
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-slate-400 font-medium italic">-</span>
+                          )}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
