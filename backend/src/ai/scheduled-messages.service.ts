@@ -57,7 +57,7 @@ export class ScheduledMessagesService {
 
     const { data: allUsers, error } = await supabase
       .from('users')
-      .select('id, wa_chatid, subscription_tier')
+      .select('id, wa_chatid, subscription_tier, receive_daily_liturgy')
       .not('wa_chatid', 'is', null);
 
     if (error) {
@@ -69,7 +69,20 @@ export class ScheduledMessagesService {
 
     const eligibleUsers = allUsers.filter(u => {
       const plan = u.subscription_tier || 'free';
-      return campaign.audience && campaign.audience.includes(plan);
+      const audienceMatch = campaign.audience && campaign.audience.includes(plan);
+
+      let isLiturgyOnly = false;
+      const hasPrompt = campaign.prompt && campaign.prompt.trim().length > 0;
+      
+      if (!hasPrompt && campaign.tools && Array.isArray(campaign.tools)) {
+        isLiturgyOnly = campaign.tools.some((t: any) => t.type === 'liturgy');
+      }
+
+      if (isLiturgyOnly) {
+        return audienceMatch && u.receive_daily_liturgy === true;
+      }
+
+      return audienceMatch;
     });
 
     if (eligibleUsers.length === 0) {

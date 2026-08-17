@@ -906,6 +906,7 @@ export class AsaasService {
             subscription_tier: planTier,
             asaas_customer_id: customerId,
             subscription_expires_at: expiresAt.toISOString(),
+            receive_daily_liturgy: true,
             updated_at: new Date().toISOString(),
           })
           .eq('id', user.id);

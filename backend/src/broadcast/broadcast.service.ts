@@ -156,9 +156,19 @@ export class BroadcastService {
                   if (tool.option === 'menu') {
                     const { data: flow } = await supabase.from('automatic_flows').select('steps').eq('key', 'liturgy_flow').single();
                     if (flow?.steps?.choose_format?.buttons) {
-                      buttonsToAttach = flow.steps.choose_format.buttons;
+                      buttonsToAttach = [...flow.steps.choose_format.buttons];
                       if (flow.steps.choose_format.text) {
                         buttonText = flow.steps.choose_format.text;
+                      }
+
+                      const { data: userData } = await supabase.from('users').select('receive_daily_liturgy').eq('id', msg.user_id).single();
+                      const hasDaily = userData?.receive_daily_liturgy;
+
+                      if (buttonsToAttach.length < 3) {
+                         buttonsToAttach.push({
+                           id: 'toggle_daily_liturgy',
+                           text: hasDaily ? 'Cancelar envio diário' : 'Receber envio diário'
+                         });
                       }
                     }
                   } else if (tool.option === 'short' || tool.option === 'full') {
@@ -180,27 +190,32 @@ export class BroadcastService {
               }
 
               let prompt = config.prompt || '';
-              prompt = prompt
-                .replace(/{{nome}}/gi, userName)
-                .replace(/{nome}/gi, userName);
+              
+              if (prompt.trim() !== '') {
+                prompt = prompt
+                  .replace(/{{nome}}/gi, userName)
+                  .replace(/{nome}/gi, userName);
+                  
+                for (const [tag, val] of Object.entries(contextForPrompt)) {
+                  prompt = prompt.replace(new RegExp(tag, 'gi'), val);
+                }
                 
-              for (const [tag, val] of Object.entries(contextForPrompt)) {
-                prompt = prompt.replace(new RegExp(tag, 'gi'), val);
-              }
-              
-              let genderContext = '';
-              if (user?.gender === 'M') {
-                genderContext = `O gênero do destinatário é MASCULINO. Trate-o por pronomes masculinos.`;
-              } else if (user?.gender === 'F') {
-                genderContext = `O gênero do destinatário é FEMININO. Trate-a por pronomes femininos.`;
-              }
+                let genderContext = '';
+                if (user?.gender === 'M') {
+                  genderContext = `O gênero do destinatário é MASCULINO. Trate-o por pronomes masculinos.`;
+                } else if (user?.gender === 'F') {
+                  genderContext = `O gênero do destinatário é FEMININO. Trate-a por pronomes femininos.`;
+                }
 
-              const corePersona = this.promptService.getCorePersona();
-              const fullSystemPrompt = `${corePersona}\n\nData atual: Hoje é ${today}.\n\nINSTRUÇÕES IMPORTANTES DE PERSONALIZAÇÃO:\n- Escreva esta mensagem de forma ÚNICA e EXCLUSIVA para este usuário.\n- Mude a estrutura, escolha palavras diferentes e traga uma pequena variação na reflexão em relação a outras mensagens do mesmo tema.\n- O destinatário chama-se: ${userName}.\n- ${genderContext}`;
-              
-              // Aumentamos a temperatura para 0.9 para gerar mais diversidade nas mensagens em massa
-              const { content } = await this.aiService.callOpenRouter(fullSystemPrompt, prompt, false, [], undefined, 0.9);
-              textToSend = content;
+                const corePersona = this.promptService.getCorePersona();
+                const fullSystemPrompt = `${corePersona}\n\nData atual: Hoje é ${today}.\n\nINSTRUÇÕES IMPORTANTES DE PERSONALIZAÇÃO:\n- Escreva esta mensagem de forma ÚNICA e EXCLUSIVA para este usuário.\n- Mude a estrutura, escolha palavras diferentes e traga uma pequena variação na reflexão em relação a outras mensagens do mesmo tema.\n- O destinatário chama-se: ${userName}.\n- ${genderContext}`;
+                
+                // Aumentamos a temperatura para 0.9 para gerar mais diversidade nas mensagens em massa
+                const { content } = await this.aiService.callOpenRouter(fullSystemPrompt, prompt, false, [], undefined, 0.9);
+                textToSend = content;
+              } else {
+                textToSend = ''; // Sem prompt significa sem IA
+              }
             } catch (e) {
               this.logger.error(`Error processing dynamic AI scheduled message: ${e.message}`);
               throw new Error('Erro ao processar prompt da campanha dinâmica.');
@@ -212,7 +227,10 @@ export class BroadcastService {
           }
 
           // Enviar texto da IA (ou texto normal) via Uazapi
-          let sent = await this.uazapiService.sendMessage(msg.wa_chatid, textToSend);
+          let sent = true;
+          if (textToSend && textToSend.trim() !== '') {
+            sent = await this.uazapiService.sendMessage(msg.wa_chatid, textToSend);
+          }
           
           // Se houver botões anexados, enviá-los como uma segunda mensagem separada
           if (sent && buttonsToAttach.length > 0) {

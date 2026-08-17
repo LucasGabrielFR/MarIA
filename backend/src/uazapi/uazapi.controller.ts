@@ -464,8 +464,16 @@ export class UazapiController {
           buttons,
         );
       } else if (Array.isArray(responseText)) {
-        for (const text of responseText) {
-          await this.uazapiService.sendMessage(chatId, text);
+        for (const msg of responseText) {
+          if (typeof msg === 'object' && msg !== null && msg.type === 'interactive') {
+            await this.uazapiService.sendInteractiveMessage(
+              chatId,
+              msg.text,
+              msg.buttons || [],
+            );
+          } else {
+            await this.uazapiService.sendMessage(chatId, typeof msg === 'string' ? msg : String(msg));
+          }
         }
       } else {
         await this.uazapiService.sendMessage(chatId, responseText as string);

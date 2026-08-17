@@ -911,15 +911,65 @@ export class AiService implements OnModuleInit {
       let presentationPrompt = flowData?.steps?.['presentation']?.text || 'Seja bem-vindo(a), {nome}!';
 
       const userName = user.name || 'amigo(a)';
-      const response = presentationPrompt
+      const responseText = presentationPrompt
         .replace(/{{nome}}/gi, userName)
         .replace(/{nome}/gi, userName);
 
-      await Promise.all([
-        supabase.from('users').update({ status: 'active' }).eq('id', userId),
-        this.saveMessage(userId, 'assistant', response, false),
-      ]);
-      return response;
+      const isFree = user.subscription_tier === 'free';
+      if (isFree) {
+        await supabase.from('users').update({ status: 'triage_ask_daily_liturgy' }).eq('id', userId);
+        
+        const questionText = flowData?.steps?.['ask_daily_liturgy']?.text || 'Gostaria de receber a liturgia todos os dias pela manhã?';
+        const buttons = flowData?.steps?.['ask_daily_liturgy']?.buttons || [
+          { id: '1', text: 'Sim' },
+          { id: '2', text: 'Não' }
+        ];
+
+        await this.saveMessage(userId, 'assistant', responseText, false);
+        await this.saveMessage(userId, 'assistant', questionText, false);
+
+        return [
+          responseText,
+          { type: 'interactive', text: questionText, buttons }
+        ];
+      } else {
+        await Promise.all([
+          supabase.from('users').update({ status: 'active' }).eq('id', userId),
+          this.saveMessage(userId, 'assistant', responseText, false),
+        ]);
+        return responseText;
+      }
+    }
+
+    // 3. Confirmação do Envio Diário de Liturgia
+    if (userStatus === 'triage_ask_daily_liturgy') {
+      const cleanMsg = message.toLowerCase().trim();
+      let receive = false;
+      let handled = false;
+      
+      if (cleanMsg === 'sim' || cleanMsg === '1') {
+        receive = true;
+        handled = true;
+      } else if (cleanMsg === 'não' || cleanMsg === 'nao' || cleanMsg === '2') {
+        receive = false;
+        handled = true;
+      }
+
+      if (handled) {
+        await supabase.from('users').update({
+          status: 'active',
+          receive_daily_liturgy: receive
+        }).eq('id', userId);
+
+        const responseText = receive 
+           ? 'Que maravilha! Enviarei a liturgia todos os dias pela manhã para você. Que Deus te abençoe! 🙏' 
+           : 'Tudo bem! Se mudar de ideia, você pode ativar a qualquer momento pelo menu da liturgia. Fique com Deus! 🙏';
+        
+        await this.saveMessage(userId, 'assistant', responseText, false);
+        return responseText;
+      } else {
+        return 'Por favor, responda com "Sim" ou "Não" tocando nos botões acima.';
+      }
     }
 
     // --- FLUXO ATIVO ---
@@ -942,6 +992,8 @@ export class AiService implements OnModuleInit {
       intent = 'LITURGY_SHORT';
     } else if (lowerMsg === 'liturgy_full') {
       intent = 'LITURGY_FULL';
+    } else if (lowerMsg === 'toggle_daily_liturgy' || lowerMsg === 'receber envio diário' || lowerMsg === 'cancelar envio diário') {
+      intent = 'TOGGLE_DAILY_LITURGY';
     }
     
     // Interceptar intenção de TERÇO
@@ -1040,6 +1092,7 @@ export class AiService implements OnModuleInit {
       'SAINT_OF_DAY',
       'ROSARY_MYSTERIES',
       'ROSARY_GUIDE',
+      'TOGGLE_DAILY_LITURGY',
     ];
     const isUtility = utilityIntents.includes(intent);
 
@@ -1074,12 +1127,22 @@ export class AiService implements OnModuleInit {
           .maybeSingle();
 
         if (liturgyFlow && liturgyFlow.steps?.choose_format) {
+          const buttons = [...liturgyFlow.steps.choose_format.buttons];
+          const hasDaily = user.receive_daily_liturgy;
+          
+          if (buttons.length < 3) {
+             buttons.push({
+               id: 'toggle_daily_liturgy',
+               text: hasDaily ? 'Cancelar envio diário' : 'Receber envio diário'
+             });
+          }
+
           // Atualiza status do usuário para não prender no fluxo, pois é só uma escolha simples
           // Retornamos logo a mensagem interativa.
           return {
             type: 'interactive',
             text: liturgyFlow.steps.choose_format.text,
-            buttons: liturgyFlow.steps.choose_format.buttons,
+            buttons: buttons,
           };
         }
         
@@ -1100,6 +1163,23 @@ export class AiService implements OnModuleInit {
         break;
 
       case 'LITURGY_FULL':
+        cachedResponse = await this.getDailyCache('liturgy_full', targetDate);
+        if (!cachedResponse) {
+          cachedResponse = await this.liturgyService.getDailyLiturgy(targetDate);
+        }
+        intentContext = `CONTEÚDO DA LITURGIA COMPLETA (${targetDate}):\n${cachedResponse}`;
+        break;
+
+      case 'TOGGLE_DAILY_LITURGY':
+        const newDailyStatus = !user.receive_daily_liturgy;
+        await supabase.from('users').update({ receive_daily_liturgy: newDailyStatus }).eq('id', user.id);
+        const toggleResponse = newDailyStatus
+          ? 'Que maravilha! Enviarei a liturgia todos os dias pela manhã para você. Que Deus te abençoe! 🙏'
+          : 'Envio diário cancelado! Você não receberá mais a liturgia automaticamente pela manhã, mas pode pedi-la quando quiser. 🙏';
+        await this.saveMessage(userId, 'assistant', toggleResponse, false);
+        return toggleResponse;
+
+      case 'SAINT_OF_DAY':
         const fullLiturgy = await this.liturgyService.getDailyLiturgy(targetDate);
         cachedResponse = fullLiturgy;
         intentContext = `CONTEÚDO DA LITURGIA COMPLETA (${targetDate}):\n${cachedResponse}`;
