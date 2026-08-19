@@ -67,8 +67,18 @@ export class UazapiController {
       if (chatId && chatId.includes('@g.us'))
         return { status: 'ignored_group' };
 
+      let interactiveId = '';
+      try {
+        const paramsJson = messageData.message?.interactiveResponseMessage?.nativeFlowResponseMessage?.paramsJson;
+        if (paramsJson) {
+          const parsed = JSON.parse(paramsJson);
+          interactiveId = parsed.id;
+        }
+      } catch (e) {}
+
       // Texto, clique em botão (buttonOrListid) ou resposta de lista/enquete
       const messageContent = (
+        interactiveId ||
         messageData.text ||
         messageData.buttonOrListid ||
         messageData.vote ||
@@ -76,8 +86,8 @@ export class UazapiController {
         messageData.message?.conversation ||
         messageData.message?.extendedTextMessage?.text ||
         messageData.message?.buttonsResponseMessage?.selectedButtonId ||
-        messageData.message?.listResponseMessage?.singleSelectReply
-          ?.selectedRowId ||
+        messageData.message?.templateButtonReplyMessage?.selectedId ||
+        messageData.message?.listResponseMessage?.singleSelectReply?.selectedRowId ||
         ''
       )
         .toString()

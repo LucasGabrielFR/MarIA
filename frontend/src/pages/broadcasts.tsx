@@ -63,6 +63,8 @@ export default function BroadcastsPage() {
   const [filteredUsers, setFilteredUsers] = useState<any[]>([]);
   const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterActiveOnly, setFilterActiveOnly] = useState(true);
+  const [filterPlan, setFilterPlan] = useState<string>('all');
   const [isSending, setIsSending] = useState(false);
 
   // History Tab State
@@ -80,12 +82,16 @@ export default function BroadcastsPage() {
   }, [activeTab]);
 
   useEffect(() => {
-    const filtered = users.filter(user => 
-      (user.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-       user.phone?.includes(searchTerm))
-    );
+    const filtered = users.filter(user => {
+      const matchSearch = user.name?.toLowerCase().includes(searchTerm.toLowerCase()) || user.phone?.includes(searchTerm);
+      const matchActive = filterActiveOnly ? user.status === 'active' : true;
+      const userPlan = user.subscription_tier || 'free';
+      const matchPlan = filterPlan === 'all' ? true : userPlan === filterPlan;
+
+      return matchSearch && matchActive && matchPlan;
+    });
     setFilteredUsers(filtered);
-  }, [searchTerm, users]);
+  }, [searchTerm, filterActiveOnly, filterPlan, users]);
 
   const fetchUsers = async () => {
     try {
@@ -96,11 +102,7 @@ export default function BroadcastsPage() {
       });
       if (response.ok) {
         const data = await response.json();
-        // Filtrar apenas usuários ativos que passaram da triagem inicial
-        const activeUsers = data.filter((u: any) => 
-          u.status === 'active'
-        );
-        setUsers(activeUsers);
+        setUsers(data);
       }
     } catch (err) {
       toast.error('Erro ao carregar usuários.');
@@ -272,18 +274,46 @@ export default function BroadcastsPage() {
 
             <div className="lg:col-span-2">
               <ContentCard>
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-semibold text-[#002D6E]">
-                    Selecionar Destinatários ({selectedUserIds.size} de {filteredUsers.length})
-                  </h2>
-                  <div className="relative w-64">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-                    <Input 
-                      className="pl-9" 
-                      placeholder="Buscar contato..." 
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
+                <div className="flex flex-col gap-4 mb-4">
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-xl font-semibold text-[#002D6E]">
+                      Selecionar Destinatários ({selectedUserIds.size} de {filteredUsers.length})
+                    </h2>
+                    <div className="relative w-64">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                      <Input 
+                        className="pl-9" 
+                        placeholder="Buscar contato..." 
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        className="w-4 h-4 rounded border-gray-300 text-[#002D6E] focus:ring-[#002D6E]"
+                        checked={filterActiveOnly}
+                        onChange={(e) => setFilterActiveOnly(e.target.checked)}
+                      />
+                      Apenas usuários ativos
+                    </label>
+                    <div className="h-6 border-l border-gray-300"></div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-gray-700">Plano:</span>
+                      <select 
+                        className="text-sm border border-gray-300 rounded-md p-1.5 focus:ring-[#002D6E] focus:border-[#002D6E] bg-white text-gray-700"
+                        value={filterPlan}
+                        onChange={(e) => setFilterPlan(e.target.value)}
+                      >
+                        <option value="all">Todos os Planos</option>
+                        <option value="free">Gratuito</option>
+                        <option value="basic">Básico</option>
+                        <option value="premium">Premium</option>
+                        <option value="unlimited">Unlimited</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
 
