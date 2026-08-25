@@ -222,7 +222,7 @@ export class AffiliatesService {
     
     const { data: affiliate } = await supabase
       .from('affiliates')
-      .select('code, can_view_insights')
+      .select('code, can_view_insights, community_insights, community_insights_updated_at')
       .eq('id', affiliateId)
       .single();
       
@@ -230,41 +230,9 @@ export class AffiliatesService {
       return { error: 'Sem permissão para visualizar insights' };
     }
 
-    // Busca os interesses gerais sem expor PII
-    const { data: contexts } = await supabase
-      .from('users')
-      .select('user_contexts(interests)')
-      .eq('affiliate_code', affiliate.code);
-      
-    const allInterests: string[] = [];
-    if (contexts) {
-      contexts.forEach((c: any) => {
-        if (c.user_contexts && Array.isArray(c.user_contexts.interests)) {
-          allInterests.push(...c.user_contexts.interests);
-        } else if (c.user_contexts && Array.isArray(c.user_contexts)) {
-           // Em caso de relacionamento hasMany
-           c.user_contexts.forEach(ctx => {
-             if (Array.isArray(ctx.interests)) {
-               allInterests.push(...ctx.interests);
-             }
-           });
-        }
-      });
-    }
-
-    // Contar a frequência dos interesses
-    const interestCounts = allInterests.reduce((acc, curr) => {
-      acc[curr] = (acc[curr] || 0) + 1;
-      return acc;
-    }, {});
-
-    const sortedInterests = Object.entries(interestCounts)
-      .sort((a: any, b: any) => b[1] - a[1])
-      .slice(0, 10)
-      .map(([name, count]) => ({ name, count }));
-
     return {
-      top_interests: sortedInterests
+      insights: affiliate.community_insights || null,
+      updated_at: affiliate.community_insights_updated_at || null
     };
   }
 

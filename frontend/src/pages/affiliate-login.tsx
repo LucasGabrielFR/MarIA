@@ -115,9 +115,9 @@ export default function AffiliateLogin() {
 
       const data = await response.json();
       
-      // Salvar os dados do afiliado e o token
-      localStorage.setItem('maria_user', JSON.stringify(data.user));
-      localStorage.setItem('maria_token', data.token);
+      // Salva dados locais com chave isolada para não conflitar com o admin
+      localStorage.setItem('maria_affiliate_user', JSON.stringify(data.user));
+      localStorage.setItem('maria_affiliate_token', data.token);
 
       toast.success('Login realizado com sucesso!');
       navigate('/affiliate-dashboard');

@@ -2233,4 +2233,38 @@ export class AiService implements OnModuleInit {
       return 'N';
     }
   }
+  /**
+   * Resume os interesses da comunidade de um afiliado usando as mensagens fornecidas.
+   */
+  async summarizeCommunityInterests(messages: string[]): Promise<string> {
+    if (!messages || messages.length === 0) {
+      return "Ainda não há mensagens suficientes para gerar insights da sua comunidade.";
+    }
+
+    const systemPrompt = `Você é um analista especialista em identificar interesses e padrões em comunidades.
+Sua missão é analisar uma amostra de mensagens recentes dos fiéis (indicados por um afiliado) e gerar um resumo dos temas mais buscados por eles.
+O objetivo é que o afiliado compreenda melhor o que sua comunidade está precisando.
+
+DIRETRIZES:
+1. NÃO inclua NENHUM dado pessoal, nomes, detalhes específicos ou informações que possam identificar alguém.
+2. Destaque se a grande maioria das mensagens (ou o maior uso) está relacionado a "Liturgia Diária", "Santo do Dia" ou "Orações básicas". Exemplo: "A maior parte da sua comunidade busca diariamente pela Liturgia Diária..."
+3. Identifique outros temas teológicos ou pedidos de conselho genéricos, se houver (ex: conselhos para ansiedade, dúvidas sobre sacramentos).
+4. O resumo deve ser curto, objetivo, acolhedor e encorajador para o afiliado.
+5. Escreva em parágrafos diretos e em tom profissional e amigável.`;
+
+    const sample = messages.slice(0, 200).join("\n---\n");
+    const userPrompt = `Mensagens recentes (amostra):\n${sample}\n\nGere o resumo dos interesses da comunidade de acordo com as diretrizes.`;
+
+    try {
+      const { content } = await this.callOpenRouter(
+        systemPrompt,
+        userPrompt,
+        false
+      );
+      return content.trim();
+    } catch (e) {
+      this.logger.error("Erro ao gerar insights da comunidade", e);
+      return "No momento não foi possível gerar os insights da comunidade devido a uma indisponibilidade. Tente novamente mais tarde.";
+    }
+  }
 }

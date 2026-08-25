@@ -13,7 +13,8 @@ export function MainLayout({ children, title, subtitle }: MainLayoutProps) {
   const [user, setUser] = React.useState<any>(null);
 
   React.useEffect(() => {
-    const storedUser = localStorage.getItem('maria_user');
+    const isAffiliateRoute = window.location.pathname.includes('affiliate');
+    const storedUser = isAffiliateRoute ? localStorage.getItem('maria_affiliate_user') : localStorage.getItem('maria_user');
     if (storedUser) {
       setUser(JSON.parse(storedUser));
     }

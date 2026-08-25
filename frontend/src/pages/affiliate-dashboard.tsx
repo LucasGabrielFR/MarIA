@@ -24,7 +24,7 @@ export default function AffiliateDashboardPage() {
 
   const loadDashboard = async () => {
     try {
-      const userStr = localStorage.getItem('maria_user')
+      const userStr = localStorage.getItem('maria_affiliate_user')
       if (!userStr) {
         navigate('/')
         return
@@ -219,21 +219,21 @@ export default function AffiliateDashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {insights && insights.top_interests && insights.top_interests.length > 0 ? (
+            {insights && insights.insights ? (
               <div className="space-y-4">
-                <div className="flex flex-wrap gap-2">
-                  {insights.top_interests.map((interest: any, idx: number) => (
-                    <div key={idx} className="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-full text-sm font-medium border border-slate-200">
-                      {interest.name}
-                      <span className="ml-2 text-xs text-slate-400 bg-white px-1.5 py-0.5 rounded-full">
-                        {interest.count}x
-                      </span>
-                    </div>
-                  ))}
+                <div className="bg-slate-50 text-slate-700 p-4 rounded-xl text-sm leading-relaxed border border-slate-200 whitespace-pre-wrap">
+                  {insights.insights}
                 </div>
-                <p className="text-xs text-slate-400 italic">
-                  * Os dados são totalmente anônimos e não contêm informações pessoais de identificação, respeitando a privacidade dos usuários.
-                </p>
+                <div className="flex justify-between items-center">
+                  <p className="text-xs text-slate-400 italic">
+                    * Os dados são totalmente anônimos e não contêm informações pessoais de identificação.
+                  </p>
+                  {insights.updated_at && (
+                    <p className="text-xs text-slate-400">
+                      Atualizado em: {new Date(insights.updated_at).toLocaleDateString('pt-BR')}
+                    </p>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="text-center py-8 text-slate-400 text-sm">

@@ -10,6 +10,7 @@ import {
 import { PromptService, AiPrompt } from './prompt.service';
 import { SupabaseService } from '../supabase/supabase.service';
 import { AiService } from './ai.service';
+import { CronService } from './cron.service';
 
 @Controller('ai/prompts')
 export class AiController {
@@ -17,6 +18,7 @@ export class AiController {
     private readonly promptService: PromptService,
     private readonly supabaseService: SupabaseService,
     private readonly aiService: AiService,
+    private readonly cronService: CronService,
   ) {}
 
   @Get()
@@ -130,5 +132,11 @@ Descrição: ${data.description}`;
 
     if (error) throw error;
     return data;
+  }
+
+  @Post('process-affiliate-insights')
+  async processAffiliateInsights() {
+    await this.cronService.processAffiliatesInsights();
+    return { success: true, message: 'Insights processing started in background' };
   }
 }

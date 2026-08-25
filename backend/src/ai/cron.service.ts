@@ -218,4 +218,69 @@ export class CronService {
       );
     }
   }
+
+  @Cron('0 0 * * 0', { timeZone: 'America/Sao_Paulo' }) // Todo domingo 00:00
+  async handleWeeklyAffiliateInsights() {
+    this.logger.log('Iniciando geração de insights para afiliados...');
+    await this.processAffiliatesInsights();
+  }
+
+  async processAffiliatesInsights() {
+    const supabase = this.supabaseService.getClient();
+    
+    // 1. Obter todos os afiliados
+    const { data: affiliates, error: affError } = await supabase
+      .from('affiliates')
+      .select('id, code, is_active')
+      .eq('is_active', true);
+      
+    if (affError || !affiliates) {
+      this.logger.error('Erro ao buscar afiliados para insights', affError);
+      return;
+    }
+
+    for (const affiliate of affiliates) {
+      try {
+        // 2. Obter usuários deste afiliado
+        const { data: users } = await supabase
+          .from('users')
+          .select('id')
+          .eq('affiliate_code', affiliate.code);
+          
+        if (!users || users.length === 0) continue;
+        const userIds = users.map(u => u.id);
+
+        // 3. Obter mensagens da última semana
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        
+        const { data: messages } = await supabase
+          .from('messages')
+          .select('content')
+          .in('user_id', userIds)
+          .eq('role', 'user')
+          .gte('created_at', sevenDaysAgo.toISOString())
+          .limit(200);
+
+        if (messages && messages.length > 0) {
+          const contents = messages.map(m => m.content);
+          // 4. Resumir interesses
+          const summary = await this.aiService.summarizeCommunityInterests(contents);
+          
+          // 5. Salvar no afiliado
+          await supabase
+            .from('affiliates')
+            .update({ 
+              community_insights: summary,
+              community_insights_updated_at: new Date().toISOString()
+            })
+            .eq('id', affiliate.id);
+            
+          this.logger.log(`Insights atualizados para afiliado ${affiliate.code}`);
+        }
+      } catch (err) {
+        this.logger.error(`Erro ao processar insights para afiliado ${affiliate.code}`, err);
+      }
+    }
+  }
 }

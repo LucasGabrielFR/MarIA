@@ -107,12 +107,15 @@ export function Sidebar() {
   const handleLogout = () => {
     localStorage.removeItem('maria_session');
     localStorage.removeItem('maria_user');
+    localStorage.removeItem('maria_affiliate_user');
+    localStorage.removeItem('maria_affiliate_token');
   };
 
-  const userStr = localStorage.getItem('maria_user');
+  const isAffiliateRoute = location.pathname.includes('affiliate');
+  const userStr = isAffiliateRoute ? localStorage.getItem('maria_affiliate_user') : localStorage.getItem('maria_user');
   const user = userStr ? JSON.parse(userStr) : null;
   const isSuperAdmin = user?.role === 'superadmin' || user?.email === 'lucasgabriel@acutistech.com.br';
-  const isAffiliate = user?.role === 'affiliate';
+  const isAffiliate = user?.role === 'affiliate' || isAffiliateRoute;
 
   const [openMenus, setOpenMenus] = useState<string[]>([]);
 
