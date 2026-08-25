@@ -113,14 +113,17 @@ export default function PlansPage() {
     try {
       const storedUser = localStorage.getItem('maria_user')
       const adminId = storedUser ? JSON.parse(storedUser)?.id : ''
-      const headers = { 'Content-Type': 'application/json', 'x-admin-id': adminId }
+      const headers = { 
+        'x-admin-id': adminId,
+        'Content-Type': 'application/json'
+      }
 
       const descJson = JSON.stringify({
         features: plan.features.split('\n').map(f => f.trim()).filter(f => f !== ''),
         highlight: plan.highlight
       })
 
-      const updates = []
+      const updates: Promise<any>[] = []
       
       if (plan.monthlyId) {
         updates.push(fetch(`${API_URL}/panel/plans/${plan.monthlyId}`, {
