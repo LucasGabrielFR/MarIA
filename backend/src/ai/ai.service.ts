@@ -478,6 +478,27 @@ export class AiService implements OnModuleInit {
     return count || 0;
   }
 
+  private async countMonthlyMagisterium(userId: string): Promise<number> {
+    const supabase = this.supabaseService.getClient();
+    const firstDayOfMonth = new Date();
+    firstDayOfMonth.setDate(1);
+    firstDayOfMonth.setHours(0, 0, 0, 0);
+
+    const { count, error } = await supabase
+      .from('usage_logs')
+      .select('id', { count: 'exact' })
+      .eq('user_id', userId)
+      .eq('model', 'magisterium-expert')
+      .gte('created_at', firstDayOfMonth.toISOString());
+
+    if (error) {
+      this.logger.error(`Erro ao contar uso do magisterium: ${error.message}`);
+      return 0;
+    }
+
+    return count || 0;
+  }
+
   private async countTotalMessages(userId: string): Promise<number> {
     const supabase = this.supabaseService.getClient();
 
@@ -1209,7 +1230,27 @@ export class AiService implements OnModuleInit {
         const promptKey = `intent_${intent.toLowerCase()}`;
         const intentPrompt = this.promptService.getPrompt(promptKey);
 
+        let canUseMagisterium = false;
+
         if (user.subscription_tier !== 'free') {
+          if (user.subscription_tier === 'admin' || user.subscription_tier === 'unlimited') {
+            canUseMagisterium = true;
+          } else {
+            try {
+              const plansService = this.getPlansService();
+              // get any plan for this tier (monthly or annual) to check the limit since they should match
+              const plan = await plansService.getPlan(user.subscription_tier, 'monthly');
+              const limit = plan?.magisterium_limit || 0;
+              const used = await this.countMonthlyMagisterium(userId);
+              canUseMagisterium = used < limit;
+            } catch (err) {
+              this.logger.error(`Erro ao verificar limite do Magisterium: ${err}`);
+              canUseMagisterium = false;
+            }
+          }
+        }
+
+        if (canUseMagisterium) {
           // 1. Consulta o Magisterium passando a dúvida do usuário
           const { content: magisteriumRes, usage: magUsage } =
             await this.magisteriumService.query(
@@ -1221,7 +1262,7 @@ export class AiService implements OnModuleInit {
           // 2. Passa o resultado E a diretriz de persona (intentPrompt) para a MarIA traduzir
           intentContext = `DIRETRIZ DE POSTURA E TRADUÇÃO:\n${intentPrompt}\n\nCONTEÚDO DO MAGISTERIUM (Baseie sua resposta fielmente nisto):\n${magisteriumRes}`;
         } else {
-          // Usuário gratuito: responde com a LLM padrão baseando-se nas diretrizes do prompt sem gastar Magisterium
+          // Usuário gratuito ou limite atingido: responde com a LLM padrão baseando-se nas diretrizes do prompt sem gastar Magisterium
           intentContext = `DIRETRIZ DE POSTURA:\n${intentPrompt}\n\nNota: Responda usando seu próprio conhecimento e treinamento, mantendo a precisão doutrinária e o acolhimento maternal.`;
         }
         break;
@@ -1632,7 +1673,7 @@ export class AiService implements OnModuleInit {
 
   private async buildCycleStepMessage(
     cycleStep: { text?: string; buttons?: any[] },
-    tier: 'basic' | 'premium',
+    tier: string,
     previousTier: string,
     userAffiliateCode?: string,
   ) {
@@ -1693,63 +1734,88 @@ export class AiService implements OnModuleInit {
     const plansService = this.getPlansService();
     const affiliatesService = this.getAffiliatesService();
 
-    const bMonthly = await plansService.getPlan('basic', 'monthly');
-    const bAnnual = await plansService.getPlan('basic', 'annual');
-    const pMonthly = await plansService.getPlan('premium', 'monthly');
-    const pAnnual = await plansService.getPlan('premium', 'annual');
-
-    let bpMonthVal = bMonthly ? bMonthly.price : 0;
-    let bpYearVal = bAnnual ? bAnnual.price : 0;
-    let ppMonthVal = pMonthly ? pMonthly.price : 0;
-    let ppYearVal = pAnnual ? pAnnual.price : 0;
+    const allPlans = await plansService.getAllPlans();
+    const activePlans = allPlans.filter((p: any) => p.is_active !== false);
+    const tiers = Array.from(new Set(activePlans.map((p: any) => p.tier)));
 
     let couponInfo = '';
+    let factor = 1;
 
     if (userAffiliateCode) {
       const affiliate = await affiliatesService.getAffiliateByCode(userAffiliateCode);
       if (affiliate && affiliate.is_active) {
-        couponInfo = `🎁 *Desconto do cupom ${userAffiliateCode} aplicado!*\n`;
+        couponInfo = `🎁 *Desconto do cupom ${userAffiliateCode} aplicado!*\n\n`;
         const promos = await affiliatesService.getPromotionsByAffiliate(affiliate.id);
         
+        let maxDiscount = 0;
         for (const promo of promos) {
-          if (!promo.is_active || !promo.discount_percentage) continue;
-          const factor = 1 - (promo.discount_percentage / 100);
-          
-          if (promo.plan_tier === 'basic' && promo.plan_cycle === 'monthly') bpMonthVal *= factor;
-          if (promo.plan_tier === 'basic' && promo.plan_cycle === 'annual') bpYearVal *= factor;
-          if (promo.plan_tier === 'premium' && promo.plan_cycle === 'monthly') ppMonthVal *= factor;
-          if (promo.plan_tier === 'premium' && promo.plan_cycle === 'annual') ppYearVal *= factor;
+          if (promo.is_active && promo.discount_percentage && promo.discount_percentage > maxDiscount) {
+            maxDiscount = promo.discount_percentage;
+          }
+        }
+        if (maxDiscount > 0) {
+          factor = 1 - (maxDiscount / 100);
         }
       }
     }
 
-    const basicPriceMonth = bpMonthVal.toFixed(2).replace('.', ',');
-    const basicPriceYearMonthly = (bpYearVal / 12).toFixed(2).replace('.', ',');
-    const premiumPriceMonth = ppMonthVal.toFixed(2).replace('.', ',');
-    const premiumPriceYearMonthly = (ppYearVal / 12).toFixed(2).replace('.', ',');
+    let dynamicPlansText = couponInfo + 'Confira nossos planos disponíveis:\n\n';
+    let buttons: { id: string; text: string }[] = [];
 
-    let text = this.formatFlowText(selectStep.text || '')
-      .replace(/{basic_price_month}/g, basicPriceMonth)
-      .replace(/{basic_price_year_monthly}/g, basicPriceYearMonthly)
-      .replace(/{premium_price_month}/g, premiumPriceMonth)
-      .replace(/{premium_price_year_monthly}/g, premiumPriceYearMonthly)
-      .replace(/{coupon_info}/g, couponInfo);
-
-    // Filter out premium options if premium plan is not active
-    const premiumActive = await this.getSystemSetting('premium_plan_active', 'false');
-    let buttons = selectStep.buttons || [];
-    
-    if (premiumActive !== 'true') {
-      // Remove text related to premium if possible. 
-      // We will look for "*✨ Plano Premium*" and cut to the next double break or something.
-      // But a robust way is to just remove the Premium button. The text should ideally adapt, 
-      // but without complex parsing, we can just remove lines containing Premium if they are simple, 
-      // but let's just use regex to remove the premium block assuming it starts with *✨ Plano Premium*
-      const premiumRegex = /\*✨ Plano Premium\*[\s\S]*?(?=\n\n_|\n\n\*|$)/i;
-      text = text.replace(premiumRegex, '').trim();
+    // O WhatsApp permite no máximo 3 botões por mensagem interativa simples.
+    // Para mais opções, idealmente seria usado um botão de lista, mas vamos limitar a 3 botões para compatibilidade (2 planos + cancelar).
+    let btnIndex = 1;
+    for (const tier of tiers) {
+      if (buttons.length >= 2) break; // Reserva 1 espaço para cancelar
       
-      buttons = buttons.filter(btn => !btn.text.toLowerCase().includes('premium'));
+      const monthlyPlan = activePlans.find((p: any) => p.tier === tier && p.cycle === 'monthly');
+      const annualPlan = activePlans.find((p: any) => p.tier === tier && p.cycle === 'annual');
+      const planName = monthlyPlan?.name || annualPlan?.name || tier;
+      
+      dynamicPlansText += `*${btnIndex}. ${planName}*\n`;
+      let descText = "";
+      const rawDesc = monthlyPlan?.description || annualPlan?.description || '';
+      try {
+        const parsed = JSON.parse(rawDesc || "{}");
+        if (parsed && typeof parsed === 'object') {
+          const features = Array.isArray(parsed.features) ? parsed.features : [rawDesc];
+          descText = features.map((f: string) => `✅ ${f}`).join('\n');
+          if (parsed.highlight) {
+            descText += `\n${parsed.highlight}`;
+          }
+        } else {
+          descText = rawDesc;
+        }
+      } catch {
+        descText = rawDesc;
+      }
+
+      if (descText) {
+        dynamicPlansText += `${descText}\n`;
+      }
+      
+      if (monthlyPlan) {
+        const price = monthlyPlan.price * factor;
+        dynamicPlansText += `- Mensal: R$ ${price.toFixed(2).replace('.', ',')}\n`;
+      }
+      if (annualPlan) {
+        const price = annualPlan.price * factor;
+        dynamicPlansText += `- Anual: R$ ${(price / 12).toFixed(2).replace('.', ',')} / mês\n`;
+      }
+      dynamicPlansText += `\n`;
+      
+      buttons.push({ id: tier, text: planName });
+      btnIndex++;
     }
+
+    buttons.push({ id: 'cancel', text: 'Cancelar' });
+
+    let text = (selectStep.text || '').split('\\n\\n*')[0]; // Tenta manter a introdução original, caso exista
+    if (!text || text.includes('{basic_price_month}')) {
+      text = 'Escolha seu plano:'; // Fallback se o texto original for o antigo com placeholders hardcoded
+    }
+    
+    text = `${text}\n\n${dynamicPlansText}`.trim();
 
     return {
       type: 'interactive',
@@ -1855,10 +1921,20 @@ export class AiService implements OnModuleInit {
           ?.find((b: any) => b.id === id)
           ?.text?.toLowerCase() || '';
 
-      const isCancel = this.matchesFlowOption(cleanMsg, '3', getBtnText('3'), [
+      const plansService = this.getPlansService();
+      const allPlans = await plansService.getAllPlans();
+      const activePlans = allPlans.filter((p: any) => p.is_active !== false);
+      const activeTiers = Array.from(new Set(activePlans.map((p: any) => p.tier)));
+
+      let tier = '';
+      
+      // Match cancelar
+      const isCancel = this.matchesFlowOption(cleanMsg, 'cancel', getBtnText('cancel') || 'cancelar', [
         'cancelar',
         'sair',
+        '3' // compatibilidade retroativa
       ]);
+      
       if (isCancel) {
         await supabase
           .from('users')
@@ -1867,19 +1943,22 @@ export class AiService implements OnModuleInit {
         return 'Fluxo de assinatura cancelado com sucesso. Se precisar de algo mais, estou aqui! Que Deus te abençoe! 🙏';
       }
 
-      const isBasic = this.matchesFlowOption(cleanMsg, '1', getBtnText('1'), [
-        'básico',
-        'basico',
-        'basic',
-      ]);
-      const isPremium = this.matchesFlowOption(cleanMsg, '2', getBtnText('2'), [
-        'premium',
-      ]);
-
-      let tier: 'basic' | 'premium' | '' = '';
-      if (isBasic && !isPremium) tier = 'basic';
-      else if (isPremium && !isBasic) tier = 'premium';
-      else if (isBasic && isPremium) tier = 'premium';
+      // Match dinâmico sobre tiers
+      let index = 1;
+      for (const t of activeTiers) {
+        const plan = activePlans.find((p: any) => p.tier === t);
+        const btnId = t; // now buttons are generated with id = tier
+        const isMatch = this.matchesFlowOption(cleanMsg, btnId, getBtnText(btnId), [
+          t,
+          plan?.name?.toLowerCase() || '',
+          index.toString()
+        ]);
+        if (isMatch) {
+          tier = t as string;
+          break;
+        }
+        index++;
+      }
 
       if (!tier) {
         const selectMessage = await this.buildSelectPlanMessage(selectStep, user.affiliate_code);

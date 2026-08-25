@@ -8,7 +8,9 @@ export interface PlanConfig {
   name: string;
   price: number;
   messages_limit: number;
+  magisterium_limit: number;
   description: string;
+  is_active: boolean;
 }
 
 @Injectable()
@@ -87,6 +89,8 @@ export class PlansService implements OnModuleInit {
       price: updates.price,
       description: updates.description,
       messages_limit: updates.messages_limit,
+      magisterium_limit: updates.magisterium_limit,
+      is_active: updates.is_active,
       updated_at: new Date().toISOString()
     };
     
@@ -109,6 +113,36 @@ export class PlansService implements OnModuleInit {
     return data;
   }
 
+  async createPlan(data: Partial<PlanConfig>): Promise<PlanConfig | null> {
+    const supabase = this.supabaseService.getClient();
+    
+    this.logger.log(`createPlan chamado com dados: ${JSON.stringify(data)}`);
+    
+    const newPlan = {
+      tier: data.tier,
+      cycle: data.cycle,
+      name: data.name,
+      price: data.price,
+      description: data.description,
+      messages_limit: data.messages_limit,
+      is_active: data.is_active !== undefined ? data.is_active : true
+    };
+
+    const { data: insertedData, error } = await supabase
+      .from('plans')
+      .insert([newPlan])
+      .select()
+      .single();
+
+    if (error) {
+      this.logger.error(`Erro do Supabase ao criar plano:`, error);
+      throw new Error('Falha ao criar plano');
+    }
+
+    await this.refreshPlans();
+    return insertedData;
+  }
+
   private getFallbackPlans(): PlanConfig[] {
     return [
       {
@@ -118,7 +152,9 @@ export class PlansService implements OnModuleInit {
         name: 'Plano Básico Mensal',
         price: 14.9,
         messages_limit: 100,
-        description: 'Plano Básico Mensal - MarIA'
+        magisterium_limit: 10,
+        description: 'Plano Básico Mensal - MarIA',
+        is_active: true
       },
       {
         id: 'fallback-basic-annual',
@@ -127,7 +163,9 @@ export class PlansService implements OnModuleInit {
         name: 'Plano Básico Anual',
         price: 154.8,
         messages_limit: 100,
-        description: 'Plano Básico Anual - MarIA'
+        magisterium_limit: 10,
+        description: 'Plano Básico Anual - MarIA',
+        is_active: true
       },
       {
         id: 'fallback-premium-monthly',
@@ -136,7 +174,9 @@ export class PlansService implements OnModuleInit {
         name: 'Plano Premium Mensal',
         price: 29.9,
         messages_limit: 300,
-        description: 'Plano Premium Mensal - MarIA'
+        magisterium_limit: 50,
+        description: 'Plano Premium Mensal - MarIA',
+        is_active: true
       },
       {
         id: 'fallback-premium-annual',
@@ -145,8 +185,10 @@ export class PlansService implements OnModuleInit {
         name: 'Plano Premium Anual',
         price: 322.8,
         messages_limit: 300,
-        description: 'Plano Premium Anual - MarIA'
-      }
+        magisterium_limit: 50,
+        description: 'Plano Premium Anual - MarIA',
+        is_active: true
+      },
     ];
   }
 }

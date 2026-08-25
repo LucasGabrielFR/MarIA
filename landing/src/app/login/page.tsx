@@ -589,26 +589,30 @@ export default function Login() {
                   Selecione o Plano
                 </label>
                 <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedPlan("basic")}
-                    className={`p-4 rounded-2xl border text-left flex flex-col justify-between transition cursor-pointer ${
-                      selectedPlan === "basic" ? "border-2 border-[#0047AB] bg-[#0047AB]/5" : "border-slate-200 hover:bg-slate-50"
-                    }`}
-                  >
-                    <span className="font-extrabold text-slate-800 text-sm">💬 Básico</span>
-                    <span className="text-[10px] text-slate-400 font-semibold mt-1">300 msg/mês</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedPlan("premium")}
-                    className={`p-4 rounded-2xl border text-left flex flex-col justify-between transition cursor-pointer ${
-                      selectedPlan === "premium" ? "border-2 border-[#D4AF37] bg-[#D4AF37]/5" : "border-slate-200 hover:bg-slate-50"
-                    }`}
-                  >
-                    <span className="font-extrabold text-slate-800 text-sm">🌟 Premium</span>
-                    <span className="text-[10px] text-slate-400 font-semibold mt-1">600 msg/mês</span>
-                  </button>
+                  {Array.from(new Set(plans.filter(p => p.is_active !== false).map(p => p.tier))).map((tier: any) => {
+                    const plan = plans.find(p => p.tier === tier && p.is_active !== false);
+                    if (!plan) return null;
+                    const isSelected = selectedPlan === tier;
+                    // Cores dinâmicas simples ou podemos usar as cores baseadas no nome
+                    const activeBg = tier === 'premium' ? "bg-[#D4AF37]/5" : "bg-[#0047AB]/5";
+                    const activeBorder = tier === 'premium' ? "border-[#D4AF37]" : "border-[#0047AB]";
+                    
+                    return (
+                      <button
+                        key={tier}
+                        type="button"
+                        onClick={() => setSelectedPlan(tier)}
+                        className={`p-4 rounded-2xl border text-left flex flex-col justify-between transition cursor-pointer ${
+                          isSelected ? `border-2 ${activeBorder} ${activeBg}` : "border-slate-200 hover:bg-slate-50"
+                        }`}
+                      >
+                        <span className="font-extrabold text-slate-800 text-sm">
+                          {tier === 'basic' ? '💬 ' : (tier === 'premium' ? '🌟 ' : '✨ ')}{plan.name}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-semibold mt-1">{plan.messages_limit} msg/mês</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -626,14 +630,10 @@ export default function Login() {
                   >
                     <span className="font-extrabold text-slate-800 text-sm">Mensal</span>
                     <span className="text-[10px] text-[#0047AB] font-bold mt-1">
-                      {selectedPlan === "premium" ? 
-                        (plans.find(p => p.name === 'premium' && p.cycle === 'monthly')?.price 
-                          ? plans.find(p => p.name === 'premium' && p.cycle === 'monthly').price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) 
-                          : "R$ 29,90") 
-                        : 
-                        (plans.find(p => p.name === 'basic' && p.cycle === 'monthly')?.price 
-                          ? plans.find(p => p.name === 'basic' && p.cycle === 'monthly').price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) 
-                          : "R$ 14,99")} / mês
+                      {(() => {
+                        const p = plans.find(p => p.tier === selectedPlan && p.cycle === 'monthly' && p.is_active !== false);
+                        return p ? p.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) + ' / mês' : 'Indisponível';
+                      })()}
                     </span>
                   </button>
                   <button
@@ -648,14 +648,10 @@ export default function Login() {
                       <span className="bg-[#D4AF37] text-white text-[8px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider">Desconto</span>
                     </span>
                     <span className="text-[10px] text-green-700 font-bold mt-1">
-                      {selectedPlan === "premium" ? 
-                        (plans.find(p => p.name === 'premium' && p.cycle === 'annual')?.price 
-                          ? (plans.find(p => p.name === 'premium' && p.cycle === 'annual').price / 12).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) 
-                          : "R$ 26,90") 
-                        : 
-                        (plans.find(p => p.name === 'basic' && p.cycle === 'annual')?.price 
-                          ? (plans.find(p => p.name === 'basic' && p.cycle === 'annual').price / 12).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) 
-                          : "R$ 12,90")} / mês
+                      {(() => {
+                        const p = plans.find(p => p.tier === selectedPlan && p.cycle === 'annual' && p.is_active !== false);
+                        return p ? (p.price / 12).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) + ' / mês' : 'Indisponível';
+                      })()}
                     </span>
                   </button>
                 </div>
