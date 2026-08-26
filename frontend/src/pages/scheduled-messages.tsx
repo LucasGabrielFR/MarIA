@@ -278,6 +278,21 @@ export default function ScheduledMessagesPage() {
                     </div>
 
                     <div className="space-y-2 pt-2 border-t border-slate-100">
+                      <Label className="text-xs text-slate-500">Ferramenta: Exame de Consciência (Boa Noite)</Label>
+                      <select 
+                        className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 ring-offset-white focus:outline-none focus:ring-2 focus:ring-[#0047AB] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        value={getToolOption(camp.id, 'conscience_exam')}
+                        onChange={(e) => updateTool(camp.id, 'conscience_exam', e.target.value)}
+                      >
+                        <option value="none">Não utilizar</option>
+                        <option value="menu">Menu Interativo (✨ Exame Guiado / 📖 Exame Completo)</option>
+                      </select>
+                      {getToolOption(camp.id, 'conscience_exam') === 'menu' && (
+                        <p className="text-xs text-amber-600 mt-1">Os 2 botões de exame de consciência serão enviados junto com a mensagem de boa noite.</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2 pt-2 border-t border-slate-100">
                       <Label className="text-xs text-slate-500">Ferramenta: Memória (Contexto)</Label>
                       <select 
                         className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 ring-offset-white focus:outline-none focus:ring-2 focus:ring-[#0047AB] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"

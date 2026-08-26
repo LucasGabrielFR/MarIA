@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.17.0] - 2026-08-26
+
+### Added
+
+- **Exame de Consciência Guiado & Completo (Evolução do Boa Noite):**
+  - **Experiência Espiritual Noturna:** Evolução da saudação noturna para envio interativo do Exame de Consciência com 2 opções (`[✨ Exame Guiado]` e `[📖 Exame Completo]`).
+  - **Máquina de Estados de 3 a 4 Passos:**
+    - **Passo 1 (Presença de Deus & Gratidão):** Reconhecimento das graças e acertos do dia.
+    - **Passo 2 (Exame das Faltas & Desabafo):** Pedido de luz ao Espírito Santo e acolhida sincera das fraquezas do fiel.
+    - **Passo 3 (Pastoral, Virtude & Reparação):** IA pastoral com consolo maternal, recomendação de virtude prática antídoto para o dia seguinte e condução da oração de reparação / Ato de Contrição.
+    - **Passo 4 (Guia de Confissão & Conclusão):** Lembrete amoroso da Confissão Sacramental para faltas graves com acesso ao Guia de Confissão.
+  - **Política de Privacidade e Sigilo de Oração:** Anonimização automática das mensagens de confissão do usuário no banco de dados (`messages`) após o encerramento do exame (`[Exame de consciência realizado em sigilo de oração]`), garantindo total discrição espiritual.
+  - **Ferramenta no Painel de Mensagens Agendadas:** Opção configurável no painel administrativo (`scheduled-messages.tsx`) para anexar a ferramenta de Exame de Consciência às campanhas noturnas com disparo automático via `broadcast.service.ts`.
+  - **Prompts & Fluxos no Supabase:** Adicionados `generator_guided_exam`, `full_exam_text`, `guide_confession` e o fluxo `conscience_exam_flow` em `automatic_flows`.
+
 ## [1.16.7] - 2026-06-10
 
 ### Added

@@ -993,12 +993,219 @@ export class AiService implements OnModuleInit {
       }
     }
 
+    // --- MÁQUINA DE ESTADOS: EXAME DE CONSCIÊNCIA GUIADO ---
+    const lowerMsg = message.toLowerCase().trim();
+    const userExamState = user.exam_state || 'idle';
+
+    if (userExamState === 'exam_gratitude') {
+      if (lowerMsg === 'cancelar' || lowerMsg === 'sair' || lowerMsg === 'parar') {
+        await supabase
+          .from('users')
+          .update({ exam_state: 'idle', exam_context: {} })
+          .eq('id', userId);
+        const cancelMsg =
+          'Exame de consciência cancelado. Quando quiser retomar, basta me pedir! Tenha uma noite abençoada. 🙏';
+        await this.saveMessage(userId, 'assistant', cancelMsg, false);
+        return cancelMsg;
+      }
+
+      // Salva a resposta do Passo 1 (Gratidão / bênçãos)
+      const currentContext =
+        user.exam_context && typeof user.exam_context === 'object'
+          ? { ...user.exam_context }
+          : {};
+      currentContext.gratitude = message;
+
+      await supabase
+        .from('users')
+        .update({
+          exam_state: 'exam_confession',
+          exam_context: currentContext,
+        })
+        .eq('id', userId);
+
+      const { data: flowData } = await supabase
+        .from('automatic_flows')
+        .select('steps')
+        .eq('key', 'conscience_exam_flow')
+        .maybeSingle();
+
+      const stepConfessionText =
+        flowData?.steps?.step_confession?.text ||
+        '*Passo 2: Exame das Nossas Faltas* 🕯️\n\nAgora, pedindo a luz do Espírito Santo para iluminar com amor a nossa verdade:\n_Onde você sente que fraquejou hoje? Houve alguma atitude impaciente, palavra ríspida, omissão ou tentação que pesou na sua consciência?_\n\n(Escreva o seu desabafo com total sinceridade. Tudo o que você escrever aqui ficará em sigilo de oração e será apagado após a nossa conversa 🙏)';
+
+      await this.saveMessage(userId, 'assistant', stepConfessionText, false);
+      return stepConfessionText;
+    }
+
+    if (userExamState === 'exam_confession') {
+      if (lowerMsg === 'cancelar' || lowerMsg === 'sair' || lowerMsg === 'parar') {
+        await supabase
+          .from('users')
+          .update({ exam_state: 'idle', exam_context: {} })
+          .eq('id', userId);
+        const cancelMsg =
+          'Exame de consciência cancelado. Quando quiser retomar, basta me pedir! Tenha uma noite abençoada. 🙏';
+        await this.saveMessage(userId, 'assistant', cancelMsg, false);
+        return cancelMsg;
+      }
+
+      await supabase
+        .from('messages')
+        .update({ is_llm: true })
+        .eq('id', userMessageId);
+
+      const userName = user.name || 'amigo(a)';
+      let genderText = 'não especificado';
+      if (user.gender === 'M')
+        genderText = 'masculino (tratar por pronomes masculinos)';
+      else if (user.gender === 'F')
+        genderText = 'feminino (tratar por pronomes femininos)';
+
+      const gratitudeText =
+        user.exam_context?.gratitude ||
+        'Bênçãos do dia reconhecidas com gratidão.';
+      const slipupsText = message;
+
+      let promptTemplate = this.promptService.getPrompt('generator_guided_exam');
+      if (!promptTemplate) {
+        promptTemplate = `Você é a MarIA, acolhendo o exame de consciência noturno de {{nome}} (gênero: {{genero}}).\nAgradecimento do dia: "{{user_gratitude}}"\nFaltas/desabafo: "{{user_slipups}}"\n\nResponda com:\n1. Acolhida carinhosa e conforto pastoral\n2. Sugestão prática de uma virtude para amanhã\n3. Breve oração de reparação / Ato de Contrição\n4. Lembrete afetuoso da Confissão Sacramental se houver pecado grave. Formatação WhatsApp (*negrito*, _itálico_).`;
+      }
+
+      const formattedPrompt = promptTemplate
+        .replace(/{{nome}}/gi, userName)
+        .replace(/{nome}/gi, userName)
+        .replace(/{{genero}}/gi, genderText)
+        .replace(/{genero}/gi, genderText)
+        .replace(/{{user_gratitude}}/gi, gratitudeText)
+        .replace(/{user_gratitude}/gi, gratitudeText)
+        .replace(/{{user_slipups}}/gi, slipupsText)
+        .replace(/{user_slipups}/gi, slipupsText);
+
+      const mainModel = await this.getSystemSetting(
+        'main_model',
+        this.configService.get<string>('OPENROUTER_GPT_MODEL') ||
+          'openai/gpt-4o-mini',
+      );
+
+      const fullSystemPrompt = `${corePersona}\n\nVocê está conduzindo o fechamento pastoral do Exame de Consciência Noturno. Seja extremamente maternal, encorajadora, prudente e fiel à doutrina católica.`;
+
+      const aiResponse = await this.callOpenRouter(
+        fullSystemPrompt,
+        formattedPrompt,
+        false,
+        [],
+        mainModel,
+        0.7,
+      );
+
+      if (aiResponse.usage) {
+        await this.logUsage(userId, aiResponse.usage, mainModel);
+      }
+
+      // Resetar estado do exame
+      await supabase
+        .from('users')
+        .update({
+          exam_state: 'idle',
+          exam_context: {},
+        })
+        .eq('id', userId);
+
+      // --- POLÍTICA DE PRIVACIDADE E SIGILO DE ORAÇÃO ---
+      // Anonimizar o desabafo do usuário para garantir privacidade espiritual
+      await supabase
+        .from('messages')
+        .update({
+          content: '[Exame de consciência realizado em sigilo de oração]',
+        })
+        .eq('id', userMessageId);
+
+      const finalResponseText =
+        aiResponse.content ||
+        'Que Deus acolha o seu arrependimento e te conceda uma santa e repousante noite! 🙏';
+      await this.saveMessage(userId, 'assistant', finalResponseText, true);
+      return finalResponseText;
+    }
+
+    // Gatilhos de Início do Exame de Consciência
+    if (
+      lowerMsg === 'start_guided_exam' ||
+      lowerMsg === 'exame guiado' ||
+      lowerMsg === 'fazer exame guiado' ||
+      lowerMsg === 'iniciar exame guiado' ||
+      lowerMsg === 'exame de consciência guiado' ||
+      lowerMsg === 'exame de consciencia guiado' ||
+      lowerMsg === '✨ exame guiado'
+    ) {
+      await supabase
+        .from('users')
+        .update({
+          exam_state: 'exam_gratitude',
+          exam_context: {},
+        })
+        .eq('id', userId);
+
+      const { data: flowData } = await supabase
+        .from('automatic_flows')
+        .select('steps')
+        .eq('key', 'conscience_exam_flow')
+        .maybeSingle();
+
+      const stepGratitudeText =
+        flowData?.steps?.step_gratitude?.text ||
+        '*Passo 1: Presença de Deus e Gratidão* 🕊️\n\nColoque-se diante de Deus com o coração em paz. Olhe para o seu dia:\n_Onde você percebeu as bênçãos do Senhor hoje? O que você fez de bom ou pelo que gostaria de agradecer a Deus?_\n\n(Pode responder com uma frase simples do seu coração)';
+
+      await this.saveMessage(userId, 'assistant', stepGratitudeText, false);
+      return stepGratitudeText;
+    }
+
+    if (
+      lowerMsg === 'start_full_exam' ||
+      lowerMsg === 'exame completo' ||
+      lowerMsg === 'exame de consciência completo' ||
+      lowerMsg === 'exame de consciencia completo' ||
+      lowerMsg === 'exame de consciência' ||
+      lowerMsg === 'exame de consciencia' ||
+      lowerMsg === '📖 exame completo'
+    ) {
+      await supabase
+        .from('users')
+        .update({
+          exam_state: 'idle',
+          exam_context: {},
+        })
+        .eq('id', userId);
+
+      const fullExamPrompt =
+        this.promptService.getPrompt('full_exam_text') ||
+        '*🌙 Exame de Consciência da Noite — Meditação Privada*\n\n_Coloque-se na Santa Presença de Deus, respire fundo e faça um momento de silêncio interior._\n\n*1. Ação de Graças (Deus em minha vida)*\n• Pelo dom da vida, pelo pão de cada dia, pela família e pelas graças invisíveis recebidas hoje: _Dou graças a Deus?_\n\n*2. Amor a Deus (1º ao 3º Mandamento)*\n• Deus foi o centro do meu dia, ou dei espaço a idolatrias (ego, dinheiro, vaidade)?\n• Rezei com reverência ou de forma mecânica? Usei o santo nome de Deus em vão?\n\n*3. Amor ao Próximo (4º ao 8º Mandamento)*\n• Fui paciente e caridoso com minha família, colegas e desconhecidos?\n• Guardei mágoa, julguei o próximo, fofoquei ou menti?\n• Cumpri com diligência e honestidade os meus deveres de trabalho e estudo?\n\n*4. Pureza de Coração (6º e 9º Mandamento)*\n• Guardei a pureza nos meus pensamentos, olhares e no uso do celular/internet?\n\n*5. Omissão e Desejos (10º Mandamento)*\n• Deixei de fazer o bem que estava ao meu alcance? Cedi à inveja ou ingratidão?\n\n---\n\n*🙏 Ato de Contrição*\n_\"Meu Deus, eu me arrependo de todo o coração de Vos ter ofendido, porque Sois tão bom e amável. Prometo, com a Vossa graça, nunca mais pecar e evitar as ocasiões de pecado. Amém.\"_\n\n_Descanse sob o manto de Nossa Senhora. Boa noite e que Deus te abençoe! 🕊️_';
+
+      await this.saveMessage(userId, 'assistant', fullExamPrompt, false);
+      return fullExamPrompt;
+    }
+
+    if (
+      lowerMsg.includes('guia de confissao') ||
+      lowerMsg.includes('guia de confissão') ||
+      lowerMsg.includes('como se confessar') ||
+      lowerMsg.includes('como confessar') ||
+      lowerMsg.includes('passos da confissão') ||
+      lowerMsg.includes('passos da confissao')
+    ) {
+      const confessionGuide =
+        this.promptService.getPrompt('guide_confession') ||
+        '*📖 Guia Breve para uma Santa Confissão*\n\nA Santa Igreja nos ensina os 5 passos para receber dignamente o Sacramento da Reconciliação:\n\n1. *Exame de Consciência:* Lembrar com sinceridade todos os pecados cometidos desde a última boa confissão.\n2. *Dor do Coração (Contrição):* Tristeza sincera por ter ofendido a Deus, que é sumamente bom.\n3. *Firme Propósito de Emenda:* Decisão firme de não mais voltar a pecar e evitar as ocasiões de queda.\n4. *Confissão dos Pecados ao Sacerdote:* Acusar todos os pecados graves com clareza, humildade e sem omitir nada deliberadamente.\n5. *Cumprimento da Penitência:* Cumprir com devoção a oração ou ato que o padre indicar para reparação.\n\n_\"Ainda que os vossos pecados sejam como o escarlate, eles se tornarão brancos como a neve.\" (Is 1,18)_ 🙏';
+
+      await this.saveMessage(userId, 'assistant', confessionGuide, false);
+      return confessionGuide;
+    }
+
     // --- FLUXO ATIVO ---
     const isFree = user.subscription_tier === 'free';
     let { intent, rules } = await this.determineIntent(message);
 
     // Interceptar intenção de LITURGY explícita
-    const lowerMsg = message.toLowerCase().trim();
     if (
       lowerMsg.includes('evangelho do dia') ||
       lowerMsg.includes('evangelho de hoje') ||

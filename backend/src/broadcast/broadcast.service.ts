@@ -177,6 +177,27 @@ export class BroadcastService {
                     const liturgyText = await this.liturgyService.getDailyLiturgy(today);
                     contextForPrompt['{liturgia}'] = liturgyText;
                   }
+                } else if (tool.type === 'conscience_exam') {
+                  if (tool.option === 'menu') {
+                    const { data: flow } = await supabase
+                      .from('automatic_flows')
+                      .select('steps')
+                      .eq('key', 'conscience_exam_flow')
+                      .maybeSingle();
+
+                    if (flow?.steps?.choose_format?.buttons) {
+                      buttonsToAttach = [...flow.steps.choose_format.buttons];
+                      if (flow.steps.choose_format.text) {
+                        buttonText = flow.steps.choose_format.text;
+                      }
+                    } else {
+                      buttonsToAttach = [
+                        { id: 'start_guided_exam', text: '✨ Exame Guiado' },
+                        { id: 'start_full_exam', text: '📖 Exame Completo' },
+                      ];
+                      buttonText = 'Boa noite! 🌙 Vamos fazer nosso Exame de Consciência?';
+                    }
+                  }
                 } else if (tool.type === 'context') {
                   const { data: recentMsgs } = await supabase
                     .from('messages')
