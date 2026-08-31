@@ -35,6 +35,7 @@ export default function PrayersPage() {
   const [newTitle, setNewTitle] = React.useState('');
   const [newCategory, setNewCategory] = React.useState('guia');
   const [newContent, setNewContent] = React.useState('');
+  const [activeTab, setActiveTab] = React.useState('all');
 
   React.useEffect(() => {
     fetchPrayers();
@@ -243,7 +244,7 @@ export default function PrayersPage() {
     >
       <div className="flex justify-between items-center mb-8">
         <div className="bg-white/40 backdrop-blur-xl p-2 rounded-3xl inline-block shadow-sm border border-white">
-          <Tabs defaultValue="all" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="bg-transparent h-auto p-0 flex gap-2">
               <TabsTrigger 
                 value="all"
@@ -334,7 +335,16 @@ export default function PrayersPage() {
             <p className="text-slate-400 mt-2">Clique no botão "Nova Oração" para começar a adicionar.</p>
           </div>
         ) : (
-          prayers.map(renderPrayerCard)
+          prayers.filter(p => activeTab === 'all' || p.category === activeTab).length === 0 ? (
+            <div className="text-center py-12 bg-white/50 rounded-[3rem] border border-white/20">
+              <BookHeart className="h-12 w-12 text-slate-300 mx-auto mb-4" />
+              <h3 className="text-lg font-bold text-slate-600">Nenhum item nesta categoria</h3>
+            </div>
+          ) : (
+            prayers
+              .filter(p => activeTab === 'all' || p.category === activeTab)
+              .map(renderPrayerCard)
+          )
         )}
       </div>
     </MainLayout>

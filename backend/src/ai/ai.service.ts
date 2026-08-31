@@ -998,6 +998,11 @@ export class AiService implements OnModuleInit {
     const userExamState = user.exam_state || 'idle';
 
     if (userExamState === 'exam_gratitude') {
+      const { allowed, reason } = await this.checkSubscriptionLimits(user);
+      if (!allowed) {
+        return reason || this.promptService.getPrompt('usage_limit_reached');
+      }
+
       if (lowerMsg === 'cancelar' || lowerMsg === 'sair' || lowerMsg === 'parar') {
         await supabase
           .from('users')
@@ -1030,15 +1035,35 @@ export class AiService implements OnModuleInit {
         .eq('key', 'conscience_exam_flow')
         .maybeSingle();
 
+      const days = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+      const currentDayName = days[new Date().getDay()];
+      const { data: dailyPrayer } = await supabase
+        .from('prayers')
+        .select('content')
+        .eq('title', `Exame Guiado - ${currentDayName}`)
+        .maybeSingle();
+      const dailyFocus = dailyPrayer?.content || '';
+
       const stepConfessionText =
         flowData?.steps?.step_confession?.text ||
-        '*Passo 2: Exame das Nossas Faltas* 🕯️\n\nAgora, pedindo a luz do Espírito Santo para iluminar com amor a nossa verdade:\n_Onde você sente que fraquejou hoje? Houve alguma atitude impaciente, palavra ríspida, omissão ou tentação que pesou na sua consciência?_\n\n(Escreva o seu desabafo com total sinceridade. Tudo o que você escrever aqui ficará em sigilo de oração e será apagado após a nossa conversa 🙏)';
+        '*Passo 2: Exame das Nossas Faltas* 🕯️\n\nAgora, pedindo a luz do Espírito Santo para iluminar com amor a nossa verdade:\n_Onde você sente que fraquejou hoje? Houve alguma atitude impaciente, palavra ríspida, omissão ou tentação que pesou na sua consciência?_';
 
-      await this.saveMessage(userId, 'assistant', stepConfessionText, false);
-      return stepConfessionText;
+      let finalConfessionText = stepConfessionText;
+      if (dailyFocus) {
+        finalConfessionText += `\n\n${dailyFocus}`;
+      }
+      finalConfessionText += '\n\n(Escreva o seu desabafo com total sinceridade. Tudo o que você escrever aqui ficará em sigilo de oração e será apagado após a nossa conversa 🙏)';
+
+      await this.saveMessage(userId, 'assistant', finalConfessionText, true);
+      return finalConfessionText;
     }
 
     if (userExamState === 'exam_confession') {
+      const { allowed, reason } = await this.checkSubscriptionLimits(user);
+      if (!allowed) {
+        return reason || this.promptService.getPrompt('usage_limit_reached');
+      }
+
       if (lowerMsg === 'cancelar' || lowerMsg === 'sair' || lowerMsg === 'parar') {
         await supabase
           .from('users')
@@ -1138,6 +1163,11 @@ export class AiService implements OnModuleInit {
       lowerMsg === 'exame de consciencia guiado' ||
       lowerMsg === '✨ exame guiado'
     ) {
+      const { allowed, reason } = await this.checkSubscriptionLimits(user);
+      if (!allowed) {
+        return reason || this.promptService.getPrompt('usage_limit_reached');
+      }
+
       await supabase
         .from('users')
         .update({
@@ -1156,7 +1186,7 @@ export class AiService implements OnModuleInit {
         flowData?.steps?.step_gratitude?.text ||
         '*Passo 1: Presença de Deus e Gratidão* 🕊️\n\nColoque-se diante de Deus com o coração em paz. Olhe para o seu dia:\n_Onde você percebeu as bênçãos do Senhor hoje? O que você fez de bom ou pelo que gostaria de agradecer a Deus?_\n\n(Pode responder com uma frase simples do seu coração)';
 
-      await this.saveMessage(userId, 'assistant', stepGratitudeText, false);
+      await this.saveMessage(userId, 'assistant', stepGratitudeText, true);
       return stepGratitudeText;
     }
 
@@ -1177,8 +1207,14 @@ export class AiService implements OnModuleInit {
         })
         .eq('id', userId);
 
+      const { data: fullExamPrayer } = await supabase
+        .from('prayers')
+        .select('content')
+        .eq('title', 'Exame de Consciência (Completo)')
+        .maybeSingle();
+
       const fullExamPrompt =
-        this.promptService.getPrompt('full_exam_text') ||
+        fullExamPrayer?.content ||
         '*🌙 Exame de Consciência da Noite — Meditação Privada*\n\n_Coloque-se na Santa Presença de Deus, respire fundo e faça um momento de silêncio interior._\n\n*1. Ação de Graças (Deus em minha vida)*\n• Pelo dom da vida, pelo pão de cada dia, pela família e pelas graças invisíveis recebidas hoje: _Dou graças a Deus?_\n\n*2. Amor a Deus (1º ao 3º Mandamento)*\n• Deus foi o centro do meu dia, ou dei espaço a idolatrias (ego, dinheiro, vaidade)?\n• Rezei com reverência ou de forma mecânica? Usei o santo nome de Deus em vão?\n\n*3. Amor ao Próximo (4º ao 8º Mandamento)*\n• Fui paciente e caridoso com minha família, colegas e desconhecidos?\n• Guardei mágoa, julguei o próximo, fofoquei ou menti?\n• Cumpri com diligência e honestidade os meus deveres de trabalho e estudo?\n\n*4. Pureza de Coração (6º e 9º Mandamento)*\n• Guardei a pureza nos meus pensamentos, olhares e no uso do celular/internet?\n\n*5. Omissão e Desejos (10º Mandamento)*\n• Deixei de fazer o bem que estava ao meu alcance? Cedi à inveja ou ingratidão?\n\n---\n\n*🙏 Ato de Contrição*\n_\"Meu Deus, eu me arrependo de todo o coração de Vos ter ofendido, porque Sois tão bom e amável. Prometo, com a Vossa graça, nunca mais pecar e evitar as ocasiões de pecado. Amém.\"_\n\n_Descanse sob o manto de Nossa Senhora. Boa noite e que Deus te abençoe! 🕊️_';
 
       await this.saveMessage(userId, 'assistant', fullExamPrompt, false);
