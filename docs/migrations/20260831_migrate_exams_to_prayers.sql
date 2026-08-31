@@ -52,4 +52,13 @@ UPDATE public.ai_prompts
 SET is_active = false
 WHERE key = 'full_exam_text';
 
+-- 4. Update the conscience_exam_flow step_confession to include the {{foco_diario}} tag
+UPDATE public.automatic_flows
+SET steps = jsonb_set(
+    steps,
+    '{step_confession,text}',
+    '"*Passo 2: Exame das Nossas Faltas* 🕯️\n\nAgora, pedindo a luz do Espírito Santo para iluminar com amor a nossa verdade:\n_Onde você sente que fraquejou hoje? Houve alguma atitude impaciente, palavra ríspida, omissão ou tentação que pesou na sua consciência?_\n\n{{foco_diario}}\n\n(Escreva o seu desabafo com total sinceridade. Tudo o que você escrever aqui ficará em sigilo de oração e será apagado após a nossa conversa 🙏)"'
+)
+WHERE key = 'conscience_exam_flow';
+
 COMMIT;

@@ -1046,14 +1046,18 @@ export class AiService implements OnModuleInit {
 
       const stepConfessionText =
         flowData?.steps?.step_confession?.text ||
-        '*Passo 2: Exame das Nossas Faltas* 🕯️\n\nAgora, pedindo a luz do Espírito Santo para iluminar com amor a nossa verdade:\n_Onde você sente que fraquejou hoje? Houve alguma atitude impaciente, palavra ríspida, omissão ou tentação que pesou na sua consciência?_';
+        '*Passo 2: Exame das Nossas Faltas* 🕯️\n\nAgora, pedindo a luz do Espírito Santo para iluminar com amor a nossa verdade:\n_Onde você sente que fraquejou hoje? Houve alguma atitude impaciente, palavra ríspida, omissão ou tentação que pesou na sua consciência?_\n\n{{foco_diario}}\n\n(Escreva o seu desabafo com total sinceridade. Tudo o que você escrever aqui ficará em sigilo de oração e será apagado após a nossa conversa 🙏)';
 
       let finalConfessionText = stepConfessionText;
       if (dailyFocus) {
-        finalConfessionText += `\n\n${dailyFocus}`;
+        if (finalConfessionText.includes('{{foco_diario}}')) {
+          finalConfessionText = finalConfessionText.replace(/{{foco_diario}}/g, dailyFocus);
+        } else {
+          finalConfessionText += `\n\n${dailyFocus}`;
+        }
+      } else {
+        finalConfessionText = finalConfessionText.replace(/{{foco_diario}}/g, '').trim();
       }
-      finalConfessionText += '\n\n(Escreva o seu desabafo com total sinceridade. Tudo o que você escrever aqui ficará em sigilo de oração e será apagado após a nossa conversa 🙏)';
-
       await this.saveMessage(userId, 'assistant', finalConfessionText, true);
       return finalConfessionText;
     }
