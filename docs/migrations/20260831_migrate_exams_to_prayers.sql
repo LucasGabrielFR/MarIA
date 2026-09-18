@@ -39,13 +39,13 @@ _Descanse sob o manto de Nossa Senhora. Boa noite e que Deus te abençoe! 🕊�
 
 -- 2. Create the Daily Hybrid Guides
 INSERT INTO public.prayers (title, content, category) VALUES 
-('Exame Guiado - Domingo', 'Foco de Hoje: Ação de Graças, Ressurreição, Alegria e Esperança.', 'guia'),
-('Exame Guiado - Segunda', 'Foco de Hoje: Amor a Deus, Espiritualidade, e tempo de oração (1º ao 3º Mandamento).', 'guia'),
-('Exame Guiado - Terça', 'Foco de Hoje: Trabalho, estudo, preguiça, honestidade e responsabilidades (7º e 10º Mandamento).', 'guia'),
-('Exame Guiado - Quarta', 'Foco de Hoje: Família, honra aos pais, relacionamento com parentes e convivência no lar (4º Mandamento).', 'guia'),
-('Exame Guiado - Quinta', 'Foco de Hoje: Amor ao próximo, Eucaristia, missa, caridade, fofocas e mentiras (8º Mandamento).', 'guia'),
-('Exame Guiado - Sexta', 'Foco de Hoje: Penitência, sacrifício, mortificação, pureza de pensamentos e corpo, e jejum (6º e 9º Mandamento).', 'guia'),
-('Exame Guiado - Sábado', 'Foco de Hoje: Devoção Mariana, paciência, perdão a quem me ofendeu, e virtude da mansidão (5º Mandamento).', 'guia');
+('Exame Guiado - Domingo', 'Reflexão de hoje (Dia do Senhor): _Fui à Santa Missa com verdadeira devoção ou apenas por obrigação? Descansei meu coração em Deus e dediquei tempo à minha família, ou me deixei consumir pelas ansiedades e pelo trabalho no dia de descanso?_', 'guia'),
+('Exame Guiado - Segunda', 'Reflexão de hoje (Foco em Deus): _Deus foi realmente o centro do meu dia? Reservei um tempo sincero para a oração ou rezei de qualquer jeito? Deixei que o orgulho, a vaidade ou as preocupações tomassem o lugar que pertence ao Senhor?_', 'guia'),
+('Exame Guiado - Terça', 'Reflexão de hoje (Foco no Dever): _Cumpri com honestidade e diligência as minhas tarefas no trabalho e nos estudos? Fui preguiçoso ou reclamei muito diante das dificuldades? Fui justo e paciente com meus colegas?_', 'guia'),
+('Exame Guiado - Quarta', 'Reflexão de hoje (Foco na Família): _Honrei, respeitei e tive paciência com meus pais e familiares? Ajudei nas necessidades de casa? Trouxe paz para o meu lar hoje ou fui motivo de brigas e divisões?_', 'guia'),
+('Exame Guiado - Quinta', 'Reflexão de hoje (Foco no Próximo e na Verdade): _Fofoquei, falei mal de alguém pelas costas ou espalhei mentiras? Julguei o próximo sem misericórdia? Fui indiferente à necessidade de alguém que me pediu ajuda?_', 'guia'),
+('Exame Guiado - Sexta', 'Reflexão de hoje (Foco na Pureza e Penitência): _Guardei a pureza nos meus pensamentos, palavras e olhares, especialmente na internet? Fui temperante ou cedi à gula? Ofereci algum pequeno sacrifício a Jesus hoje?_', 'guia'),
+('Exame Guiado - Sábado', 'Reflexão de hoje (Foco na Mansidão e Perdão): _Me deixei levar pela ira, gritei ou perdi a paciência facilmente? Fui capaz de perdoar de coração quem me ofendeu ou guardei mágoa e ressentimento?_', 'guia');
 
 -- 3. Deactivate full_exam_text in ai_prompts
 UPDATE public.ai_prompts

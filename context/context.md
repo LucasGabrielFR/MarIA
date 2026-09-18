@@ -30,3 +30,24 @@ Este arquivo armazena o histórico contínuo de contexto, decisões de arquitetu
 - Monitorar a taxa de adesão dos fiéis ao Exame Guiado vs. Exame Completo no WhatsApp.
 - Avaliar inclusão de exames temáticos sazonais (ex: Quaresma, Advento, exame para casais).
 ---
+## Sessão: 2026-08-30 23:01 (UTC-3)
+### 📌 Resumo da Sessão
+- Migração do roteiro do **Exame de Consciência Guiado** para um modelo "Híbrido" (Opção C escolhida pelo usuário), dando flexibilidade para o admin editar o roteiro diário pelo painel.
+- Refatoração das etapas interativas do Exame Guiado para consumir o limite de uso de mensagens de inteligência artificial (saldo do usuário).
+- Correção de interface gráfica no admin: abas da página "Orações e Guias" que não filtravam os cards corretamente.
+
+### 🏗️ Decisões Técnicas e de Arquitetura
+- **Guias Híbridos (Dinâmicos):** Substituição do texto engessado no código pela busca dinâmica na tabela `prayers`. O estado `exam_gratitude` ao progredir para `exam_confession` agora faz uma busca no banco pelo título "Exame Guiado - [Dia da Semana]".
+- **Injeção via Tag Visível:** Inserção da tag `{{foco_diario}}` diretamente no campo de texto de configuração do fluxo Automático (no painel Admin), para que a injeção do guia diário no passo 2 fique explícita e customizável pela interface.
+- **Consumo de Limites:** A verificação `checkSubscriptionLimits` foi introduzida nas respostas da máquina de estados do exame, marcando as mensagens enviadas pela assistente com `is_llm = true` para debitar da quota interativa (diferente de quando a MarIA apenas envia orações fixas).
+
+### 🛠️ Alterações e Implementações
+- **Banco de Dados (Supabase Migration):** Criação de `docs/migrations/20260831_migrate_exams_to_prayers.sql`. Este script insere os 7 guias de reflexões diárias (segunda a domingo) e 1 guia completo na tabela `prayers`, desativa a chave legada em `ai_prompts` e injeta a tag `{{foco_diario}}` no `automatic_flows`.
+- **Backend:** 
+  - `backend/src/ai/ai.service.ts`: Atualizado para buscar do banco os guias do Exame Completo e Exame Guiado Diário, fazer o replace de `{{foco_diario}}`, aplicar a checagem de plano de limite do usuário e salvar como mensagem LLM.
+- **Frontend:**
+  - `frontend/src/pages/prayers.tsx`: Adição do estado local `activeTab` e filtragem correspondente para consertar as abas de navegação.
+
+### ⏳ Pendências e Próximos Passos
+- O usuário deve executar a migration `20260831_migrate_exams_to_prayers.sql` no banco de dados para refletir os novos guias diários no painel.
+---
