@@ -8,10 +8,21 @@ services:
       - "3002:3000"
     environment:
       - PORT=3000
+      - REDIS_URL=redis://redis:6379
     # Add your production database URLs and secrets here
     env_file:
       - ./backend/.env
     restart: unless-stopped
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
 
   frontend:
     build:
@@ -34,3 +45,6 @@ services:
     env_file:
       - ./backend/.env  # Often shares some environment variables, or specify a landing-specific env
     restart: unless-stopped
+
+volumes:
+  redis_data:

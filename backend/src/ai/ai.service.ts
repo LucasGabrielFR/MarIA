@@ -9,6 +9,9 @@ import { ModuleRef } from '@nestjs/core';
 import { AsaasService } from '../asaas/asaas.service';
 import { PlansService } from '../plans/plans.service';
 import { AffiliatesService } from '../affiliates/affiliates.service';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
+import { formatInTimeZone, zonedTimeToUtc } from 'date-fns-tz';
 
 const MAGISTERIUM_INSTRUCTION =
   '\n\nOBRIGATÓRIO: Ao final da sua resposta, você deve listar as referências exatas de onde a informação foi extraída. ' +
@@ -34,6 +37,7 @@ export class AiService implements OnModuleInit {
     private readonly supabaseService: SupabaseService,
     private readonly embeddingService: EmbeddingService,
     private readonly moduleRef: ModuleRef,
+    @InjectQueue('reminders-queue') private readonly remindersQueue: Queue,
   ) {
     this.openRouterApiKey =
       this.configService.get<string>('OPENROUTER_API_KEY') || '';
@@ -1239,6 +1243,207 @@ export class AiService implements OnModuleInit {
 
       await this.saveMessage(userId, 'assistant', confessionGuide, false);
       return confessionGuide;
+    }
+
+    // --- MÁQUINA DE ESTADOS: LEMBRETES ---
+    const userReminderState = user.reminder_state || 'idle';
+
+    if (userReminderState === 'reminder_type') {
+      if (lowerMsg === 'cancelar' || lowerMsg === 'sair') {
+         await supabase.from('users').update({ reminder_state: 'idle', reminder_context: {} }).eq('id', userId);
+         const cancelMsg = 'Agendamento de lembrete cancelado.';
+         await this.saveMessage(userId, 'assistant', cancelMsg, false);
+         return cancelMsg;
+      }
+      if (lowerMsg === '1' || lowerMsg === 'personalizado') {
+         await supabase.from('users').update({ reminder_state: 'reminder_title', reminder_context: { type: 'custom' } }).eq('id', userId);
+         const respMsg = 'Certo! Qual o título ou mensagem do seu lembrete?';
+         await this.saveMessage(userId, 'assistant', respMsg, false);
+         return respMsg;
+      } else if (lowerMsg === '2' || lowerMsg === 'oração' || lowerMsg === 'oracao') {
+         const { data: prayers } = await supabase.from('prayers').select('id, title').eq('is_selectable', true).limit(10);
+         if (!prayers || prayers.length === 0) {
+            await supabase.from('users').update({ reminder_state: 'idle', reminder_context: {} }).eq('id', userId);
+            const cancelMsg2 = 'Nenhuma oração disponível no momento. Lembrete cancelado.';
+            await this.saveMessage(userId, 'assistant', cancelMsg2, false);
+            return cancelMsg2;
+         }
+         const buttons = prayers.map((p, index) => ({ id: (index+1).toString(), text: p.title.substring(0, 20) }));
+         // Guardar lista no contexto para o próximo passo
+         await supabase.from('users').update({ reminder_state: 'reminder_prayer_select', reminder_context: { type: 'prayer', prayersList: prayers } }).eq('id', userId);
+         const respMsg = { type: 'interactive', text: 'Selecione a oração desejada (ou digite o nome se não estiver na lista):', buttons };
+         await this.saveMessage(userId, 'assistant', respMsg.text, false);
+         return respMsg;
+      }
+      return 'Opção inválida. Escolha 1 para Personalizado ou 2 para Oração. Ou digite "cancelar".';
+    }
+
+    if (userReminderState === 'reminder_prayer_select') {
+      if (lowerMsg === 'cancelar' || lowerMsg === 'sair') {
+         await supabase.from('users').update({ reminder_state: 'idle', reminder_context: {} }).eq('id', userId);
+         const cancelMsg = 'Agendamento de lembrete cancelado.';
+         await this.saveMessage(userId, 'assistant', cancelMsg, false);
+         return cancelMsg;
+      }
+      const ctx = user.reminder_context || {};
+      let prayer = null;
+      
+      if (ctx.prayersList) {
+         const idx = parseInt(lowerMsg);
+         if (!isNaN(idx) && idx >= 1 && idx <= ctx.prayersList.length) {
+            prayer = ctx.prayersList[idx - 1];
+         }
+      }
+
+      if (!prayer) {
+         const { data: p2 } = await supabase.from('prayers').select('id, title').ilike('title', `%${message}%`).eq('is_selectable', true).maybeSingle();
+         if (!p2) return 'Oração não encontrada. Tente novamente ou digite "cancelar".';
+         prayer = p2;
+      }
+
+      ctx.prayer_id = prayer.id;
+      ctx.title = prayer.title;
+      delete ctx.prayersList;
+
+      await supabase.from('users').update({ reminder_state: 'reminder_period', reminder_context: ctx }).eq('id', userId);
+      const respMsg = { type: 'interactive', text: `Ótima escolha: ${prayer.title}!\n\nEm qual período você quer receber?`, buttons: [{id:'1', text:'Manhã'}, {id:'2', text:'Tarde'}, {id:'3', text:'Noite'}] };
+      await this.saveMessage(userId, 'assistant', respMsg.text, false);
+      return respMsg;
+    }
+
+    if (userReminderState === 'reminder_title') {
+      if (lowerMsg === 'cancelar' || lowerMsg === 'sair') {
+         await supabase.from('users').update({ reminder_state: 'idle', reminder_context: {} }).eq('id', userId);
+         const cancelMsg = 'Agendamento de lembrete cancelado.';
+         await this.saveMessage(userId, 'assistant', cancelMsg, false);
+         return cancelMsg;
+      }
+      const ctx = user.reminder_context || {};
+      ctx.title = message;
+      await supabase.from('users').update({ reminder_state: 'reminder_period', reminder_context: ctx }).eq('id', userId);
+      const respMsg = { type: 'interactive', text: 'Em qual período você quer receber?', buttons: [{id:'1', text:'Manhã'}, {id:'2', text:'Tarde'}, {id:'3', text:'Noite'}] };
+      await this.saveMessage(userId, 'assistant', respMsg.text, false);
+      return respMsg;
+    }
+
+    if (userReminderState === 'reminder_period') {
+       if (lowerMsg === 'cancelar' || lowerMsg === 'sair') {
+          await supabase.from('users').update({ reminder_state: 'idle', reminder_context: {} }).eq('id', userId);
+          const cancelMsg = 'Agendamento de lembrete cancelado.';
+          await this.saveMessage(userId, 'assistant', cancelMsg, false);
+          return cancelMsg;
+       }
+       const ctx = user.reminder_context || {};
+       let text = '';
+       let buttons = [];
+       if (lowerMsg === '1' || lowerMsg === 'manhã' || lowerMsg === 'manha') {
+          ctx.period = 'Manhã';
+          text = 'Que horário pela manhã? (Selecione ou digite um horário específico como 08:30)';
+          buttons = [{id:'07:00', text:'07:00'}, {id:'08:00', text:'08:00'}, {id:'09:00', text:'09:00'}];
+       } else if (lowerMsg === '2' || lowerMsg === 'tarde') {
+          ctx.period = 'Tarde';
+          text = 'Que horário à tarde? (Selecione ou digite um horário específico como 15:30)';
+          buttons = [{id:'12:00', text:'12:00'}, {id:'15:00', text:'15:00'}, {id:'18:00', text:'18:00'}];
+       } else if (lowerMsg === '3' || lowerMsg === 'noite') {
+          ctx.period = 'Noite';
+          text = 'Que horário à noite? (Selecione ou digite um horário específico como 20:30)';
+          buttons = [{id:'19:00', text:'19:00'}, {id:'21:00', text:'21:00'}, {id:'22:00', text:'22:00'}];
+       } else {
+          return 'Período inválido. Escolha Manhã, Tarde ou Noite. Ou digite "cancelar".';
+       }
+       await supabase.from('users').update({ reminder_state: 'reminder_time', reminder_context: ctx }).eq('id', userId);
+       const respMsg = { type: 'interactive', text, buttons };
+       await this.saveMessage(userId, 'assistant', text, false);
+       return respMsg;
+    }
+
+    if (userReminderState === 'reminder_time') {
+       if (lowerMsg === 'cancelar' || lowerMsg === 'sair') {
+          await supabase.from('users').update({ reminder_state: 'idle', reminder_context: {} }).eq('id', userId);
+          const cancelMsg = 'Agendamento de lembrete cancelado.';
+          await this.saveMessage(userId, 'assistant', cancelMsg, false);
+          return cancelMsg;
+       }
+       const ctx = user.reminder_context || {};
+       const match = message.match(/^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/);
+       if (!match) {
+          return 'Horário inválido. Por favor, digite no formato HH:MM (exemplo: 18:20)';
+       }
+       ctx.time = message;
+       await supabase.from('users').update({ reminder_state: 'reminder_confirm', reminder_context: ctx }).eq('id', userId);
+       const confirmText = `Confirma o agendamento de *${ctx.title}* para às *${ctx.time}* (horário de Brasília)?`;
+       const respMsg = { type: 'interactive', text: confirmText, buttons: [{id:'1', text:'Confirmar'}, {id:'2', text:'Cancelar'}] };
+       await this.saveMessage(userId, 'assistant', confirmText, false);
+       return respMsg;
+    }
+
+    if (userReminderState === 'reminder_confirm') {
+       if (lowerMsg === 'cancelar' || lowerMsg === '2' || lowerMsg === 'não' || lowerMsg === 'nao' || lowerMsg === 'sair') {
+          await supabase.from('users').update({ reminder_state: 'idle', reminder_context: {} }).eq('id', userId);
+          const cancelMsg = 'Agendamento de lembrete cancelado.';
+          await this.saveMessage(userId, 'assistant', cancelMsg, false);
+          return cancelMsg;
+       }
+       if (lowerMsg === '1' || lowerMsg === 'confirmar' || lowerMsg === 'sim') {
+          const ctx = user.reminder_context || {};
+          const timeParts = ctx.time.split(':');
+          const [hour, minute] = [parseInt(timeParts[0]), parseInt(timeParts[1])];
+
+          // Calculate delay in milliseconds
+          const nowSP = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+          let targetSP = new Date(nowSP);
+          targetSP.setHours(hour, minute, 0, 0);
+
+          if (targetSP.getTime() <= nowSP.getTime()) {
+             // If time already passed today, schedule for tomorrow
+             targetSP.setDate(targetSP.getDate() + 1);
+          }
+
+          const delay = targetSP.getTime() - nowSP.getTime();
+
+          const { data: reminder, error: remError } = await supabase.from('reminders').insert({
+             user_id: userId,
+             title: ctx.title,
+             is_prayer: ctx.type === 'prayer',
+             prayer_id: ctx.prayer_id || null,
+             status: 'pending',
+             scheduled_time: ctx.time,
+             scheduled_period: ctx.period
+          }).select().single();
+
+          if (remError || !reminder) {
+             return 'Houve um erro ao salvar o lembrete. Tente novamente mais tarde.';
+          }
+
+          // Adicionar à fila BullMQ
+          await this.remindersQueue.add(
+             'send-reminder',
+             { reminderId: reminder.id, userId },
+             { delay, jobId: reminder.id }
+          );
+
+          await supabase.from('users').update({ reminder_state: 'idle', reminder_context: {} }).eq('id', userId);
+          const successMsg = `Lembrete *${ctx.title}* agendado com sucesso para às *${ctx.time}*! 🙌`;
+          await this.saveMessage(userId, 'assistant', successMsg, false);
+          return successMsg;
+       }
+       return 'Por favor, responda com Confirmar ou Cancelar.';
+    }
+
+    // Gatilhos de Início do Lembrete
+    if (
+      lowerMsg === 'start_reminder' ||
+      lowerMsg.includes('criar lembrete') ||
+      lowerMsg.includes('novo lembrete') ||
+      lowerMsg.includes('me lembre de') ||
+      lowerMsg.includes('agendar lembrete')
+    ) {
+      await supabase.from('users').update({ reminder_state: 'reminder_type', reminder_context: {} }).eq('id', userId);
+      
+      const response = '*Agendador de Lembretes* ⏰\n\nQue tipo de lembrete você gostaria de criar?';
+      const respMsg = { type: 'interactive', text: response, buttons: [{ id: '1', text: 'Personalizado' }, { id: '2', text: 'Oração' }] };
+      await this.saveMessage(userId, 'assistant', response, false);
+      return respMsg;
     }
 
     // --- FLUXO ATIVO ---

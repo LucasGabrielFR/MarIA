@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { BullModule } from '@nestjs/bullmq';
 import { AiService } from './ai.service';
 import { PromptService } from './prompt.service';
 import { MagisteriumService } from './magisterium.service';
@@ -16,7 +17,14 @@ import { PlansModule } from '../plans/plans.module';
 import { AffiliatesModule } from '../affiliates/affiliates.module';
 
 @Module({
-  imports: [ConfigModule, SupabaseModule, AdminModule, PlansModule, AffiliatesModule],
+  imports: [
+    ConfigModule,
+    SupabaseModule,
+    AdminModule,
+    PlansModule,
+    AffiliatesModule,
+    BullModule.registerQueue({ name: 'reminders-queue' }),
+  ],
   controllers: [AiController, DailyCacheController],
   providers: [
     AiService,

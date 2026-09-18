@@ -20,6 +20,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@nestjs/bullmq": "^12.0.0",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.0.1",
@@ -28,7 +29,10 @@
     "@nestjs/throttler": "^6.5.0",
     "@supabase/supabase-js": "^2.105.3",
     "bcryptjs": "^2.4.3",
+    "bullmq": "^6.3.7",
+    "date-fns-tz": "^3.2.0",
     "duck-duck-scrape": "^2.2.5",
+    "ioredis": "^6.0.0",
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^8.0.7",
     "openai": "^6.37.0",
