@@ -139,7 +139,7 @@ export default function AiSettingsPage() {
       label: 'Inteligência',
       icon: <Brain className="w-5 h-5" />,
       description: 'Prompts de processamento de dados e memória.',
-      keys: ['memory_summarization', 'interest_extractor', 'extractor_name', 'extractor_date']
+      keys: ['memory_summarization', 'interest_extractor', 'extractor_name', 'extractor_date', 'extractor_time']
     },
     system: {
       label: 'Mensagens',

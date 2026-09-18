@@ -11,7 +11,7 @@ import { PlansService } from '../plans/plans.service';
 import { AffiliatesService } from '../affiliates/affiliates.service';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
-import { formatInTimeZone, zonedTimeToUtc } from 'date-fns-tz';
+import { formatInTimeZone } from 'date-fns-tz';
 
 const MAGISTERIUM_INSTRUCTION =
   '\n\nOBRIGATÓRIO: Ao final da sua resposta, você deve listar as referências exatas de onde a informação foi extraída. ' +
@@ -1286,7 +1286,7 @@ export class AiService implements OnModuleInit {
          return cancelMsg;
       }
       const ctx = user.reminder_context || {};
-      let prayer = null;
+      let prayer: any = null;
       
       if (ctx.prayersList) {
          const idx = parseInt(lowerMsg);
@@ -1321,7 +1321,7 @@ export class AiService implements OnModuleInit {
       const ctx = user.reminder_context || {};
       ctx.title = message;
       await supabase.from('users').update({ reminder_state: 'reminder_period', reminder_context: ctx }).eq('id', userId);
-      const respMsg = { type: 'interactive', text: 'Em qual período você quer receber?', buttons: [{id:'1', text:'Manhã'}, {id:'2', text:'Tarde'}, {id:'3', text:'Noite'}] };
+      const respMsg = { type: 'interactive', text: `Perfeito. Título do lembrete: *${message}*.\n\nEm qual período você quer receber?`, buttons: [{id:'1', text:'Manhã'}, {id:'2', text:'Tarde'}, {id:'3', text:'Noite'}] };
       await this.saveMessage(userId, 'assistant', respMsg.text, false);
       return respMsg;
     }
@@ -1335,7 +1335,7 @@ export class AiService implements OnModuleInit {
        }
        const ctx = user.reminder_context || {};
        let text = '';
-       let buttons = [];
+       let buttons: {id: string; text: string}[] = [];
        if (lowerMsg === '1' || lowerMsg === 'manhã' || lowerMsg === 'manha') {
           ctx.period = 'Manhã';
           text = 'Que horário pela manhã? (Selecione ou digite um horário específico como 08:30)';
@@ -1365,11 +1365,12 @@ export class AiService implements OnModuleInit {
           return cancelMsg;
        }
        const ctx = user.reminder_context || {};
-       const match = message.match(/^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/);
-       if (!match) {
-          return 'Horário inválido. Por favor, digite no formato HH:MM (exemplo: 18:20)';
+       
+       const extractedTime = await this.extractTargetTime(message);
+       if (!extractedTime) {
+          return 'Desculpe, não consegui entender o horário exato. Por favor, seja um pouco mais específico (exemplo: "às 18:20", "oito da noite", "15h").';
        }
-       ctx.time = message;
+       ctx.time = extractedTime;
        await supabase.from('users').update({ reminder_state: 'reminder_confirm', reminder_context: ctx }).eq('id', userId);
        const confirmText = `Confirma o agendamento de *${ctx.title}* para às *${ctx.time}* (horário de Brasília)?`;
        const respMsg = { type: 'interactive', text: confirmText, buttons: [{id:'1', text:'Confirmar'}, {id:'2', text:'Cancelar'}] };
@@ -1467,6 +1468,16 @@ export class AiService implements OnModuleInit {
       intent = 'LITURGY_FULL';
     } else if (lowerMsg === 'toggle_daily_liturgy' || lowerMsg === 'receber envio diário' || lowerMsg === 'cancelar envio diário') {
       intent = 'TOGGLE_DAILY_LITURGY';
+    }
+
+    // Iniciar o fluxo de lembretes caso a IA detecte a intenção
+    if (intent === 'REMINDER') {
+      await supabase.from('users').update({ reminder_state: 'reminder_type', reminder_context: {} }).eq('id', userId);
+      
+      const response = '*Agendador de Lembretes* ⏰\n\nQue tipo de lembrete você gostaria de criar?';
+      const respMsg = { type: 'interactive', text: response, buttons: [{ id: '1', text: 'Personalizado' }, { id: '2', text: 'Oração' }] };
+      await this.saveMessage(userId, 'assistant', response, false);
+      return respMsg;
     }
     
     // Interceptar intenção de TERÇO
@@ -2038,8 +2049,32 @@ export class AiService implements OnModuleInit {
       const match = content.trim().match(/\d{4}-\d{2}-\d{2}/);
       return match ? match[0] : today;
     } catch (e) {
-      this.logger.error('Erro ao extrair data alvo', e);
+      this.logger.error('Erro ao extrair data', e);
       return today;
+    }
+  }
+
+  async extractTargetTime(message: string): Promise<string | null> {
+    const prompt = (this.promptService.getPrompt('extractor_time') || '')
+      .replace('{{message}}', message);
+
+    try {
+      // Use flash lite or mini model for extraction
+      const model = process.env.OPENROUTER_BRIDGE_MODEL || 'google/gemini-2.5-flash-lite';
+      const { content } = await this.callOpenRouter(
+        prompt,
+        '',
+        false,
+        [],
+        model,
+      );
+      
+      const extracted = content.trim();
+      const match = extracted.match(/^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/);
+      return match ? match[0] : null;
+    } catch (e) {
+      this.logger.error('Erro ao extrair hora', e);
+      return null;
     }
   }
 
