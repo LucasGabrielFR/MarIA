@@ -464,7 +464,7 @@ export class UazapiController {
         !Array.isArray(responseText) &&
         responseText.type === 'interactive'
       ) {
-        const interactive = responseText;
+        const interactive = responseText as any;
         const buttons = Array.isArray(interactive.buttons)
           ? interactive.buttons
           : [];
@@ -472,6 +472,12 @@ export class UazapiController {
           chatId,
           interactive.text,
           buttons,
+          {
+            type: interactive.interactiveType || interactive.menuType,
+            listButton: interactive.listButton,
+            footerText: interactive.footerText,
+            sectionTitle: interactive.sectionTitle,
+          },
         );
       } else if (Array.isArray(responseText)) {
         for (const msg of responseText) {
@@ -480,6 +486,12 @@ export class UazapiController {
               chatId,
               msg.text,
               msg.buttons || [],
+              {
+                type: msg.interactiveType || msg.menuType,
+                listButton: msg.listButton,
+                footerText: msg.footerText,
+                sectionTitle: msg.sectionTitle,
+              },
             );
           } else {
             await this.uazapiService.sendMessage(chatId, typeof msg === 'string' ? msg : String(msg));

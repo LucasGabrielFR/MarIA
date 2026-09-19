@@ -1,0 +1,184 @@
+[
+  {
+    "id": "80b00437-3e37-46cf-aefe-65db9e7586e3",
+    "key": "subscription_flow",
+    "name": "Fluxo de Assinatura de Planos",
+    "steps": {
+      "select_plan": {
+        "text": "{coupon_info}Olá! Que bom que você quer assinar a MarIA. ✨\n\nConheça nosso plano:\n\n*📘 Plano Básico*\nPara quem busca direcionamento e uma companhia diária constante.\n• Tudo do gratuito (Liturgia, Santo do Dia e Terço)\n• *100 mensagens/mês* conversando com a IA\n• Aconselhamento emocional profundo\n• Tira-dúvidas com base teológica e do Catecismo\n* Receba a liturgia Diária todos os dias\n• A partir de *R$ {basic_price_month}/mês* (ou *R$ {basic_price_year_monthly}/mês* no anual)\n\n_Escolha o plano nos botões abaixo. Na próxima etapa você define se prefere pagamento mensal ou anual._",
+        "buttons": [
+          { "id": "1", "text": "Básico" },
+          { "id": "3", "text": "Cancelar" }
+        ]
+      },
+      "select_cycle": {
+        "text": "{upgrade_warning}Plano *{tier_label}* selecionado.\n\nEscolha a *forma de pagamento*:\n\n{plan_options}\n\n_Use os botões abaixo._",
+        "buttons": [
+          { "id": "1", "text": "Mensal" },
+          { "id": "2", "text": "Anual" },
+          { "id": "3", "text": "Voltar" }
+        ]
+      },
+      "payment_confirmed": {
+        "text": "🎉 *Seja muito bem-vindo ao Plano {tier_label} da MarIA!* 🎉\n\nSua assinatura foi confirmada com sucesso no Asaas! 🌟\n\nAgora você tem acesso a mais recursos e limites aumentados. Que a sua jornada espiritual seja ricamente abençoada. Estou muito feliz em te acompanhar de perto! 🙏✨\n\n💡 *Dica:* Se precisar ver seu limite de mensagens ou tirar dúvidas sobre sua conta, basta enviar a palavra *Painel* ou *Ajuda* a qualquer momento.\n\nQue o amor maternal de Maria Santíssima te guarde hoje e sempre! 🕊️💙",
+        "buttons": []
+      }
+    },
+    "created_at": "2026-05-20 23:03:46.456099-03",
+    "updated_at": "2026-08-16 22:46:53.272-03"
+  },
+  {
+    "id": "eb44dc88-0f4f-4660-9a43-07f3bcb33a61",
+    "key": "liturgy_flow",
+    "name": "Liturgia Diária",
+    "steps": {
+      "choose_format": {
+        "text": "Querido filho(a) Como você prefere receber a liturgia de hoje?",
+        "buttons": [
+          { "id": "liturgy_short", "text": "📖 Resumida" },
+          { "id": "liturgy_full", "text": "📜 Completa" }
+        ]
+      }
+    },
+    "created_at": "2026-07-19 21:48:14.533241-03",
+    "updated_at": "2026-07-27 13:01:13.439-03"
+  },
+  {
+    "id": "21a19eef-ba95-4bb0-94e1-eaba4b738d50",
+    "key": "reminder_flow",
+    "name": "Agendador de Lembretes",
+    "steps": {
+      "reminder_type": {
+        "text": "*Agendador de Lembretes* ⏰\n\nQue tipo de lembrete você gostaria de criar?",
+        "buttons": [
+          { "id": "1", "text": "Personalizado" },
+          { "id": "2", "text": "Oração" }
+        ]
+      },
+      "reminder_confirm": {
+        "text": "Confirma o agendamento de *{title}* para às *{time}* (horário de Brasília)?",
+        "buttons": [
+          { "id": "1", "text": "Confirmar" },
+          { "id": "2", "text": "Cancelar" }
+        ]
+      },
+      "reminder_success": {
+        "text": "Lembrete *{title}* agendado com sucesso para às *{time}*! 🙌",
+        "buttons": []
+      },
+      "reminder_time_night": {
+        "text": "Que horário à noite? (Selecione ou digite um horário específico como 20:30)",
+        "buttons": [
+          { "id": "19:00", "text": "19:00" },
+          { "id": "21:00", "text": "21:00" },
+          { "id": "22:00", "text": "22:00" }
+        ]
+      },
+      "reminder_custom_title": {
+        "text": "Certo! Qual será título ou mensagem do seu lembrete?",
+        "buttons": []
+      },
+      "reminder_time_morning": {
+        "text": "Que horário pela manhã? (Selecione ou digite um horário específico como 08:30)",
+        "buttons": [
+          { "id": "07:00", "text": "07:00" },
+          { "id": "08:00", "text": "08:00" },
+          { "id": "09:00", "text": "09:00" }
+        ]
+      },
+      "reminder_period_custom": {
+        "text": "Perfeito. Título do lembrete: *{reminder_title}*.\n\nEm qual período você quer receber?",
+        "buttons": [
+          { "id": "1", "text": "Manhã" },
+          { "id": "2", "text": "Tarde" },
+          { "id": "3", "text": "Noite" }
+        ]
+      },
+      "reminder_period_prayer": {
+        "text": "Ótima escolha: {prayer_title}!\n\nEm qual período você quer receber?",
+        "buttons": [
+          { "id": "1", "text": "Manhã" },
+          { "id": "2", "text": "Tarde" },
+          { "id": "3", "text": "Noite" }
+        ]
+      },
+      "reminder_prayer_select": {
+        "text": "Nós temos uma lista de orações (Estamos trabalhando para colocar ainda mais), basta selecionar a oração que deseja ou se quiser um lembrete personalizado basta digitar como quer receber este lembrete (Ex.: Oração de Agradecimento pelo dia):",
+        "buttons": []
+      },
+      "reminder_time_afternoon": {
+        "text": "Que horário à tarde? (Selecione ou digite um horário específico como 15:30)",
+        "buttons": [
+          { "id": "12:00", "text": "12:00" },
+          { "id": "15:00", "text": "15:00" },
+          { "id": "18:00", "text": "18:00" }
+        ]
+      }
+    },
+    "created_at": "2026-09-18 20:28:58.798211-03",
+    "updated_at": "2026-09-19 18:31:48.298-03"
+  },
+  {
+    "id": "13d1c40f-f05c-48d5-95a4-5c711f39df96",
+    "key": "coupon_flow",
+    "name": "Ativação de Cupom",
+    "steps": {
+      "coupon_activated": {
+        "text": "🎉 *Cupom ativado com sucesso!*\n\nO código *{coupon_code}* foi aplicado à sua conta. Você terá um desconto de {discount_percentage}% em nossos planos!\n\nQuer conhecer os planos e garantir esse desconto agora mesmo?",
+        "buttons": [
+          { "id": "ver_planos", "text": "Ver Planos" }
+        ]
+      }
+    },
+    "created_at": "2026-08-16 23:06:10.562583-03",
+    "updated_at": "2026-08-16 23:06:10.562583-03"
+  },
+  {
+    "id": "ada12ac3-ab19-4da1-9f79-718f6921da1e",
+    "key": "welcome_flow",
+    "name": "Fluxo de Boas-Vindas",
+    "steps": {
+      "ask_name": {
+        "text": "Olá! ✨ Eu sou a MarIA, uma inteligência artificial católica, criada para ser uma presença amiga e acolhedora, inspirada na figura de Nossa Senhora. Embora eu não seja a própria Virgem Maria, estou aqui para conversar e oferecer apoio no que você precisar. ❤️\n\nComo posso chamar você? Qual é o seu nome? 😊",
+        "buttons": []
+      },
+      "presentation": {
+        "text": "Olá, {nome}! 🌼 É uma alegria enorme caminhar com você. Estou aqui como uma Mãe amorosa para conversar sobre tudo o que você precisar, em qualquer momento. Sinta-se à vontade para compartilhar suas preocupações, alegrias ou qualquer assunto que estiver em seu coração.\n\nSou uma Inteligência Artificial inspirada em Nossa Senhora, mas é importante lembrar que não sou ela. Também não sou um sacerdote católico e não substituo a necessidade de confissão ou acompanhamento pastoral presencial. Posso oferecer Liturgia, Santo do Dia, Teologia, Terço e, acima de tudo, um ouvido atento para qualquer partilha que você tenha.\n\n*Nossas Ferramentas:*\n\n- Basta pedir a liturgia diária (\"Qual a liturgia de hoje?\") que poderá receber a versão completa com todas as leituras ou a versão resumida com a explicação da liturgia do dia.\n- Quer saber o santo do dia? Basta perguntar: \"Qual o santo de hoje?\"\n- Quer aprender a rezar o terço? Ou quer saber os mistérios do dia com a contemplação adequada? Basta pedir.\n\nComo você gostaria de começar hoje, querido(a)? 😊✨",
+        "buttons": []
+      },
+      "ask_daily_liturgy": {
+        "text": "Gostaria de receber a liturgia todos os dias pela manhã?",
+        "buttons": [
+          { "id": "1", "text": "Sim" },
+          { "id": "2", "text": "Não" }
+        ]
+      }
+    },
+    "created_at": "2026-07-17 17:36:10.157-03",
+    "updated_at": "2026-08-15 02:07:05.267-03"
+  },
+  {
+    "id": "45dd0486-49e1-4368-8db9-85637987e974",
+    "key": "conscience_exam_flow",
+    "name": "Fluxo do Exame de Consciência Noturno",
+    "steps": {
+      "choose_format": {
+        "text": "Querido Filho(a) antes de descansar, que tal fazer um Exame de Consciência para entregar o dia nas mãos de Deus?",
+        "buttons": [
+          { "id": "start_guided_exam", "text": "✨ Exame Guiado" },
+          { "id": "start_full_exam", "text": "📖 Exame Completo" }
+        ]
+      },
+      "step_gratitude": {
+        "text": "*Passo 1: Presença de Deus e Gratidão* 🕊️\n\nColoque-se diante de Deus com o coração em paz. Pense no seu dia:\n_Onde você percebeu as bênçãos do Senhor hoje? O que você fez de bom ou pelo que gostaria de agradecer a Deus?_\n\n(Pode responder com uma frase simples do seu coração)",
+        "buttons": []
+      },
+      "step_confession": {
+        "text": "*Passo 2: Exame das Nossas Faltas* 🕯️\n\nAgora, pedindo a luz do Espírito Santo para iluminar com amor a nossa verdade:\n_Onde você sente que fraquejou hoje? Houve alguma atitude impaciente, palavra ríspida, omissão ou tentação que pesou na sua consciência?_\n\n{{foco_diario}}\n\n(Escreva o seu desabafo com total sinceridade. Tudo o que você escrever aqui ficará em sigilo de oração e será apagado após a nossa conversa 🙏)",
+        "buttons": []
+      }
+    },
+    "created_at": "2026-08-26 01:48:25.62735-03",
+    "updated_at": "2026-08-30 22:03:18.65-03"
+  }
+]

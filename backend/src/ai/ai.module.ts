@@ -15,6 +15,7 @@ import { SupabaseModule } from '../supabase/supabase.module';
 import { AdminModule } from '../admin/admin.module';
 import { PlansModule } from '../plans/plans.module';
 import { AffiliatesModule } from '../affiliates/affiliates.module';
+import { FlowInterpreterService } from './flow-interpreter.service';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { AffiliatesModule } from '../affiliates/affiliates.module';
     CronService,
     EmbeddingService,
     ScheduledMessagesService,
+    FlowInterpreterService,
   ],
   exports: [
     AiService,
@@ -45,6 +47,7 @@ import { AffiliatesModule } from '../affiliates/affiliates.module';
     CronService,
     EmbeddingService,
     ScheduledMessagesService,
+    FlowInterpreterService,
   ],
 })
 export class AiModule {}

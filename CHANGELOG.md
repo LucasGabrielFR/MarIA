@@ -5,6 +5,91 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.19.0] - 2026-09-19
+
+### Added
+
+- **Sistema de Ferramentas e Ações Dinâmicas nos Nós (`Node Tools`):**
+  - **Catálogo de Ferramentas Plug-and-Play (`AVAILABLE_NODE_TOOLS`):** Implementado ecossistema modular para conectar ferramentas de banco de dados, integrações e ações inteligentes aos nós dos fluxos automáticos.
+  - **Ferramenta Catálogo de Orações (`prayer_list`):** A etapa `reminder_prayer_select` agora exibe formalmente sua integração com a tabela `prayers`, gerando Menu de Lista nativo no WhatsApp em tempo real sem depender de botões manuais engessados.
+  - **Expansão para Todos os Fluxos do Sistema:**
+    - `conscience_exam_flow` (`step_confession`): Conectada a ferramenta **Foco Diário do Exame de Consciência (`guided_exam_focus`)**, que injeta o exame do dia da semana em `{{foco_diario}}`.
+    - `liturgy_flow` (`choose_format`): Conectada a ferramenta **Liturgia Diária (`liturgy_fetch`)**, buscando leituras da CNBB em versões Resumida ou Completa.
+    - `subscription_flow` (`select_plan`): Conectada a ferramenta **Tabela de Preços & Cupons Asaas (`asaas_pricing`)**, calculando valores dinâmicos de planos e cupons.
+    - `welcome_flow` (`ask_daily_liturgy`): Conectada a ferramenta **Preferência de Envio Diário (`user_preference_toggle`)**, gravando opt-in de liturgia matinal no Supabase.
+  - **Visualização no Mapa Mental & Diagrama:**
+    - Cards com ferramentas ativas agora exibem badge temático com ícone de ferramenta (`⚡ Ferramenta: [Nome da Ferramenta]`).
+    - Rodapé dinâmico do card indica o tipo de lista ou integração conectada.
+  - **Painel de Ferramentas no Workspace do Nó:**
+    - Nova seção destacada com card gradiente apresentando status da ferramenta conectada, descrição de funcionamento e dicas técnicas.
+    - Botão **"+ Adicionar Ferramenta"** com Modal de Diálogo interativo permitindo conectar, trocar ou desconectar ferramentas de qualquer nó com 1 clique.
+  - **Preview Aprimorado do WhatsApp:** Exibição do botão de lista dinâmico simulado no WhatsApp quando a ferramenta de orações está ativa, substituindo mensagens enganosas de "nenhum botão configurado".
+
+## [1.18.1] - 2026-09-19
+
+### Changed
+
+- **Atribuição Automática de Rota (`target_step`) na Criação de Botões (`flows.tsx`):**
+  - Ajustada a lógica de criação de novos botões (tanto no final quanto na inserção em índice específico) para herdar inteligentemente uma rota destino.
+  - O destino padrão (`target_step`) agora é inferido pela rota da etapa atual (`next_step`), pelo destino de um botão já existente na etapa, ou, em último caso, o ID da própria etapa (`stepKey`). Isso evita a criação de botões "órfãos" sem um fluxo de destino claro.
+
+## [1.18.0] - 2026-09-19
+### Added
+
+- **Motor Interpretador de Fluxos (`FlowInterpreterService`):**
+  - Implementado motor dinâmico e flexível no backend (`flow-interpreter.service.ts`) para interpretar e executar fluxos automáticos orientados a dados (*data-driven state machine*).
+  - Eliminação de dependência frágil de strings fixas (`if (lowerMsg === '1')`). As transições entre etapas agora são guiadas diretamente pelos metadados configurados no banco de dados (`target_step`, `next_step`).
+  - Suporte à resolução flexível por ID, texto ou índice de botão com fallback para saídas universais (`cancelar`, `sair`, `parar`).
+  - Formatação inteligente de mensagens interativas: se a etapa possuir até 3 opções, despacha botões rápidos nativos; se possuir 4 ou mais opções, despacha Menu de Lista nativo com gaveta interativa.
+
+- **Reordenação com Drag & Drop e Setas Rápidas de Opções (`flows.tsx`):**
+  - Adicionado suporte a **Arrastar e Soltar (HTML5 Drag and Drop)** para reordenar os botões/opções interativas com handle de pegada visual (`GripVertical`), feedback em tempo real e destaque na área de soltura.
+  - Adicionados botões de atalho de movimentação instantânea com 1 clique (`◀` / `▶`) no cabeçalho de cada card de opção para ajustes rápidos.
+  - Novos atalhos de inserção: **"+ Inserir no Início"** (para adicionar facilmente horários matutinos como `06:00` antes de `07:00`) e **"+ Adicionar no Fim"**.
+  - Campo de configuração de **Destino / Rota (`target_step`)** em cada botão para customização de ramificações diretamente pela interface.
+
+- **Enriquecimento Estrutural do Banco de Dados (`automatic_flows`):**
+  - Backup preventivo completo de todos os registros salvo em `backend/backups/automatic_flows_backup_2026-09-19.json` (zero perda de dados).
+  - Enriquecimento não-destrutivo dos 6 fluxos existentes no Supabase com `title`, `type` (`decision`, `options`, `input`, `message`, `end`) e `target_step` em todos os nós.
+
+## [1.17.3] - 2026-09-19
+
+### Added
+
+- **Menu Lateral Colapsável (`sidebar.tsx` & `main-layout.tsx`):**
+  - Implementado botão de recolher/expandir o menu lateral tanto no cabeçalho superior quanto na barra lateral.
+  - No estado recolhido, a sidebar reduz para `78px` em modo ícone compacto, liberando mais de 180px de largura útil para diagramas e edição.
+  - Persistência automática do estado do menu no `localStorage` (`maria_sidebar_collapsed`).
+
+- **Isolamento de Scroll e Navegação no Canvas de Fluxos (`flows.tsx`):**
+  - **Eliminação do Scroll Horizontal Global:** A página administrativa não cria mais barras de rolagem horizontal no nível do navegador/janela (`overflow-x-hidden` e `min-w-0`).
+  - **Quadro de Diagrama com Rolagem Própria:** A rolagem horizontal fica restrita e contida 100% dentro do quadro do mapa mental, utilizando uma scrollbar elegante (`.canvas-scrollbar`).
+  - **Controles de Navegação no Canvas:** Adicionados botões no cabeçalho do diagrama (`↺ Início`, `◀ Esquerda`, `▶ Direita`) para deslizamento suave e fácil entre as etapas do mapa.
+  - **Cards Compactos no Diagrama:** Redimensionamento refinado dos nós para `min-w-[210px] max-w-[245px]`, permitindo visualizar mais nós simultaneamente na tela.
+  - **Seletor de Fluxos Colapsável:** Adicionado botão de recolher no card "Fluxos do Sistema", permitindo ocultar a grade de fluxos e focar inteiramente no diagrama ativo.
+
+## [1.17.2] - 2026-09-19
+
+### Added
+
+- **Suporte Nativo a Menus de Opções / Listas no WhatsApp (`type: "list"`):**
+  - Adicionada interface `InteractiveOptions` no `uazapi.service.ts` com suporte completo ao endpoint `/send/menu` no modo `type: "list"` do Uazapi.
+  - Quando uma etapa interativa possui mais de 3 botões (limite da API do WhatsApp para botões rápidos) ou especifica o tipo `list`, o sistema envia automaticamente um menu de lista com botão de ação (ex: *"Ver opções"* ou *"Ver Orações"*), seções organizadas e descrições opcionais.
+  - Implementado envio de lista suspensa nativa do WhatsApp para seleção de orações (`reminder_prayer_select`) com abertura de drawer direto no aplicativo do usuário.
+
+- **Visualização em Mapa Mental e Diagrama Interativo de Fluxos (`flows.tsx`):**
+  - Substituição da coluna vertical engessada por um canvas de **Mapa Mental / Diagrama de Fluxo** com nós visuais, setas direcionais e bifurcações de rota (`Rota: Oração` e `Rota: Personalizado`).
+  - Cada nó exibe badge de rota, status de botões/menu de lista, título da etapa e resumo do texto.
+  - O nó em edição recebe anel de destaque com pulso dinâmico; ao clicar em qualquer nó do diagrama, a etapa correspondente é imediatamente carregada no workspace de edição.
+  - Seletor horizontal de fluxos no topo da tela com badges de quantidade de etapas e status ativo.
+
+### Fixed
+
+- **Envio de Botões de Horário no Fluxo de Lembretes:**
+  - Corrigido o problema onde os botões de horário não eram despachados após o usuário escolher o turno (Manhã, Tarde ou Noite). O `ai.service.ts` agora busca tanto os nós específicos por período (`reminder_time_morning`, `reminder_time_afternoon`, `reminder_time_night`) quanto o nó universal `reminder_time`.
+  - Adicionado fallback dinâmico de botões por período para garantir que o fiel nunca fique sem botões interativos na tela.
+  - Otimizado o método `extractTargetTime` com reconhecimento instantâneo via regex para cliques diretos de botões de horário (ex: "07:00", "12:00", "8h"), eliminando latência e dependência desnecessária do LLM.
+
 ## [1.17.1] - 2026-09-19
 
 ### Changed
