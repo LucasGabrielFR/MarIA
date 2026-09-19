@@ -1489,6 +1489,7 @@ export class AiService implements OnModuleInit {
           }
 
           const delay = targetSP.getTime() - nowSP.getTime();
+          const scheduledTargetDate = new Date(Date.now() + delay);
 
           const { data: reminder, error: remError } = await supabase.from('reminders').insert({
              user_id: userId,
@@ -1496,11 +1497,12 @@ export class AiService implements OnModuleInit {
              is_prayer: ctx.type === 'prayer',
              prayer_id: ctx.prayer_id || null,
              status: 'pending',
-             scheduled_time: ctx.time,
+             scheduled_time: scheduledTargetDate.toISOString(),
              scheduled_period: ctx.period
           }).select().single();
 
           if (remError || !reminder) {
+             this.logger.error(`Erro ao salvar lembrete no Supabase para o usuário ${userId}: ${JSON.stringify(remError)}`);
              return 'Houve um erro ao salvar o lembrete. Tente novamente mais tarde.';
           }
 
