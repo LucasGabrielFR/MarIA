@@ -12,7 +12,8 @@ RUN npm install
 
 # Copy the rest of the frontend source
 COPY frontend/ .
-RUN npm run build
+ARG VITE_MODE=production
+RUN npm run build -- --mode $VITE_MODE
 
 # Use Nginx to serve the built static files
 FROM nginx:alpine

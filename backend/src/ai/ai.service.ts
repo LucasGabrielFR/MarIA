@@ -1247,6 +1247,12 @@ export class AiService implements OnModuleInit {
 
     // --- MÁQUINA DE ESTADOS: LEMBRETES ---
     const userReminderState = user.reminder_state || 'idle';
+    
+    // Utilitário para buscar textos do fluxo
+    const getReminderSteps = async () => {
+      const { data } = await supabase.from('automatic_flows').select('steps').eq('key', 'reminder_flow').maybeSingle();
+      return data?.steps || {};
+    };
 
     if (userReminderState === 'reminder_type') {
       if (lowerMsg === 'cancelar' || lowerMsg === 'sair') {
@@ -1255,9 +1261,12 @@ export class AiService implements OnModuleInit {
          await this.saveMessage(userId, 'assistant', cancelMsg, false);
          return cancelMsg;
       }
+      
+      const rSteps = await getReminderSteps();
+      
       if (lowerMsg === '1' || lowerMsg === 'personalizado') {
          await supabase.from('users').update({ reminder_state: 'reminder_title', reminder_context: { type: 'custom' } }).eq('id', userId);
-         const respMsg = 'Certo! Qual o título ou mensagem do seu lembrete?';
+         const respMsg = rSteps.reminder_custom_title?.text || 'Certo! Qual o título ou mensagem do seu lembrete?';
          await this.saveMessage(userId, 'assistant', respMsg, false);
          return respMsg;
       } else if (lowerMsg === '2' || lowerMsg === 'oração' || lowerMsg === 'oracao') {
@@ -1271,7 +1280,8 @@ export class AiService implements OnModuleInit {
          const buttons = prayers.map((p, index) => ({ id: (index+1).toString(), text: p.title.substring(0, 20) }));
          // Guardar lista no contexto para o próximo passo
          await supabase.from('users').update({ reminder_state: 'reminder_prayer_select', reminder_context: { type: 'prayer', prayersList: prayers } }).eq('id', userId);
-         const respMsg = { type: 'interactive', text: 'Selecione a oração desejada (ou digite o nome se não estiver na lista):', buttons };
+         const respMsgText = rSteps.reminder_prayer_select?.text || 'Selecione a oração desejada (ou digite o nome se não estiver na lista):';
+         const respMsg = { type: 'interactive', text: respMsgText, buttons };
          await this.saveMessage(userId, 'assistant', respMsg.text, false);
          return respMsg;
       }
@@ -1306,7 +1316,13 @@ export class AiService implements OnModuleInit {
       delete ctx.prayersList;
 
       await supabase.from('users').update({ reminder_state: 'reminder_period', reminder_context: ctx }).eq('id', userId);
-      const respMsg = { type: 'interactive', text: `Ótima escolha: ${prayer.title}!\n\nEm qual período você quer receber?`, buttons: [{id:'1', text:'Manhã'}, {id:'2', text:'Tarde'}, {id:'3', text:'Noite'}] };
+      
+      const rSteps = await getReminderSteps();
+      const defaultText = `Ótima escolha: {prayer_title}!\n\nEm qual período você quer receber?`;
+      const msgText = (rSteps.reminder_period_prayer?.text || defaultText).replace('{prayer_title}', prayer.title);
+      const buttons = rSteps.reminder_period_prayer?.buttons?.length > 0 ? rSteps.reminder_period_prayer.buttons : [{id:'1', text:'Manhã'}, {id:'2', text:'Tarde'}, {id:'3', text:'Noite'}];
+      
+      const respMsg = { type: 'interactive', text: msgText, buttons };
       await this.saveMessage(userId, 'assistant', respMsg.text, false);
       return respMsg;
     }
@@ -1321,7 +1337,13 @@ export class AiService implements OnModuleInit {
       const ctx = user.reminder_context || {};
       ctx.title = message;
       await supabase.from('users').update({ reminder_state: 'reminder_period', reminder_context: ctx }).eq('id', userId);
-      const respMsg = { type: 'interactive', text: `Perfeito. Título do lembrete: *${message}*.\n\nEm qual período você quer receber?`, buttons: [{id:'1', text:'Manhã'}, {id:'2', text:'Tarde'}, {id:'3', text:'Noite'}] };
+      
+      const rSteps = await getReminderSteps();
+      const defaultText = `Perfeito. Título do lembrete: *{reminder_title}*.\n\nEm qual período você quer receber?`;
+      const msgText = (rSteps.reminder_period_custom?.text || defaultText).replace('{reminder_title}', message).replace('{title}', message);
+      const buttons = rSteps.reminder_period_custom?.buttons?.length > 0 ? rSteps.reminder_period_custom.buttons : [{id:'1', text:'Manhã'}, {id:'2', text:'Tarde'}, {id:'3', text:'Noite'}];
+      
+      const respMsg = { type: 'interactive', text: msgText, buttons };
       await this.saveMessage(userId, 'assistant', respMsg.text, false);
       return respMsg;
     }
@@ -1334,27 +1356,46 @@ export class AiService implements OnModuleInit {
           return cancelMsg;
        }
        const ctx = user.reminder_context || {};
-       let text = '';
-       let buttons: {id: string; text: string}[] = [];
-       if (lowerMsg === '1' || lowerMsg === 'manhã' || lowerMsg === 'manha') {
-          ctx.period = 'Manhã';
-          text = 'Que horário pela manhã? (Selecione ou digite um horário específico como 08:30)';
-          buttons = [{id:'07:00', text:'07:00'}, {id:'08:00', text:'08:00'}, {id:'09:00', text:'09:00'}];
-       } else if (lowerMsg === '2' || lowerMsg === 'tarde') {
-          ctx.period = 'Tarde';
-          text = 'Que horário à tarde? (Selecione ou digite um horário específico como 15:30)';
-          buttons = [{id:'12:00', text:'12:00'}, {id:'15:00', text:'15:00'}, {id:'18:00', text:'18:00'}];
-       } else if (lowerMsg === '3' || lowerMsg === 'noite') {
-          ctx.period = 'Noite';
-          text = 'Que horário à noite? (Selecione ou digite um horário específico como 20:30)';
-          buttons = [{id:'19:00', text:'19:00'}, {id:'21:00', text:'21:00'}, {id:'22:00', text:'22:00'}];
-       } else {
-          return 'Período inválido. Escolha Manhã, Tarde ou Noite. Ou digite "cancelar".';
+       
+       const rSteps = await getReminderSteps();
+       
+       let pBtn = ctx.type === 'custom' 
+          ? rSteps.reminder_period_custom?.buttons 
+          : rSteps.reminder_period_prayer?.buttons;
+       
+       if (!pBtn || pBtn.length === 0) {
+           pBtn = [{id: '1', text: 'Manhã'}, {id: '2', text: 'Tarde'}, {id: '3', text: 'Noite'}];
        }
-       await supabase.from('users').update({ reminder_state: 'reminder_time', reminder_context: ctx }).eq('id', userId);
-       const respMsg = { type: 'interactive', text, buttons };
-       await this.saveMessage(userId, 'assistant', text, false);
-       return respMsg;
+
+       let selectedPeriod = '';
+       const numMatch = parseInt(lowerMsg, 10);
+       if (!isNaN(numMatch) && numMatch >= 1 && numMatch <= pBtn.length) {
+           selectedPeriod = pBtn[numMatch - 1].text;
+       } else {
+           const matchedBtn = pBtn.find((b: any) => lowerMsg === (b.text || '').toLowerCase() || lowerMsg === String(b.id || '').toLowerCase());
+           if (matchedBtn) {
+               selectedPeriod = matchedBtn.text;
+           } else {
+               const fallbackMatch = pBtn.find((b: any) => (b.text || '').toLowerCase().includes(lowerMsg));
+               if (fallbackMatch) {
+                   selectedPeriod = fallbackMatch.text;
+               }
+           }
+       }
+
+       if (selectedPeriod) {
+           ctx.period = selectedPeriod;
+           const defaultText = `Qual horário para ${selectedPeriod}? (Selecione ou digite um horário específico como 08:30)`;
+           const text = (rSteps.reminder_time?.text || defaultText).replace('{period}', selectedPeriod);
+           const buttons = rSteps.reminder_time?.buttons?.length > 0 ? rSteps.reminder_time.buttons : [];
+           
+           await supabase.from('users').update({ reminder_state: 'reminder_time', reminder_context: ctx }).eq('id', userId);
+           const respMsg = { type: 'interactive', text, buttons };
+           await this.saveMessage(userId, 'assistant', text, false);
+           return respMsg;
+       } else {
+           return 'Período inválido. Escolha um dos turnos da lista ou digite "cancelar".';
+       }
     }
 
     if (userReminderState === 'reminder_time') {
@@ -1372,20 +1413,29 @@ export class AiService implements OnModuleInit {
        }
        ctx.time = extractedTime;
        await supabase.from('users').update({ reminder_state: 'reminder_confirm', reminder_context: ctx }).eq('id', userId);
-       const confirmText = `Confirma o agendamento de *${ctx.title}* para às *${ctx.time}* (horário de Brasília)?`;
-       const respMsg = { type: 'interactive', text: confirmText, buttons: [{id:'1', text:'Confirmar'}, {id:'2', text:'Cancelar'}] };
+       
+       const rSteps = await getReminderSteps();
+       const defaultText = `Confirma o agendamento de *{title}* para às *{time}* (horário de Brasília)?`;
+       const confirmText = (rSteps.reminder_confirm?.text || defaultText).replace('{title}', ctx.title).replace('{time}', ctx.time);
+       const buttons = rSteps.reminder_confirm?.buttons?.length > 0 ? rSteps.reminder_confirm.buttons : [{id:'1', text:'Confirmar'}, {id:'2', text:'Cancelar'}];
+       
+       const respMsg = { type: 'interactive', text: confirmText, buttons };
        await this.saveMessage(userId, 'assistant', confirmText, false);
        return respMsg;
     }
 
     if (userReminderState === 'reminder_confirm') {
-       if (lowerMsg === 'cancelar' || lowerMsg === '2' || lowerMsg === 'não' || lowerMsg === 'nao' || lowerMsg === 'sair') {
+       const rSteps = await getReminderSteps();
+       const confirmBtn = rSteps.reminder_confirm?.buttons?.[0]?.text?.toLowerCase() || 'confirmar';
+       const cancelBtn = rSteps.reminder_confirm?.buttons?.[1]?.text?.toLowerCase() || 'cancelar';
+
+       if (lowerMsg === '2' || lowerMsg === 'não' || lowerMsg === 'nao' || lowerMsg === 'sair' || lowerMsg === cancelBtn || lowerMsg === 'cancelar') {
           await supabase.from('users').update({ reminder_state: 'idle', reminder_context: {} }).eq('id', userId);
           const cancelMsg = 'Agendamento de lembrete cancelado.';
           await this.saveMessage(userId, 'assistant', cancelMsg, false);
           return cancelMsg;
        }
-       if (lowerMsg === '1' || lowerMsg === 'confirmar' || lowerMsg === 'sim') {
+       if (lowerMsg === '1' || lowerMsg === 'sim' || lowerMsg === confirmBtn || lowerMsg === 'confirmar') {
           const ctx = user.reminder_context || {};
           const timeParts = ctx.time.split(':');
           const [hour, minute] = [parseInt(timeParts[0]), parseInt(timeParts[1])];
@@ -1424,11 +1474,13 @@ export class AiService implements OnModuleInit {
           );
 
           await supabase.from('users').update({ reminder_state: 'idle', reminder_context: {} }).eq('id', userId);
-          const successMsg = `Lembrete *${ctx.title}* agendado com sucesso para às *${ctx.time}*! 🙌`;
+          
+          const defaultSuccess = `Lembrete *{title}* agendado com sucesso para às *{time}*! 🙌`;
+          const successMsg = (rSteps.reminder_success?.text || defaultSuccess).replace('{title}', ctx.title).replace('{time}', ctx.time);
           await this.saveMessage(userId, 'assistant', successMsg, false);
           return successMsg;
        }
-       return 'Por favor, responda com Confirmar ou Cancelar.';
+       return `Por favor, responda com ${confirmBtn} ou ${cancelBtn}.`;
     }
 
     // Gatilhos de Início do Lembrete
@@ -1441,9 +1493,14 @@ export class AiService implements OnModuleInit {
     ) {
       await supabase.from('users').update({ reminder_state: 'reminder_type', reminder_context: {} }).eq('id', userId);
       
-      const response = '*Agendador de Lembretes* ⏰\n\nQue tipo de lembrete você gostaria de criar?';
-      const respMsg = { type: 'interactive', text: response, buttons: [{ id: '1', text: 'Personalizado' }, { id: '2', text: 'Oração' }] };
-      await this.saveMessage(userId, 'assistant', response, false);
+      const { data: remFlow } = await supabase.from('automatic_flows').select('steps').eq('key', 'reminder_flow').maybeSingle();
+      const rSteps = remFlow?.steps || {};
+      
+      const responseText = rSteps.reminder_type?.text || '*Agendador de Lembretes* ⏰\n\nQue tipo de lembrete você gostaria de criar?';
+      const buttons = rSteps.reminder_type?.buttons?.length > 0 ? rSteps.reminder_type.buttons : [{ id: '1', text: 'Personalizado' }, { id: '2', text: 'Oração' }];
+      
+      const respMsg = { type: 'interactive', text: responseText, buttons };
+      await this.saveMessage(userId, 'assistant', responseText, false);
       return respMsg;
     }
 
@@ -1474,9 +1531,14 @@ export class AiService implements OnModuleInit {
     if (intent === 'REMINDER') {
       await supabase.from('users').update({ reminder_state: 'reminder_type', reminder_context: {} }).eq('id', userId);
       
-      const response = '*Agendador de Lembretes* ⏰\n\nQue tipo de lembrete você gostaria de criar?';
-      const respMsg = { type: 'interactive', text: response, buttons: [{ id: '1', text: 'Personalizado' }, { id: '2', text: 'Oração' }] };
-      await this.saveMessage(userId, 'assistant', response, false);
+      const { data: remFlow } = await supabase.from('automatic_flows').select('steps').eq('key', 'reminder_flow').maybeSingle();
+      const rSteps = remFlow?.steps || {};
+      
+      const responseText = rSteps.reminder_type?.text || '*Agendador de Lembretes* ⏰\n\nQue tipo de lembrete você gostaria de criar?';
+      const buttons = rSteps.reminder_type?.buttons?.length > 0 ? rSteps.reminder_type.buttons : [{ id: '1', text: 'Personalizado' }, { id: '2', text: 'Oração' }];
+      
+      const respMsg = { type: 'interactive', text: responseText, buttons };
+      await this.saveMessage(userId, 'assistant', responseText, false);
       return respMsg;
     }
     

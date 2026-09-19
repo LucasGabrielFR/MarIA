@@ -51,3 +51,24 @@ Este arquivo armazena o histórico contínuo de contexto, decisões de arquitetu
 ### ⏳ Pendências e Próximos Passos
 - O usuário deve executar a migration `20260831_migrate_exams_to_prayers.sql` no banco de dados para refletir os novos guias diários no painel.
 ---
+
+## Sessão: 2026-09-19 02:08 (UTC-3)
+### 📌 Resumo da Sessão
+- Refatoração profunda do fluxo de criação de Lembretes para remover redundâncias de horário e suportar de forma dinâmica N botões de configuração de turno.
+- Unificação das etapas de horário (`reminder_time_morning`, `reminder_time_afternoon`, `reminder_time_night`) em um único nó universal `reminder_time`.
+- Implementação de fallback no WhatsApp: o UAZAPI agora detecta quando um passo excede 3 opções interativas (limite do WhatsApp) e converte automaticamente os botões em uma lista de texto interativa (ex: 1️⃣ Manhã, 2️⃣ Tarde...).
+
+### 🏗️ Decisões Técnicas e de Arquitetura
+- **Unificação de Estado da Máquina (AI Service):** A máquina de estados (`ai.service.ts`) foi otimizada para capturar dinamicamente a string da opção de período enviada no passo anterior e processá-la, eliminando a dependência de hardcodes de horários rígidos.
+- **Renderização Visual de Árvore no Admin:** Optado por não refazer do zero a interface em bibliotecas de Diagramas pesadas (como React Flow), mas usar truques de indentação no `flows.tsx` para agrupar as ramificações de oração e lembretes personalizados, preservando o layout limpo nativo e criando hierarquia visual ("Rota: Oração" / "Rota: Personalizado").
+
+### 🛠️ Alterações e Implementações
+- **Backend:**
+  - `backend/src/uazapi/uazapi.service.ts`: Removido `.slice(0, 3)` para habilitar renderização via Fallback de texto se `buttons.length > 3`.
+  - `backend/src/ai/ai.service.ts`: Lógica `reminder_period` atualizada para ler a lista de botões configurada no momento em vez de lista estática, suportando índices ou match de texto.
+- **Frontend:**
+  - `frontend/src/pages/flows.tsx`: Removidos os nós antigos e refatorada a exibição visual para simular um fluxograma de ramificações laterais.
+
+### ⏳ Pendências e Próximos Passos
+- Nenhuma pendência deixada para o escopo desta sessão. O admin e o backend foram reconstruídos e os testes estão liberados.
+---

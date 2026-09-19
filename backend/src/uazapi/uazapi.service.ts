@@ -117,8 +117,20 @@ export class UazapiService {
       return this.sendMessage(chatId, text);
     }
 
+    if (buttons.length > 3) {
+      this.logger.log(`Mais de 3 botões (${buttons.length}). Usando fallback de texto para ${chatId}.`);
+      const numbered = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
+      const fallbackText =
+        text +
+        '\n\n' +
+        buttons
+          .map((b, i) => `${numbered[i] || `${i + 1}.`} ${b.text}`)
+          .join('\n');
+      return this.sendMessage(chatId, fallbackText);
+    }
+
     // UAZAPI usa POST /send/menu com type "button" e choices no formato "rótulo|id"
-    const choices = buttons.slice(0, 3).map((b) => {
+    const choices = buttons.map((b) => {
       const label = (b.text || b.id).trim();
       const id = String(b.id || label).trim();
       return label === id ? label : `${label}|${id}`;

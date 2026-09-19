@@ -119,7 +119,7 @@ Descrição: ${data.description}`;
     @Body() updateData: { steps: any; name?: string },
   ) {
     const supabase = this.supabaseService.getClient();
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('automatic_flows')
       .update({
         steps: updateData.steps,
@@ -128,9 +128,32 @@ Descrição: ${data.description}`;
       })
       .eq('key', key)
       .select()
-      .single();
+      .maybeSingle();
 
-    if (error) throw error;
+    // Se não encontrou a linha para atualizar, insere uma nova
+    if (!data && !error) {
+      const { data: insertedData, error: insertError } = await supabase
+        .from('automatic_flows')
+        .insert({
+          key,
+          name: updateData.name || key,
+          steps: updateData.steps,
+          updated_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+      
+      if (insertError) {
+        console.error('Insert Error:', insertError);
+        throw new Error(insertError.message);
+      }
+      return insertedData;
+    }
+
+    if (error) {
+      console.error('Update Error:', error);
+      throw new Error(error.message);
+    }
     return data;
   }
 

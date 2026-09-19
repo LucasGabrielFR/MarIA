@@ -56,13 +56,23 @@ function normalizeFlowSteps(steps: any): FlowSteps {
   }
   
   // Garante que o subscription_flow sempre tenha as 3 etapas essenciais se estiver vazio
-  if (steps.select_plan || steps.select_cycle || steps.payment_confirmed) {
+  if (steps.select_plan || steps.select_cycle || steps.payment_confirmed || steps.confirm_plan) {
     if (!normalized.select_plan) normalized.select_plan = { text: '', buttons: [] };
     if (!normalized.select_cycle) normalized.select_cycle = { text: '', buttons: [] };
     if (!normalized.payment_confirmed) normalized.payment_confirmed = { text: '', buttons: [] };
   } else if (steps.coupon_activated) {
     // É o coupon_flow
     if (!normalized.coupon_activated) normalized.coupon_activated = { text: '', buttons: [] };
+  } else if (steps.reminder_type || steps.reminder_confirm) {
+    // É o reminder_flow
+    if (!normalized.reminder_type) normalized.reminder_type = { text: '', buttons: [] };
+    if (!normalized.reminder_prayer_select) normalized.reminder_prayer_select = { text: '', buttons: [] };
+    if (!normalized.reminder_period_prayer) normalized.reminder_period_prayer = { text: '', buttons: [] };
+    if (!normalized.reminder_custom_title) normalized.reminder_custom_title = { text: '', buttons: [] };
+    if (!normalized.reminder_period_custom) normalized.reminder_period_custom = { text: '', buttons: [] };
+    if (!normalized.reminder_time) normalized.reminder_time = { text: '', buttons: [] };
+    if (!normalized.reminder_confirm) normalized.reminder_confirm = { text: '', buttons: [] };
+    if (!normalized.reminder_success) normalized.reminder_success = { text: '', buttons: [] };
   }
   
   return normalized;
@@ -73,6 +83,18 @@ const COUPON_ACTIVATED_MESSAGE_TEXT =
   '🎉 *Cupom ativado com sucesso!*\n\n' +
   'O código *{coupon_code}* foi aplicado à sua conta. Você terá um desconto de {discount_percentage}% em nossos planos!\n\n' +
   'Quer conhecer os planos e garantir esse desconto agora mesmo?';
+
+/** Constantes de textos do reminder_flow */
+const REMINDER_FLOW_DEFAULTS = {
+  reminder_type: { text: '*Agendador de Lembretes* ⏰\n\nQue tipo de lembrete você gostaria de criar?', buttons: [{ id: '1', text: 'Personalizado' }, { id: '2', text: 'Oração' }] },
+  reminder_prayer_select: { text: 'Selecione a oração desejada (ou digite o nome se não estiver na lista):', buttons: [] },
+  reminder_period_prayer: { text: 'Ótima escolha: {prayer_title}!\n\nEm qual período você quer receber?', buttons: [{id:'1', text:'Manhã'}, {id:'2', text:'Tarde'}, {id:'3', text:'Noite'}] },
+  reminder_custom_title: { text: 'Certo! Qual o título ou mensagem do seu lembrete?', buttons: [] },
+  reminder_period_custom: { text: 'Perfeito. Título do lembrete: *{reminder_title}*.\n\nEm qual período você quer receber?', buttons: [{id:'1', text:'Manhã'}, {id:'2', text:'Tarde'}, {id:'3', text:'Noite'}] },
+  reminder_time: { text: 'Qual horário (de Brasília) você quer agendar este lembrete?\n(Selecione ou digite um horário específico como 08:30)', buttons: [{id:'07:00', text:'07:00'}, {id:'12:00', text:'12:00'}, {id:'20:00', text:'20:00'}] },
+  reminder_confirm: { text: 'Confirma o agendamento de *{title}* para às *{time}* (horário de Brasília)?', buttons: [{id:'1', text:'Confirmar'}, {id:'2', text:'Cancelar'}] },
+  reminder_success: { text: 'Lembrete *{title}* agendado com sucesso para às *{time}*! 🙌', buttons: [] }
+};
 
 function formatFlowPreviewText(text: string): string {
   return (text || '').replace(/\\n/g, '\n');
@@ -140,6 +162,18 @@ export default function FlowsPage() {
           });
         }
         
+        // Verifica se reminder_flow existe
+        if (!data.find((f: AutomaticFlow) => f.key === 'reminder_flow')) {
+          data.push({
+            id: 'local_reminder_flow',
+            key: 'reminder_flow',
+            name: 'Agendador de Lembretes',
+            steps: REMINDER_FLOW_DEFAULTS,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+        }
+        
         setFlows(data);
         const subFlow = data.find((f: AutomaticFlow) => f.key === 'subscription_flow') || data[0];
         const copy = JSON.parse(JSON.stringify(subFlow)) as AutomaticFlow;
@@ -166,6 +200,14 @@ export default function FlowsPage() {
             key: 'coupon_flow',
             name: 'Ativação de Cupom',
             steps: { coupon_activated: { text: COUPON_ACTIVATED_MESSAGE_TEXT, buttons: [{ id: 'ver_planos', text: 'Ver Planos' }] } },
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          },
+          {
+            id: 'temp_reminder',
+            key: 'reminder_flow',
+            name: 'Agendador de Lembretes',
+            steps: REMINDER_FLOW_DEFAULTS,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           }
@@ -466,32 +508,61 @@ export default function FlowsPage() {
               </CardHeader>
               <CardContent className="p-8">
                 <div className="flex flex-col gap-4">
-                  {Object.keys(selectedFlow.steps).map((stepKey, index) => (
+                  {Object.keys(selectedFlow.steps).map((stepKey, index, arr) => {
+                    let branchColor = '';
+                    let branchName = '';
+                    if (stepKey === 'reminder_prayer_select' || stepKey === 'reminder_period_prayer') {
+                      branchColor = 'ml-6 border-l-4 border-l-indigo-400 rounded-l-none';
+                      if (stepKey === 'reminder_prayer_select') branchName = 'Rota: Oração';
+                    } else if (stepKey === 'reminder_custom_title' || stepKey === 'reminder_period_custom') {
+                      branchColor = 'ml-6 border-l-4 border-l-amber-400 rounded-l-none';
+                      if (stepKey === 'reminder_custom_title') branchName = 'Rota: Personalizado';
+                    }
+
+                    const nextKey = arr[index + 1];
+                    const hideArrow = (stepKey === 'reminder_period_prayer' && nextKey === 'reminder_custom_title') || 
+                                      index === arr.length - 1;
+
+                    return (
                     <React.Fragment key={stepKey}>
                       <button
                         onClick={() => setActiveStep(stepKey)}
                         className={`p-4 rounded-2xl border text-left flex items-start gap-4 transition-all relative ${activeStep === stepKey
                             ? 'bg-blue-50 border-blue-200 shadow-sm shadow-blue-50'
                             : 'bg-slate-50/30 border-slate-100 hover:bg-slate-50/50'
-                          }`}
+                          } ${branchColor}`}
                       >
+                        {branchName && (
+                          <span className="absolute -top-2.5 left-4 text-[10px] font-bold bg-white px-2 py-0.5 rounded-full border border-slate-200 text-slate-500 shadow-sm">
+                            {branchName}
+                          </span>
+                        )}
                         <div className={`p-2.5 rounded-xl font-bold text-xs flex items-center justify-center ${activeStep === stepKey ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-200 text-slate-600'
                           }`}>
                           {index + 1}
                         </div>
-                        <div className="flex flex-col">
+                        <div className="flex flex-col mt-0.5">
                           <span className="text-sm font-bold text-slate-700">
                              {stepKey === 'select_plan' ? 'Escolha do Plano' :
                              stepKey === 'select_cycle' ? 'Forma de Pagamento' :
                              stepKey === 'payment_confirmed' ? 'Boas-Vindas (Plano Ativo)' :
                              stepKey === 'coupon_activated' ? 'Cupom Ativado' :
+                             stepKey === 'reminder_type' ? '1. Tipo de Lembrete' :
+                             stepKey === 'reminder_prayer_select' ? '2. Seleção de Oração' :
+                             stepKey === 'reminder_period_prayer' ? '3. Turno (Oração)' :
+                             stepKey === 'reminder_custom_title' ? '2. Título Personalizado' :
+                             stepKey === 'reminder_period_custom' ? '3. Turno (Personalizado)' :
+                             stepKey === 'reminder_time' ? '4. Seleção de Horário' :
+                             stepKey === 'reminder_confirm' ? '5. Confirmação' :
+                             stepKey === 'reminder_success' ? '6. Sucesso' :
                              stepKey}
                           </span>
-                          <span className="text-xs text-slate-400">
+                          <span className="text-xs text-slate-400 mt-0.5">
                             {stepKey === 'select_plan' ? 'Básico / Premium / Cancelar' :
                              stepKey === 'select_cycle' ? 'Mensal / Anual / Voltar' :
                              stepKey === 'payment_confirmed' ? 'Mensagem final de sucesso' :
                              stepKey === 'coupon_activated' ? 'Mensagem de cupom' :
+                             stepKey.startsWith('reminder') ? 'Etapa do fluxo de lembretes' :
                              stepKey}
                           </span>
                         </div>
@@ -500,13 +571,13 @@ export default function FlowsPage() {
                         )}
                       </button>
 
-                      {index < Object.keys(selectedFlow.steps).length - 1 && (
+                      {!hideArrow && (
                         <div className="flex justify-center my-0">
                           <ArrowRight className="h-5 w-5 text-slate-300 rotate-90" />
                         </div>
                       )}
                     </React.Fragment>
-                  ))}
+                  )})}
                 </div>
               </CardContent>
             </Card>
@@ -525,11 +596,12 @@ export default function FlowsPage() {
                     <MessageSquare className="h-6 w-6" />
                   </div>
                   <div>
-                    <h3 className="text-2xl font-black text-slate-800 tracking-tight">
+                    <h3 className="text-2xl font-black text-slate-800 tracking-tight capitalize">
                       {activeStep === 'select_plan' ? 'Etapa 1: Escolha do Plano' :
                        activeStep === 'select_cycle' ? 'Etapa 2: Forma de Pagamento' :
                        activeStep === 'payment_confirmed' ? 'Mensagem de Boas-Vindas' :
                        activeStep === 'coupon_activated' ? 'Mensagem de Ativação de Cupom' :
+                       activeStep.startsWith('reminder') ? activeStep.replace(/_/g, ' ') :
                        activeStep.replace(/_/g, ' ')}
                     </h3>
                     <p className="text-slate-400 font-bold text-sm mt-1">
@@ -537,6 +609,7 @@ export default function FlowsPage() {
                        activeStep === 'select_cycle' ? 'As variáveis {tier_label} e {plan_options} serão trocadas no código.' :
                        activeStep === 'payment_confirmed' ? 'Enviada quando a assinatura é ativada. Use {tier_label}.' :
                        activeStep === 'coupon_activated' ? 'Resposta enviada ao aplicar um cupom válido.' :
+                       activeStep.startsWith('reminder') ? 'Variáveis suportadas: {title}, {prayer_title}, {time}. Lembre-se de manter no máximo 3 botões por etapa.' :
                        'Configure os botões interativos e as opções de texto da etapa selecionada.'}
                     </p>
                   </div>

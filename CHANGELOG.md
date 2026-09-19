@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.17.1] - 2026-09-19
+
+### Changed
+
+- **Refatoração do Fluxo de Lembretes:**
+  - **Unificação do Nó de Horário:** Os nós redundantes de horário (`reminder_time_morning`, `reminder_time_afternoon`, `reminder_time_night`) foram consolidados em um único nó dinâmico (`reminder_time`) na máquina de estados da inteligência artificial (`ai.service.ts`). O turno escolhido pelo fiel é capturado independentemente da quantidade de opções.
+  - **Painel Administrativo Otimizado:** A exibição dos passos do fluxo de lembretes no editor visual (`flows.tsx`) foi refatorada. Agora as bifurcações (Rota: Oração e Rota: Personalizado) são agrupadas visualmente com identação e marcadores de cores, melhorando a compreensão e manutenção do fluxo.
+  - **Remoção de Limitação de Botões no WhatsApp:** Removido o `.slice(0, 3)` fixo no gateway do UAZAPI (`uazapi.service.ts`). Caso o administrador configure 4 ou mais opções em uma etapa (ex: horários variados), o sistema agora cai automaticamente em um fallback híbrido estruturado, enviando a pergunta como texto listado (1️⃣, 2️⃣, 3️⃣, 4️⃣) para burlar a limitação de 3 botões interativos da API do WhatsApp.
+
 ## [1.17.0] - 2026-08-26
 
 ### Added
