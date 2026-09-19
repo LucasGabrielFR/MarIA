@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.0] - 2026-09-19
+
+### Added
+
+- **Recorrência Diária & Ciclo Contínuo de Lembretes:**
+  - O processador de lembretes (`RemindersProcessor`) agora re-agenda automaticamente o próximo disparo diário para o mesmo horário configurado (24h depois), mantendo o lembrete ativo em ciclo contínuo até ação contrária do usuário.
+  - O registro no Supabase permanece em `status: 'pending'` com `scheduled_time` atualizado para o próximo dia no fuso horário de Brasília (`America/Sao_Paulo`).
+- **Botão Interativo de Cancelamento (`🔕 Cancelar Lembrete`):**
+  - Cada disparo de lembrete via WhatsApp passa a ser acompanhado por um botão nativo de cancelamento interativo com ID único (`cancel_reminder_${reminderId}`).
+- **Soft Delete de Lembretes:**
+  - Ao clicar no botão de cancelamento (ou digitar comandos como "cancelar lembrete"), o sistema realiza **soft delete**, marcando o status como `'cancelled'` e atualizando `updated_at`.
+  - O agendamento futuro no BullMQ/Redis é removido imediatamente, e o processador ignora com segurança qualquer disparo pendente.
+  - O fiel recebe uma confirmação acolhedora e maternal da MarIA confirmando que o aviso diário foi cancelado.
+- **CRON de Limpeza Automática (30 Dias):**
+  - Implementada rotina agendada diária às 03:00 da madrugada (`cleanupOldCancelledReminders` em `CronService`) que expurga permanentemente do Supabase os lembretes inativos (`status = 'cancelled'`) com mais de 30 dias de inatividade (`updated_at < NOW() - 30 days`).
+- **Coluna `updated_at` na Tabela `reminders`:**
+  - Adicionada coluna `updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()` na tabela `reminders` do Supabase para rastreamento do tempo de cancelamento e expurgo pela CRON.
+- **Exclusividade para Assinantes:**
+  - O agendamento de lembretes diários foi restrito apenas a usuários com assinatura ativa (qualquer plano exceto o gratuito), aprimorando os benefícios para quem apoia o projeto financeiramente.
+
 ## [1.19.0] - 2026-09-19
 
 ### Added

@@ -1247,8 +1247,26 @@ export class AiService implements OnModuleInit {
       return confessionGuide;
     }
 
+    // Interceptação de Cancelamento de Lembrete (Botão ou Comando Direto)
+    if (lowerMsg.startsWith('cancel_reminder_')) {
+      const reminderId = message.trim().replace(/^cancel_reminder_/i, '').trim();
+      return await this.handleCancelReminder(userId, reminderId);
+    }
+
     // --- MÁQUINA DE ESTADOS: LEMBRETES ---
     const userReminderState = user.reminder_state || 'idle';
+
+    if (
+      userReminderState === 'idle' &&
+      (lowerMsg === 'cancelar lembrete' ||
+        lowerMsg === 'cancelar lembretes' ||
+        lowerMsg === '🔕 cancelar lembrete' ||
+        lowerMsg === 'desativar lembrete' ||
+        lowerMsg === 'parar lembrete' ||
+        lowerMsg === 'parar lembretes')
+    ) {
+      return await this.handleCancelReminder(userId);
+    }
     
     // Utilitário para buscar textos do fluxo
     const getReminderSteps = async () => {
@@ -1531,6 +1549,12 @@ export class AiService implements OnModuleInit {
       lowerMsg.includes('me lembre de') ||
       lowerMsg.includes('agendar lembrete')
     ) {
+      if (user.subscription_tier === 'free') {
+        const upgradeMsg = 'Desculpe, meu filho(a). O agendamento de lembretes diários é uma funcionalidade exclusiva para assinantes. Considere escolher um de nossos planos para ter acesso a essa e outras bênçãos! 🙏✨\n\nSelecione a opção de *Assinatura* no menu principal ou digite *Planos* para conhecer.';
+        await this.saveMessage(userId, 'assistant', upgradeMsg, false);
+        return upgradeMsg;
+      }
+
       await supabase.from('users').update({ reminder_state: 'reminder_type', reminder_context: {} }).eq('id', userId);
       
       const { data: remFlow } = await supabase.from('automatic_flows').select('steps').eq('key', 'reminder_flow').maybeSingle();
@@ -1569,6 +1593,12 @@ export class AiService implements OnModuleInit {
 
     // Iniciar o fluxo de lembretes caso a IA detecte a intenção
     if (intent === 'REMINDER') {
+      if (isFree) {
+        const upgradeMsg = 'Desculpe, meu filho(a). O agendamento de lembretes diários é uma funcionalidade exclusiva para assinantes. Considere escolher um de nossos planos para ter acesso a essa e outras bênçãos! 🙏✨\n\nSelecione a opção de *Assinatura* no menu principal ou digite *Planos* para conhecer.';
+        await this.saveMessage(userId, 'assistant', upgradeMsg, false);
+        return upgradeMsg;
+      }
+
       await supabase.from('users').update({ reminder_state: 'reminder_type', reminder_context: {} }).eq('id', userId);
       
       const { data: remFlow } = await supabase.from('automatic_flows').select('steps').eq('key', 'reminder_flow').maybeSingle();
@@ -2872,5 +2902,68 @@ DIRETRIZES:
       this.logger.error("Erro ao gerar insights da comunidade", e);
       return "No momento não foi possível gerar os insights da comunidade devido a uma indisponibilidade. Tente novamente mais tarde.";
     }
+  }
+
+  /**
+   * Trata o cancelamento de um lembrete (soft delete com status = 'cancelled')
+   */
+  async handleCancelReminder(userId: string, reminderId?: string): Promise<string> {
+    const supabase = this.supabaseService.getClient();
+
+    let targetReminder: any = null;
+
+    if (reminderId) {
+      const { data } = await supabase
+        .from('reminders')
+        .select('*')
+        .eq('id', reminderId)
+        .maybeSingle();
+      targetReminder = data;
+    }
+
+    // Se não encontrou por ID específico ou foi por comando de texto, busca o lembrete ativo/pendente mais recente do usuário
+    if (!targetReminder) {
+      const { data } = await supabase
+        .from('reminders')
+        .select('*')
+        .eq('user_id', userId)
+        .in('status', ['pending', 'active', 'sent'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      targetReminder = data;
+    }
+
+    if (!targetReminder) {
+      const noReminderMsg = 'Não encontrei nenhum lembrete ativo no momento para cancelar. Se precisar de algo, estou à disposição! 🙏';
+      await this.saveMessage(userId, 'assistant', noReminderMsg, false);
+      return noReminderMsg;
+    }
+
+    // Soft delete: status = 'cancelled' e atualiza updated_at
+    await supabase
+      .from('reminders')
+      .update({
+        status: 'cancelled',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', targetReminder.id);
+
+    // Remove eventuais jobs da fila BullMQ
+    try {
+      const delayedJobs = await this.remindersQueue.getDelayed();
+      for (const job of delayedJobs) {
+        if (job.data?.reminderId === targetReminder.id) {
+          await job.remove();
+          this.logger.log(`Job ${job.id} do lembrete ${targetReminder.id} removido da fila BullMQ.`);
+        }
+      }
+    } catch (e) {
+      this.logger.warn(`Não foi possível remover jobs do lembrete ${targetReminder.id} da fila: ${e.message}`);
+    }
+
+    const cancelSuccessMsg = `Prontinho, meu filho(a)! Cancelei o seu lembrete de *${targetReminder.title}*. Você não receberá mais este aviso diário. Se quiser agendar novamente em outro momento, é só me chamar! 🙏✨`;
+    await this.saveMessage(userId, 'assistant', cancelSuccessMsg, false);
+    return cancelSuccessMsg;
   }
 }

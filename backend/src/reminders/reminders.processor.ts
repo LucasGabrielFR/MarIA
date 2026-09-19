@@ -1,5 +1,5 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Job } from 'bullmq';
+import { Processor, WorkerHost, InjectQueue } from '@nestjs/bullmq';
+import { Job, Queue } from 'bullmq';
 import { Logger } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { UazapiService } from '../uazapi/uazapi.service';
@@ -12,6 +12,7 @@ export class RemindersProcessor extends WorkerHost {
   constructor(
     private readonly supabaseService: SupabaseService,
     private readonly uazapiService: UazapiService,
+    @InjectQueue('reminders-queue') private readonly remindersQueue: Queue,
   ) {
     super();
   }
@@ -75,16 +76,55 @@ export class RemindersProcessor extends WorkerHost {
       }
     }
 
-    // Send the message via WhatsApp
-    const success = await this.uazapiService.sendMessage(waChatId, messageText);
+    // Botão interativo para cancelamento do lembrete
+    const buttons = [
+      { id: `cancel_reminder_${reminderId}`, text: '🔕 Cancelar Lembrete' },
+    ];
+
+    // Enviar mensagem interativa via WhatsApp
+    const success = await this.uazapiService.sendInteractiveMessage(
+      waChatId,
+      messageText,
+      buttons,
+      { type: 'button' },
+    );
 
     if (success) {
-      // Mark as sent
+      const now = new Date();
+      const prevScheduled = reminder.scheduled_time
+        ? new Date(reminder.scheduled_time)
+        : new Date();
+
+      // Próximo disparo diário (mesmo horário no dia seguinte)
+      let nextScheduled = new Date(prevScheduled.getTime() + 24 * 60 * 60 * 1000);
+
+      // Garantir que a próxima execução esteja sempre no futuro
+      while (nextScheduled.getTime() <= now.getTime()) {
+        nextScheduled.setDate(nextScheduled.getDate() + 1);
+      }
+
+      const nextDelay = Math.max(0, nextScheduled.getTime() - now.getTime());
+
+      // Mantém o status como 'pending' para o próximo ciclo diário
       await supabase
         .from('reminders')
-        .update({ status: 'sent' })
+        .update({
+          status: 'pending',
+          scheduled_time: nextScheduled.toISOString(),
+          updated_at: new Date().toISOString(),
+        })
         .eq('id', reminderId);
-      this.logger.log(`Lembrete ${reminderId} enviado com sucesso!`);
+
+      // Reagenda na fila BullMQ com delay e jobId único
+      await this.remindersQueue.add(
+        'send-reminder',
+        { reminderId: reminder.id, userId: reminder.user_id },
+        { delay: nextDelay, jobId: `${reminder.id}_${nextScheduled.getTime()}` },
+      );
+
+      this.logger.log(
+        `Lembrete ${reminderId} enviado com sucesso! Próximo disparo diário agendado para ${nextScheduled.toISOString()} (em ${Math.round(nextDelay / 60000)} minutos).`,
+      );
     } else {
       this.logger.error(`Falha ao enviar lembrete ${reminderId} via Uazapi`);
       throw new Error(`Failed to send reminder via Uazapi`);

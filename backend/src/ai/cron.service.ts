@@ -283,4 +283,35 @@ export class CronService {
       }
     }
   }
+
+  /**
+   * Limpeza de lembretes cancelados (soft delete) há mais de 30 dias.
+   * Executa diariamente às 03:00 da madrugada (horário de Brasília).
+   */
+  @Cron('0 3 * * *', { timeZone: 'America/Sao_Paulo' })
+  async cleanupOldCancelledReminders() {
+    this.logger.log('Iniciando rotina de limpeza de lembretes cancelados há mais de 30 dias...');
+    try {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const supabase = this.supabaseService.getClient();
+      const { data, error } = await supabase
+        .from('reminders')
+        .delete()
+        .eq('status', 'cancelled')
+        .lt('updated_at', thirtyDaysAgo.toISOString())
+        .select('id');
+
+      if (error) {
+        this.logger.error(`Erro ao expurgar lembretes cancelados antigos: ${error.message}`);
+      } else {
+        this.logger.log(
+          `Limpeza de lembretes cancelados concluída. Registros removidos: ${data?.length || 0}`,
+        );
+      }
+    } catch (e) {
+      this.logger.error(`Exceção durante limpeza de lembretes cancelados: ${e.message}`);
+    }
+  }
 }
