@@ -5,7 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.1] - 2026-09-24
+
+### Changed
+
+- **Estruturação do Repositório Mobile Dedicado:**
+  - Configuração da pasta `/mobile/` na raiz do ecossistema MarIA como um sub-repositório Git independente para o aplicativo Flutter.
+  - Adição de `/mobile/` e `/MarIA-App/` ao `.gitignore` da raiz, garantindo isolamento total de versionamento, histórico de commits e pipelines de CI/CD para lojas de aplicativos móveis.
+
 ## [1.20.0] - 2026-09-19
+
 
 ### Added
 

@@ -45,3 +45,7 @@ admin/build/
 uazapi/node_modules/
 scripts/
 context/
+
+# Mobile App (Repositório Git Dedicado)
+/mobile/
+/MarIA-App/
