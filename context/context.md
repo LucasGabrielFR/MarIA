@@ -72,3 +72,28 @@ Este arquivo armazena o histórico contínuo de contexto, decisões de arquitetu
 ### ⏳ Pendências e Próximos Passos
 - Nenhuma pendência deixada para o escopo desta sessão. O admin e o backend foram reconstruídos e os testes estão liberados.
 ---
+
+## Sessão: 2026-09-19 20:14 (UTC-3)
+### 📌 Resumo da Sessão
+- Desenvolvimento do sistema de ferramentas integradas nos nós de fluxos automáticos (Node Tools) com drag and drop para ordenação.
+- Implementação completa do agendador de lembretes com recorrência diária contínua utilizando BullMQ/Redis e envio pelo WhatsApp (`uazapi`).
+- Adição de botão interativo de cancelamento (Soft Delete) na entrega diária do lembrete.
+- Criação de rotina CRON para expurgar lembretes inativos (`cancelled`) há mais de 30 dias.
+- Restrição do agendamento de lembretes diários para uso exclusivo de assinantes.
+
+### 🏗️ Decisões Técnicas e de Arquitetura
+- **Soft Delete e Expurgo:** Lembretes cancelados mudam seu status para `cancelled` em vez de exclusão física na hora, permitindo auditoria, sendo expurgados após 30 dias de inatividade.
+- **Re-agendamento Contínuo:** No `RemindersProcessor`, o re-agendamento usa o `delay` de 24h e um `jobId` determinístico (`{reminderId}_{timestamp}`) para impedir duplicações no Redis.
+- **Bloqueio Premium:** Verificação de plano (`isFree` e `user.subscription_tier === 'free'`) implementada nas triggers e intenções da máquina de estados do `ai.service.ts`, convertendo a funcionalidade em um diferencial do plano pago.
+
+### 🛠️ Alterações e Implementações
+- **Banco de Dados:** Adição da coluna `updated_at` com `DEFAULT now()` na tabela `reminders` para orientar a limpeza diária.
+- **Backend:** 
+  - `backend/src/reminders/reminders.processor.ts`: Integração com `uazapi` para envio do lembrete + botão interativo (`cancel_reminder_{id}`) e reagendamento BullMQ.
+  - `backend/src/ai/ai.service.ts`: O método `processMessage` agora é interceptado para processar ordens de cancelamento textuais ou via botão. Adicionada restrição de assinatura para solicitação de lembretes.
+  - `backend/src/ai/cron.service.ts`: Novo método `@Cron('0 3 * * *') cleanupOldCancelledReminders()`.
+- **Documentação:** `CHANGELOG.md` atualizado com o patch de versão `1.20.0`.
+
+### ⏳ Pendências e Próximos Passos
+- Permitir customização de "dias da semana" na configuração do lembrete caso os usuários demandem no futuro.
+---
