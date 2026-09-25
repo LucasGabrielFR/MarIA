@@ -5,7 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.2] - 2026-09-24
+
+### Added
+
+- **Tabela de Logs e Incidentes Persistentes (`system_logs`):**
+  - Criação da tabela `system_logs` no Supabase com índices por data, nível de severidade e fonte, imune à perda de registros por reinicialização de contêineres Docker.
+  - Implementação do módulo global `SystemLogsModule` e do serviço `SystemLogsService` no NestJS, capturando erros, avisos e eventos críticos de forma fail-safe.
+  - Adição de endpoint `GET /panel/logs/system` no backend com suporte a paginação e filtros por nível e origem.
+  - Nova aba **"Erros e Incidentes"** no painel administrativo web (`/logs`) com visualização em tempo real, badges de criticidade, contadores de erros e modal de inspeção profunda com stack trace e metadados JSON.
+
+### Fixed
+
+- **Motor de Auto-Cura e Reconciliação de Lembretes Diários:**
+  - Criação do serviço `RemindersService` com reconciliação automática na inicialização da aplicação (`OnApplicationBootstrap`) e Watchdog CRON a cada 5 minutos (`handleWatchdogCron`).
+  - Lembretes pendentes que perderam o agendamento em memória durante paradas ou reinicializações de contêineres são detectados e re-enfileirados no BullMQ automaticamente.
+  - Lembretes com horários passados são avançados para o próximo ciclo diário válido no fuso horário de Brasília sem quebrar a cadeia de recorrência.
+  - Ativação da persistência AOF (`--appendonly yes`) no serviço Redis do `docker-compose.yml` para proteger a integridade de filas de jobs atrasados (delayed jobs).
+  - Configuração de políticas de retry (3 tentativas com backoff exponencial) e retenção no BullMQ para tolerância a oscilações temporárias de conexão com a API Uazapi.
+
 ## [1.20.1] - 2026-09-24
+
 
 ### Changed
 

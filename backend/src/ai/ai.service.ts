@@ -13,6 +13,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { formatInTimeZone } from 'date-fns-tz';
 import { FlowInterpreterService } from './flow-interpreter.service';
+import { SystemLogsService } from '../system-logs/system-logs.service';
 
 const MAGISTERIUM_INSTRUCTION =
   '\n\nOBRIGATÓRIO: Ao final da sua resposta, você deve listar as referências exatas de onde a informação foi extraída. ' +
@@ -40,6 +41,7 @@ export class AiService implements OnModuleInit {
     private readonly moduleRef: ModuleRef,
     @InjectQueue('reminders-queue') private readonly remindersQueue: Queue,
     private readonly flowInterpreterService: FlowInterpreterService,
+    private readonly systemLogsService: SystemLogsService,
   ) {
     this.openRouterApiKey =
       this.configService.get<string>('OPENROUTER_API_KEY') || '';
@@ -1524,11 +1526,32 @@ export class AiService implements OnModuleInit {
              return 'Houve um erro ao salvar o lembrete. Tente novamente mais tarde.';
           }
 
-          // Adicionar à fila BullMQ
+          // Adicionar à fila BullMQ com retry e retenção configurada
+          const scheduledTimeMs = scheduledTargetDate.getTime();
+          const initialJobId = `${reminder.id}_${scheduledTimeMs}`;
+
           await this.remindersQueue.add(
              'send-reminder',
              { reminderId: reminder.id, userId },
-             { delay, jobId: reminder.id }
+             {
+               delay,
+               jobId: initialJobId,
+               attempts: 3,
+               backoff: { type: 'exponential', delay: 15000 },
+               removeOnComplete: 100,
+               removeOnFail: 200,
+             }
+          );
+
+          await this.systemLogsService.logInfo(
+            'AiService',
+            `Novo lembrete agendado: "${ctx.title}" para ${scheduledTargetDate.toISOString()} (delay: ${Math.round(delay / 60000)} min)`,
+            {
+              reminderId: reminder.id,
+              userId,
+              title: ctx.title,
+              scheduled_time: scheduledTargetDate.toISOString(),
+            },
           );
 
           await supabase.from('users').update({ reminder_state: 'idle', reminder_context: {} }).eq('id', userId);

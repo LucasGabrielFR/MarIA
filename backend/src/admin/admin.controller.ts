@@ -78,6 +78,25 @@ export class AdminController {
     );
   }
 
+  @Get('logs/system')
+  async getSystemLogs(
+    @Query('page') page: number,
+    @Query('limit') limit: number,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+    @Query('level') level: string,
+    @Query('source') source: string,
+  ) {
+    return this.adminService.getSystemLogs(
+      Number(page) || 1,
+      Number(limit) || 50,
+      startDate,
+      endDate,
+      level,
+      source,
+    );
+  }
+
   @Get('settings/public/:key')
   async getPublicSystemSetting(@Param('key') key: string) {
     return this.adminService.getPublicSystemSetting(key);

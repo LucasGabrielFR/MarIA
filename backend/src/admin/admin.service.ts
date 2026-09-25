@@ -484,6 +484,41 @@ export class AdminService {
     return { data, count, page, limit };
   }
 
+  async getSystemLogs(
+    page: number = 1,
+    limit: number = 50,
+    startDate?: string,
+    endDate?: string,
+    level?: string,
+    source?: string,
+  ) {
+    const supabase = this.supabaseService.getClient();
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    let query = supabase.from('system_logs').select('*', { count: 'exact' });
+
+    if (level && level !== 'all') {
+      query = query.eq('level', level);
+    }
+    if (source && source !== 'all') {
+      query = query.ilike('source', `%${source}%`);
+    }
+    if (startDate) {
+      query = query.gte('created_at', startDate);
+    }
+    if (endDate) {
+      query = query.lte('created_at', endDate);
+    }
+
+    const { data, error, count } = await query
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    if (error) throw error;
+    return { data, count, page, limit };
+  }
+
   async getSystemSettings() {
     const supabase = this.supabaseService.getClient();
     const { data, error } = await supabase

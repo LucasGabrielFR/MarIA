@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts'
-import { Database, Activity, DollarSign, Terminal, Calendar } from 'lucide-react'
+import { Database, Activity, DollarSign, Terminal, Calendar, AlertTriangle, ShieldAlert } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { toast } from 'sonner'
 import {
@@ -23,6 +23,7 @@ export default function LogsPage() {
   const [dailyStats, setDailyStats] = useState<any[]>([]);
   const [usageLogs, setUsageLogs] = useState<any[]>([]);
   const [webhookLogs, setWebhookLogs] = useState<any[]>([]);
+  const [systemLogs, setSystemLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Estados para Filtro de Período
@@ -39,6 +40,11 @@ export default function LogsPage() {
   // Estados para a modal de visualização de JSON de Webhook
   const [selectedJson, setSelectedJson] = useState<any>(null);
   const [isJsonOpen, setIsJsonOpen] = useState(false);
+
+  // Estados para incidentes
+  const [selectedIncident, setSelectedIncident] = useState<any>(null);
+  const [isIncidentOpen, setIsIncidentOpen] = useState(false);
+  const [incidentFilter, setIncidentFilter] = useState<'all' | 'error' | 'warn' | 'critical' | 'info'>('all');
 
   const computeDateRange = (type: string) => {
     const today = new Date();
@@ -88,6 +94,7 @@ export default function LogsPage() {
       let statsUrl = `${API_URL}/panel/stats/daily`;
       let usageUrl = `${API_URL}/panel/logs/usage?limit=50`;
       let webhookUrl = `${API_URL}/panel/logs/webhooks?limit=50`;
+      let systemUrl = `${API_URL}/panel/logs/system?limit=100`;
 
       const params = [];
       if (startDate) params.push(`startDate=${encodeURIComponent(startDate)}`);
@@ -98,21 +105,25 @@ export default function LogsPage() {
         statsUrl += `?${queryStr}`;
         usageUrl += `&${queryStr}`;
         webhookUrl += `&${queryStr}`;
+        systemUrl += `&${queryStr}`;
       }
 
-      const [statsRes, usageRes, webhookRes] = await Promise.all([
+      const [statsRes, usageRes, webhookRes, systemRes] = await Promise.all([
         fetch(statsUrl),
         fetch(usageUrl),
-        fetch(webhookUrl)
+        fetch(webhookUrl),
+        fetch(systemUrl),
       ]);
 
       const statsData = await statsRes.json();
       const usageData = await usageRes.json();
       const webhookData = await webhookRes.json();
+      const systemData = await systemRes.json();
 
       setDailyStats(statsData);
       setUsageLogs(usageData.data || []);
       setWebhookLogs(webhookData.data || []);
+      setSystemLogs(systemData.data || []);
     } catch (error) {
       console.error('Erro ao buscar logs:', error);
       toast.error('Erro ao carregar dados de telemetria');
@@ -200,6 +211,15 @@ export default function LogsPage() {
           <TabsTrigger value="webhooks" className="rounded-lg py-2 px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold text-slate-500">
             <Terminal size={16} className="mr-2" />
             Webhooks
+          </TabsTrigger>
+          <TabsTrigger value="incidents" className="rounded-lg py-2 px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm font-bold text-slate-500">
+            <AlertTriangle size={16} className="mr-2 text-rose-500" />
+            Erros e Incidentes
+            {systemLogs.filter(l => l.level === 'error' || l.level === 'critical').length > 0 && (
+              <span className="ml-2 px-2 py-0.5 text-[10px] bg-rose-500 text-white rounded-full font-bold">
+                {systemLogs.filter(l => l.level === 'error' || l.level === 'critical').length}
+              </span>
+            )}
           </TabsTrigger>
         </TabsList>
 
@@ -438,6 +458,133 @@ export default function LogsPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="incidents" className="space-y-6 outline-none">
+          <Card className="rounded-3xl border-none shadow-sm overflow-hidden bg-white">
+            <CardHeader className="bg-white border-b border-slate-50 pb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-rose-50 text-rose-600 rounded-xl">
+                    <ShieldAlert size={20} />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg font-bold text-slate-800">Histórico de Erros & Incidentes</CardTitle>
+                    <CardDescription className="text-slate-400 font-medium">
+                      Logs persistidos no Supabase mesmo após reinicialização de contêineres Docker
+                    </CardDescription>
+                  </div>
+                </div>
+
+                {/* Filtro de Nível */}
+                <div className="flex items-center gap-1.5 bg-slate-50 p-1.5 rounded-xl border border-slate-100">
+                  {(['all', 'critical', 'error', 'warn', 'info'] as const).map((lvl) => (
+                    <button
+                      key={lvl}
+                      onClick={() => setIncidentFilter(lvl)}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                        incidentFilter === lvl
+                          ? 'bg-white text-slate-800 shadow-sm'
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      {lvl === 'all' && 'Todos'}
+                      {lvl === 'critical' && 'Críticos'}
+                      {lvl === 'error' && 'Erros'}
+                      {lvl === 'warn' && 'Avisos'}
+                      {lvl === 'info' && 'Info'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-slate-50 hover:bg-transparent">
+                    <TableHead className="font-extrabold text-slate-400 text-xs pl-8">DATA / HORA</TableHead>
+                    <TableHead className="font-extrabold text-slate-400 text-xs">NÍVEL</TableHead>
+                    <TableHead className="font-extrabold text-slate-400 text-xs">ORIGEM</TableHead>
+                    <TableHead className="font-extrabold text-slate-400 text-xs">MENSAGEM</TableHead>
+                    <TableHead className="font-extrabold text-slate-400 text-xs text-right pr-8">AÇÕES</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-16 text-slate-400 font-medium">
+                        Carregando registros de incidentes...
+                      </TableCell>
+                    </TableRow>
+                  ) : systemLogs.filter((l) => incidentFilter === 'all' || l.level === incidentFilter).length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-16 text-slate-400 font-medium">
+                        Nenhum incidente registrado no período selecionado. Tudo funcionando perfeitamente! ✨
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    systemLogs
+                      .filter((l) => incidentFilter === 'all' || l.level === incidentFilter)
+                      .map((log) => {
+                        const dateFormatted = new Date(log.created_at).toLocaleString('pt-BR', {
+                          timeZone: 'America/Sao_Paulo',
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          second: '2-digit',
+                        });
+
+                        const levelConfig = {
+                          critical: { bg: 'bg-purple-100 text-purple-800 border-purple-200', label: 'CRÍTICO' },
+                          error: { bg: 'bg-rose-100 text-rose-800 border-rose-200', label: 'ERRO' },
+                          warn: { bg: 'bg-amber-100 text-amber-800 border-amber-200', label: 'AVISO' },
+                          info: { bg: 'bg-blue-100 text-blue-800 border-blue-200', label: 'INFO' },
+                        }[log.level as 'critical' | 'error' | 'warn' | 'info'] || {
+                          bg: 'bg-slate-100 text-slate-800 border-slate-200',
+                          label: log.level?.toUpperCase(),
+                        };
+
+                        return (
+                          <TableRow key={log.id} className="border-slate-50 hover:bg-slate-50/50 transition-colors">
+                            <TableCell className="pl-8 text-xs font-semibold text-slate-500 whitespace-nowrap">
+                              {dateFormatted}
+                            </TableCell>
+                            <TableCell>
+                              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${levelConfig.bg}`}>
+                                {levelConfig.label}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md text-[11px] font-mono font-semibold">
+                                {log.source}
+                              </span>
+                            </TableCell>
+                            <TableCell className="max-w-md truncate text-xs font-medium text-slate-700">
+                              {log.message}
+                            </TableCell>
+                            <TableCell className="text-right pr-8">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-primary font-bold hover:bg-blue-50 rounded-lg transition-all"
+                                onClick={() => {
+                                  setSelectedIncident(log);
+                                  setIsIncidentOpen(true);
+                                }}
+                              >
+                                Ver Detalhes
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       {isFilterDialogOpen && (
@@ -525,6 +672,68 @@ export default function LogsPage() {
             <DialogFooter>
               <Button
                 onClick={() => setIsJsonOpen(false)}
+                className="w-full sm:w-auto h-11 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 border-none font-bold transition-all"
+              >
+                Fechar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {isIncidentOpen && selectedIncident && (
+        <Dialog open={isIncidentOpen} onOpenChange={setIsIncidentOpen}>
+          <DialogContent className="sm:max-w-[700px] rounded-3xl border border-slate-100 shadow-2xl p-6 bg-white max-h-[90vh] overflow-y-auto">
+            <DialogHeader className="space-y-3">
+              <div className="flex items-center gap-2">
+                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${
+                  selectedIncident.level === 'critical'
+                    ? 'bg-purple-100 text-purple-800 border-purple-200'
+                    : selectedIncident.level === 'error'
+                    ? 'bg-rose-100 text-rose-800 border-rose-200'
+                    : selectedIncident.level === 'warn'
+                    ? 'bg-amber-100 text-amber-800 border-amber-200'
+                    : 'bg-blue-100 text-blue-800 border-blue-200'
+                }`}>
+                  {selectedIncident.level?.toUpperCase()}
+                </span>
+                <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md text-[11px] font-mono font-semibold">
+                  {selectedIncident.source}
+                </span>
+                <span className="text-xs text-slate-400 font-medium">
+                  {new Date(selectedIncident.created_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
+                </span>
+              </div>
+              <DialogTitle className="text-lg font-bold text-slate-800 leading-snug">
+                {selectedIncident.message}
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4 my-2">
+              {/* Stack Trace se houver */}
+              {selectedIncident.stack_trace && (
+                <div>
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Stack Trace</h4>
+                  <div className="bg-slate-950 text-rose-400 p-4 rounded-2xl max-h-[250px] overflow-y-auto font-mono text-xs leading-relaxed border border-slate-900 shadow-inner">
+                    <pre className="whitespace-pre-wrap">{selectedIncident.stack_trace}</pre>
+                  </div>
+                </div>
+              )}
+
+              {/* Metadados JSON */}
+              {selectedIncident.metadata && Object.keys(selectedIncident.metadata).length > 0 && (
+                <div>
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Metadados & Contexto</h4>
+                  <div className="bg-slate-950 text-slate-200 p-4 rounded-2xl max-h-[250px] overflow-y-auto font-mono text-xs leading-relaxed border border-slate-900 shadow-inner">
+                    <pre className="whitespace-pre-wrap">{JSON.stringify(selectedIncident.metadata, null, 2)}</pre>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button
+                onClick={() => setIsIncidentOpen(false)}
                 className="w-full sm:w-auto h-11 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 border-none font-bold transition-all"
               >
                 Fechar

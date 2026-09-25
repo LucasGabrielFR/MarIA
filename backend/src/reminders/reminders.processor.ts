@@ -3,6 +3,7 @@ import { Job, Queue } from 'bullmq';
 import { Logger } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { UazapiService } from '../uazapi/uazapi.service';
+import { SystemLogsService } from '../system-logs/system-logs.service';
 import { formatInTimeZone } from 'date-fns-tz';
 
 @Processor('reminders-queue')
@@ -12,6 +13,7 @@ export class RemindersProcessor extends WorkerHost {
   constructor(
     private readonly supabaseService: SupabaseService,
     private readonly uazapiService: UazapiService,
+    private readonly systemLogsService: SystemLogsService,
     @InjectQueue('reminders-queue') private readonly remindersQueue: Queue,
   ) {
     super();
@@ -19,19 +21,24 @@ export class RemindersProcessor extends WorkerHost {
 
   async process(job: Job<any, any, string>): Promise<any> {
     const { reminderId } = job.data;
-    this.logger.log(`Processando job do lembrete ${reminderId}`);
+    this.logger.log(`Processando job do lembrete ${reminderId} (Job ID: ${job.id})`);
 
     const supabase = this.supabaseService.getClient();
 
     // Fetch the reminder and user
     const { data: reminder, error } = await supabase
       .from('reminders')
-      .select('*, users (wa_chatid), prayers (title, content, dynamic_ref)')
+      .select('*, users (wa_chatid, name), prayers (title, content, dynamic_ref)')
       .eq('id', reminderId)
       .single();
 
     if (error || !reminder) {
-      this.logger.error(`Lembrete não encontrado: ${error?.message}`);
+      const errMsg = `Lembrete ${reminderId} não encontrado no Supabase: ${error?.message}`;
+      this.logger.error(errMsg);
+      await this.systemLogsService.logError('RemindersProcessor', errMsg, error, {
+        reminderId,
+        jobId: job.id,
+      });
       return;
     }
 
@@ -42,23 +49,35 @@ export class RemindersProcessor extends WorkerHost {
 
     const waChatId = reminder.users?.wa_chatid;
     if (!waChatId) {
-      this.logger.error(`User wa_chatid not found for reminder ${reminderId}`);
+      const errMsg = `Usuário do lembrete ${reminderId} não possui wa_chatid válido.`;
+      this.logger.error(errMsg);
+      await this.systemLogsService.logError('RemindersProcessor', errMsg, null, {
+        reminderId,
+        userId: reminder.user_id,
+      });
       return;
     }
 
     let messageText = `⏰ *Lembrete*: ${reminder.title}`;
 
     if (reminder.is_prayer && reminder.prayers) {
-      if (reminder.prayers.dynamic_ref === 'santo_do_dia' || reminder.prayers.dynamic_ref === 'terco_diario') {
+      if (
+        reminder.prayers.dynamic_ref === 'santo_do_dia' ||
+        reminder.prayers.dynamic_ref === 'terco_diario'
+      ) {
         const typeMap: Record<string, string> = {
-          'santo_do_dia': 'saint',
-          'terco_diario': 'rosary',
+          santo_do_dia: 'saint',
+          terco_diario: 'rosary',
         };
         const cacheType = typeMap[reminder.prayers.dynamic_ref];
-        
+
         // Pega data atual de Brasília para o cache
-        const todayStr = formatInTimeZone(new Date(), 'America/Sao_Paulo', 'yyyy-MM-dd');
-        
+        const todayStr = formatInTimeZone(
+          new Date(),
+          'America/Sao_Paulo',
+          'yyyy-MM-dd',
+        );
+
         const { data: cacheData } = await supabase
           .from('daily_cache')
           .select('content')
@@ -82,12 +101,25 @@ export class RemindersProcessor extends WorkerHost {
     ];
 
     // Enviar mensagem interativa via WhatsApp
-    const success = await this.uazapiService.sendInteractiveMessage(
-      waChatId,
-      messageText,
-      buttons,
-      { type: 'button' },
-    );
+    let success = false;
+    try {
+      success = await this.uazapiService.sendInteractiveMessage(
+        waChatId,
+        messageText,
+        buttons,
+        { type: 'button' },
+      );
+    } catch (uazapiError: any) {
+      const sendErr = `Exceção ao disparar lembrete ${reminderId} via Uazapi: ${uazapiError?.message}`;
+      this.logger.error(sendErr);
+      await this.systemLogsService.logError(
+        'RemindersProcessor',
+        sendErr,
+        uazapiError,
+        { reminderId, waChatId, title: reminder.title },
+      );
+      throw uazapiError;
+    }
 
     if (success) {
       const now = new Date();
@@ -119,15 +151,35 @@ export class RemindersProcessor extends WorkerHost {
       await this.remindersQueue.add(
         'send-reminder',
         { reminderId: reminder.id, userId: reminder.user_id },
-        { delay: nextDelay, jobId: `${reminder.id}_${nextScheduled.getTime()}` },
+        {
+          delay: nextDelay,
+          jobId: `${reminder.id}_${nextScheduled.getTime()}`,
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 15000 },
+          removeOnComplete: 100,
+          removeOnFail: 200,
+        },
       );
 
-      this.logger.log(
-        `Lembrete ${reminderId} enviado com sucesso! Próximo disparo diário agendado para ${nextScheduled.toISOString()} (em ${Math.round(nextDelay / 60000)} minutos).`,
-      );
+      const successLog = `Lembrete "${reminder.title}" (${reminderId}) enviado com sucesso para ${waChatId}! Próximo agendado para ${nextScheduled.toISOString()} (em ${Math.round(nextDelay / 60000)} min).`;
+      this.logger.log(successLog);
+
+      await this.systemLogsService.logInfo('RemindersProcessor', successLog, {
+        reminderId,
+        userId: reminder.user_id,
+        waChatId,
+        nextScheduled: nextScheduled.toISOString(),
+      });
     } else {
-      this.logger.error(`Falha ao enviar lembrete ${reminderId} via Uazapi`);
+      const failMsg = `Falha na entrega do lembrete "${reminder.title}" (${reminderId}) via Uazapi (retorno não-sucesso).`;
+      this.logger.error(failMsg);
+      await this.systemLogsService.logError('RemindersProcessor', failMsg, null, {
+        reminderId,
+        waChatId,
+        title: reminder.title,
+      });
       throw new Error(`Failed to send reminder via Uazapi`);
     }
   }
 }
+

@@ -17,6 +17,7 @@ import { AffiliatesModule } from './affiliates/affiliates.module';
 
 import { BullModule } from '@nestjs/bullmq';
 import { RemindersModule } from './reminders/reminders.module';
+import { SystemLogsModule } from './system-logs/system-logs.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { RemindersModule } from './reminders/reminders.module';
         limit: 10,
       },
     ]),
+    SystemLogsModule,
     SupabaseModule,
     AuthModule,
     AdminModule,
