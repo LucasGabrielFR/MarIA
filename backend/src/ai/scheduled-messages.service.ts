@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { SupabaseService } from '../supabase/supabase.service';
 import { AdminService } from '../admin/admin.service';
+import { SystemLogsService } from '../system-logs/system-logs.service';
 
 @Injectable()
 export class ScheduledMessagesService {
@@ -10,6 +11,7 @@ export class ScheduledMessagesService {
   constructor(
     private readonly supabaseService: SupabaseService,
     private readonly adminService: AdminService,
+    private readonly systemLogsService: SystemLogsService,
   ) {}
 
 
@@ -141,5 +143,10 @@ export class ScheduledMessagesService {
     }
 
     this.logger.log(`Broadcast ${jobName} criado com ${eligibleUsers.length} destinatários.`);
+    await this.systemLogsService.logInfo(
+      'ScheduledMessages',
+      `Campanha agendada enfileirada: "${campaign.name}" (${eligibleUsers.length} destinatários)`,
+      { campaignId: campaign.id, name: campaign.name, recipientsCount: eligibleUsers.length },
+    );
   }
 }

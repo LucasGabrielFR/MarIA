@@ -7,6 +7,7 @@ import { SaintService } from './saint.service';
 import { MagisteriumService } from './magisterium.service';
 import { PromptService } from './prompt.service';
 import { SupabaseService } from '../supabase/supabase.service';
+import { SystemLogsService } from '../system-logs/system-logs.service';
 
 @Injectable()
 export class CronService {
@@ -20,12 +21,26 @@ export class CronService {
     private readonly magisteriumService: MagisteriumService,
     private readonly promptService: PromptService,
     private readonly supabaseService: SupabaseService,
+    private readonly systemLogsService: SystemLogsService,
   ) {}
 
   @Cron('5 0 * * *', { timeZone: 'America/Sao_Paulo' }) // Todo dia 00:05
   async syncExchangeRate() {
     this.logger.log('Sincronizando taxa de câmbio (USD/BRL)...');
-    await this.adminService.syncExchangeRate();
+    try {
+      const result = await this.adminService.syncExchangeRate();
+      await this.systemLogsService.logInfo(
+        'CronService',
+        'Rotina diária: Sincronização de taxa de câmbio (USD/BRL) concluída.',
+        { result },
+      );
+    } catch (err: any) {
+      await this.systemLogsService.logError(
+        'CronService',
+        `Falha na sincronização diária de taxa de câmbio: ${err?.message}`,
+        err,
+      );
+    }
   }
 
   @Cron('1 0 * * 0', { timeZone: 'America/Sao_Paulo' }) // Todo domingo 00:01
@@ -304,14 +319,20 @@ export class CronService {
         .select('id');
 
       if (error) {
-        this.logger.error(`Erro ao expurgar lembretes cancelados antigos: ${error.message}`);
+        const errMsg = `Erro ao expurgar lembretes cancelados antigos: ${error.message}`;
+        this.logger.error(errMsg);
+        await this.systemLogsService.logError('CronService', errMsg, error);
       } else {
-        this.logger.log(
-          `Limpeza de lembretes cancelados concluída. Registros removidos: ${data?.length || 0}`,
-        );
+        const infoMsg = `Limpeza de lembretes cancelados concluída. Registros removidos: ${data?.length || 0}`;
+        this.logger.log(infoMsg);
+        await this.systemLogsService.logInfo('CronService', infoMsg, {
+          removedCount: data?.length || 0,
+        });
       }
-    } catch (e) {
-      this.logger.error(`Exceção durante limpeza de lembretes cancelados: ${e.message}`);
+    } catch (e: any) {
+      const errMsg = `Exceção durante limpeza de lembretes cancelados: ${e.message}`;
+      this.logger.error(errMsg);
+      await this.systemLogsService.logError('CronService', errMsg, e);
     }
   }
 }

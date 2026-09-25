@@ -2972,6 +2972,12 @@ DIRETRIZES:
       })
       .eq('id', targetReminder.id);
 
+    await this.systemLogsService.logInfo(
+      'Reminders',
+      `Lembrete "${targetReminder.title}" (${targetReminder.id}) cancelado pelo usuário ${userId}`,
+      { reminderId: targetReminder.id, userId, title: targetReminder.title },
+    );
+
     // Remove eventuais jobs da fila BullMQ
     try {
       const delayedJobs = await this.remindersQueue.getDelayed();

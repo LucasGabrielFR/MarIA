@@ -5,7 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.3] - 2026-09-24
+
+### Added
+
+- **Instrumentação e Cobertura Contínua de Logs em Segundo Plano:**
+  - **Mensagens Enviadas (Sucesso/Falha):** Registro persistente no `UazapiService` para todos os disparos de texto e mensagens interativas (botões e listas), capturando status HTTP, latência, previews e causas de erro.
+  - **Ações de Negócio Relevantes:** Registro de ativações de assinaturas via código (`ActivationCode`), cancelamentos e reagendamentos de lembretes devocionais.
+  - **Rotinas de Servidor em Segundo Plano (CRONs):** Instrumentação de `CronService` (sincronização de câmbio USD/BRL, limpeza de registros e expurgo) e `ScheduledMessagesService` (disparos de campanhas agendadas em lote).
+  - **Webhooks de Entrada e Saída:** Monitoramento ponta a ponta em `UazapiController` (mensagens recebidas e processamento de IA) e `AsaasService` (confirmação de pagamentos, cobranças e cancelamentos no gateway).
+
 ## [1.20.2] - 2026-09-24
+
 
 ### Added
 

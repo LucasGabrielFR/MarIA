@@ -4,9 +4,9 @@ import { SupabaseService } from '../supabase/supabase.service';
 import { UazapiService } from '../uazapi/uazapi.service';
 
 import { MailService } from '../mail/mail.service';
-
 import { PlansService } from '../plans/plans.service';
 import { AffiliatesService } from '../affiliates/affiliates.service';
+import { SystemLogsService } from '../system-logs/system-logs.service';
 
 /** Imagem 1x1 PNG transparente (exigida pelo Checkout Asaas nos itens). */
 const CHECKOUT_PLACEHOLDER_IMAGE_BASE64 =
@@ -55,6 +55,7 @@ export class AsaasService {
     private readonly mail: MailService,
     private readonly plansService: PlansService,
     private readonly affiliatesService: AffiliatesService,
+    private readonly systemLogsService: SystemLogsService,
   ) {}
 
   private async getPlanConfig(planId: PlanId, cycle: BillingCycle) {
@@ -607,6 +608,11 @@ export class AsaasService {
 
   async handleWebhook(event: any) {
     this.logger.log(`Received Asaas Webhook: ${event.event}`);
+    await this.systemLogsService.logInfo(
+      'AsaasWebhook',
+      `Webhook recebido do Asaas: ${event.event}`,
+      { event: event.event, paymentId: event.payment?.id, value: event.payment?.value, customerId: event.payment?.customer },
+    );
 
     if (
       event.event === 'PAYMENT_CONFIRMED' ||
@@ -1023,6 +1029,11 @@ export class AsaasService {
         .eq('asaas_subscription_id', subscriptionId);
 
       this.logger.log(`Canceled subscription ${subscriptionId} in database (access kept until expiration)`);
+      await this.systemLogsService.logWarn(
+        'AsaasWebhook',
+        `Assinatura ${subscriptionId} cancelada no Asaas (acesso mantido até vencimento do ciclo).`,
+        { subscriptionId, event: event.event },
+      );
     }
 
     return { received: true };

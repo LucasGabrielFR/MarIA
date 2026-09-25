@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { SystemLogsService } from '../system-logs/system-logs.service';
 
 export interface InteractiveOptions {
   type?: 'button' | 'list' | 'auto';
@@ -14,7 +15,10 @@ export class UazapiService {
   private readonly apiUrl: string;
   private readonly token: string;
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    private readonly systemLogsService: SystemLogsService,
+  ) {
     this.apiUrl = this.configService.get<string>('UAZAPI_INSTANCE_URL') || '';
     this.token = this.configService.get<string>('UAZAPI_INSTANCE_TOKEN') || '';
   }
@@ -36,16 +40,31 @@ export class UazapiService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        this.logger.error(
-          `Failed to send message via UAZAPI: ${response.status} - ${errorText}`,
-        );
+        const errMsg = `Falha ao enviar mensagem via UAZAPI: ${response.status} - ${errorText}`;
+        this.logger.error(errMsg);
+        await this.systemLogsService.logError('UazapiService', errMsg, null, {
+          chatId,
+          status: response.status,
+          errorText,
+          preview: text.substring(0, 100),
+        });
         return false;
       }
 
       this.logger.log(`Message sent successfully to ${chatId}`);
+      await this.systemLogsService.logInfo(
+        'UazapiService',
+        `Mensagem de texto enviada com sucesso para ${chatId}`,
+        { chatId, preview: text.substring(0, 100) },
+      );
       return true;
-    } catch (error) {
-      this.logger.error(`Error sending message via UAZAPI: ${error.message}`);
+    } catch (error: any) {
+      const errMsg = `Exceção ao enviar mensagem via UAZAPI para ${chatId}: ${error.message}`;
+      this.logger.error(errMsg);
+      await this.systemLogsService.logError('UazapiService', errMsg, error, {
+        chatId,
+        preview: text.substring(0, 100),
+      });
       return false;
     }
   }
@@ -176,17 +195,29 @@ export class UazapiService {
 
         if (response.ok) {
           this.logger.log(`List menu sent successfully to ${chatId}`);
+          await this.systemLogsService.logInfo(
+            'UazapiService',
+            `Menu de lista interativo enviado com sucesso para ${chatId}`,
+            { chatId, type: 'list', itemsCount: visibleButtons.length, preview: text.substring(0, 100) },
+          );
           return true;
         }
 
         const errorText = await response.text();
-        this.logger.warn(
-          `UAZAPI /send/menu (list) failed (${response.status}: ${errorText}). Falling back to text.`,
-        );
-      } catch (error) {
-        this.logger.warn(
-          `Error sending list menu: ${error.message}. Falling back to text.`,
-        );
+        const warnMsg = `UAZAPI /send/menu (list) falhou (${response.status}: ${errorText}). Acionando fallback em texto.`;
+        this.logger.warn(warnMsg);
+        await this.systemLogsService.logWarn('UazapiService', warnMsg, {
+          chatId,
+          status: response.status,
+          errorText,
+        });
+      } catch (error: any) {
+        const warnMsg = `Erro ao enviar menu de lista para ${chatId}: ${error.message}. Acionando fallback em texto.`;
+        this.logger.warn(warnMsg);
+        await this.systemLogsService.logWarn('UazapiService', warnMsg, {
+          chatId,
+          error: error.message,
+        });
       }
 
       // Fallback para texto caso o menu de lista falhe na API
@@ -235,17 +266,29 @@ export class UazapiService {
 
       if (response.ok) {
         this.logger.log(`Menu buttons sent successfully to ${chatId}`);
+        await this.systemLogsService.logInfo(
+          'UazapiService',
+          `Botões interativos enviados com sucesso para ${chatId}`,
+          { chatId, type: 'button', buttonsCount: choices.length, preview: text.substring(0, 100) },
+        );
         return true;
       }
 
       const errorText = await response.text();
-      this.logger.warn(
-        `UAZAPI /send/menu failed (${response.status}: ${errorText}). Falling back to text message.`,
-      );
-    } catch (error) {
-      this.logger.warn(
-        `Error sending menu buttons: ${error.message}. Falling back to text message.`,
-      );
+      const warnMsg = `UAZAPI /send/menu falhou (${response.status}: ${errorText}). Acionando fallback em texto.`;
+      this.logger.warn(warnMsg);
+      await this.systemLogsService.logWarn('UazapiService', warnMsg, {
+        chatId,
+        status: response.status,
+        errorText,
+      });
+    } catch (error: any) {
+      const warnMsg = `Erro ao enviar botões interativos para ${chatId}: ${error.message}. Acionando fallback em texto.`;
+      this.logger.warn(warnMsg);
+      await this.systemLogsService.logWarn('UazapiService', warnMsg, {
+        chatId,
+        error: error.message,
+      });
     }
 
     const numbered = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣'];

@@ -3,6 +3,7 @@ import { AiService } from '../ai/ai.service';
 import { UazapiService } from './uazapi.service';
 import { PromptService } from '../ai/prompt.service';
 import { SupabaseService } from '../supabase/supabase.service';
+import { SystemLogsService } from '../system-logs/system-logs.service';
 
 @Controller('webhook/uazapi')
 export class UazapiController {
@@ -25,6 +26,7 @@ export class UazapiController {
     private readonly uazapiService: UazapiService,
     private readonly supabaseService: SupabaseService,
     private readonly promptService: PromptService,
+    private readonly systemLogsService: SystemLogsService,
   ) {}
 
   @Post()
@@ -434,6 +436,12 @@ export class UazapiController {
         this.logger.log(
           `Usuário ${userId} ativado com sucesso usando código ${code}`,
         );
+
+        await this.systemLogsService.logInfo(
+          'ActivationCode',
+          `Código de ativação ${code} resgatado com sucesso para ${phoneNumber} (Plano: ${planTier}, Ciclo: ${billingCycle})`,
+          { code, userId, planTier, billingCycle, chatId },
+        );
         return;
       }
 
@@ -502,9 +510,19 @@ export class UazapiController {
       }
 
       this.logger.log(`Response sent to ${chatId}`);
-    } catch (error) {
-      this.logger.error(
-        `Error processing message for ${chatId}: ${error.message}`,
+      await this.systemLogsService.logInfo(
+        'UazapiWebhook',
+        `Mensagem processada e respondida com sucesso para ${chatId} (${pushName})`,
+        { chatId, pushName, messagePreview: cleanMessage.substring(0, 100) },
+      );
+    } catch (error: any) {
+      const errMsg = `Erro ao processar mensagem recebida de ${chatId}: ${error?.message}`;
+      this.logger.error(errMsg);
+      await this.systemLogsService.logError(
+        'UazapiWebhook',
+        errMsg,
+        error,
+        { chatId, pushName, messagePreview: messageContent.substring(0, 100) },
       );
     }
   }
