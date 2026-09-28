@@ -97,3 +97,34 @@ Este arquivo armazena o histórico contínuo de contexto, decisões de arquitetu
 ### ⏳ Pendências e Próximos Passos
 - Permitir customização de "dias da semana" na configuração do lembrete caso os usuários demandem no futuro.
 ---
+
+## Sessão: 2026-09-27 01:39 (UTC-3)
+### 📌 Resumo da Sessão
+- Identificação de problema de retenção/bloqueio de fiéis em fluxos interativos (ex: criação de lembretes, exame de consciência, contratação de plano) que eram abandonados pela metade.
+- Implementação de um mecanismo de **expiração automática e silenciosa por inatividade** (sem spam de notificações no WhatsApp), liberando o usuário para interagir normalmente quando retornar ao chat.
+- Parametrização dinâmica do tempo limite de inatividade através da tabela `system_settings` e tela de Configurações no painel web.
+
+### 🏗️ Decisões Técnicas e de Arquitetura
+- **Camada Dupla de Segurança (Sob Demanda + CRON):**
+  - **Sob Demanda (`ai.service.ts`):** Verificação imediata no recebimento da mensagem. Se o usuário estiver com fluxo pendente e o tempo decorrido exceder o limite (padrão 15 min), o estado é resetado para `idle`/`active` antes de processar a mensagem, respondendo diretamente à nova intenção do usuário sem erros ou bloqueios.
+  - **Rotina em Segundo Plano (`cron.service.ts`):** O job `@Cron('*/2 * * * *') cleanupInactiveFlows()` varre o banco a cada 2 minutos resetando estados abandonados e gerando registros de auditoria em `system_logs`.
+- **Cancelamento Silencioso (Zero Spam):** A expiração não dispara mensagens automáticas no WhatsApp para evitar incomodar o usuário horas ou dias depois que ele esqueceu da interação.
+- **Rastreamento com Fallback:** Adição da coluna `flow_updated_at` na tabela `users`, atualizada a cada passo do fluxo e limpa para `null` ao concluir/cancelar. Para usuários legados ou conversas antigas, é utilizada a data da última mensagem enviada no chat como fallback de inatividade.
+- **Configuração no Painel:** Chave `flow_inactivity_timeout_minutes` adicionada a `system_settings` e campo editável adicionado no frontend (`settings.tsx`).
+
+### 🛠️ Alterações e Implementações
+- **Banco de Dados (Migration):**
+  - [`docs/migrations/20260926_flow_inactivity_timeout.sql`](file:///d:/Programming/AcutisTech/MarIA/docs/migrations/20260926_flow_inactivity_timeout.sql): Criação da coluna `flow_updated_at` na tabela `users`, índice condicional `idx_users_flow_inactivity` e inserção padrão do timeout em `system_settings`.
+- **Backend:**
+  - [`backend/src/ai/ai.service.ts`](file:///d:/Programming/AcutisTech/MarIA/backend/src/ai/ai.service.ts): Métodos `getFlowTimeoutMinutes` e `checkIfFlowExpired`, verificação no início do `processMessage`, e rastreamento de `flow_updated_at` nos fluxos de lembretes, exame de consciência e assinatura.
+  - [`backend/src/ai/cron.service.ts`](file:///d:/Programming/AcutisTech/MarIA/backend/src/ai/cron.service.ts): Novo método `cleanupInactiveFlows()` rodando a cada 2 minutos com log em `system_logs`.
+- **Frontend:**
+  - [`frontend/src/pages/settings.tsx`](file:///d:/Programming/AcutisTech/MarIA/frontend/src/pages/settings.tsx): Novo card "Fluxos & Sessões Interativas" permitindo alterar o tempo limite em minutos.
+- **Documentação & Versionamento:**
+  - [`CHANGELOG.md`](file:///d:/Programming/AcutisTech/MarIA/CHANGELOG.md) atualizado para versão `1.21.0`.
+  - [`README.md`](file:///d:/Programming/AcutisTech/MarIA/README.md) atualizado com a nova capacidade de auto-reset por inatividade.
+
+### ⏳ Pendências e Próximos Passos
+- Executar a migration `docs/migrations/20260926_flow_inactivity_timeout.sql` no banco Supabase.
+- Executar `docker compose up --build -d` assim que o Docker Desktop for iniciado no host.
+---

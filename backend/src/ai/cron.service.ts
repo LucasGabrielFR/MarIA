@@ -335,4 +335,105 @@ export class CronService {
       await this.systemLogsService.logError('CronService', errMsg, e);
     }
   }
+
+  /**
+   * Limpeza de fluxos interativos inativos (lembretes, exame de consciência, fluxos dinâmicos).
+   * Executa a cada 2 minutos para liberar silenciosamente usuários que abandonaram o fluxo.
+   */
+  @Cron('*/2 * * * *', { timeZone: 'America/Sao_Paulo' })
+  async cleanupInactiveFlows() {
+    try {
+      const supabase = this.supabaseService.getClient();
+
+      let timeoutMinutes = 15;
+      const { data: setting } = await supabase
+        .from('system_settings')
+        .select('value')
+        .eq('key', 'flow_inactivity_timeout_minutes')
+        .maybeSingle();
+
+      if (setting?.value) {
+        const parsed = parseInt(setting.value, 10);
+        if (!isNaN(parsed) && parsed > 0) {
+          timeoutMinutes = parsed;
+        }
+      }
+
+      // Busca usuários em fluxos interativos ativos
+      const { data: activeFlowUsers, error: queryError } = await supabase
+        .from('users')
+        .select('id, reminder_state, exam_state, status, flow_updated_at, updated_at')
+        .or('reminder_state.neq.idle,exam_state.neq.idle,status.like.flow:%');
+
+      if (queryError) {
+        this.logger.error(`Erro ao buscar usuários em fluxos ativos: ${queryError.message}`);
+        return;
+      }
+
+      if (!activeFlowUsers || activeFlowUsers.length === 0) {
+        return;
+      }
+
+      const now = Date.now();
+      const expiredUsers: any[] = [];
+
+      for (const u of activeFlowUsers) {
+        let lastActivity = u.flow_updated_at ? new Date(u.flow_updated_at).getTime() : null;
+
+        if (!lastActivity && u.updated_at) {
+          lastActivity = new Date(u.updated_at).getTime();
+        }
+
+        // Se ainda não tiver timestamp, busca última mensagem no chat
+        if (!lastActivity) {
+          const { data: lastMsg } = await supabase
+            .from('messages')
+            .select('created_at')
+            .eq('user_id', u.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (lastMsg?.created_at) {
+            lastActivity = new Date(lastMsg.created_at).getTime();
+          }
+        }
+
+        // Se não houver registro de atividade ou se excedeu o limite de inatividade
+        if (!lastActivity || (now - lastActivity) >= timeoutMinutes * 60 * 1000) {
+          expiredUsers.push(u);
+        }
+      }
+
+      if (expiredUsers.length === 0) {
+        return;
+      }
+
+      for (const u of expiredUsers) {
+        const updatePayload: any = {
+          reminder_state: 'idle',
+          reminder_context: {},
+          exam_state: 'idle',
+          exam_context: {},
+          flow_updated_at: null,
+        };
+
+        if (u.status && u.status.startsWith('flow:')) {
+          updatePayload.status = 'active';
+        }
+
+        await supabase.from('users').update(updatePayload).eq('id', u.id);
+      }
+
+      const infoMsg = `Limpeza automática de fluxos inativos: ${expiredUsers.length} usuário(s) liberado(s) silenciosamente após ${timeoutMinutes} min.`;
+      this.logger.log(infoMsg);
+      await this.systemLogsService.logInfo('CronService', infoMsg, {
+        resetCount: expiredUsers.length,
+        userIds: expiredUsers.map((u) => u.id),
+        timeoutMinutes,
+      });
+    } catch (e: any) {
+      this.logger.error(`Exceção durante limpeza de fluxos inativos: ${e.message}`);
+    }
+  }
 }

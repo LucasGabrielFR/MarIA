@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.0] - 2026-09-26
+
+### Added
+
+- **Expiração Automática e Silenciosa de Fluxos Inativos (Auto-Reset por Inatividade):**
+  - **Prevenção de Travamento de Fiéis no WhatsApp:** Usuários que iniciam fluxos interativos (Criação de Lembretes, Exame de Consciência Guiado ou Fluxo de Assinatura/Planos) e abandonam a conversa sem finalizar ou cancelar não ficam mais bloqueados no bot.
+  - **Cancelamento Silencioso (Zero Spam):** A expiração ocorre sem envio de notificações desnecessárias no WhatsApp, respeitando o silêncio do usuário. Ao retornar à conversa, o fiel tem seu estado automaticamente liberado e sua mensagem é processada naturalmente pela IA.
+  - **Camada Dupla de Segurança (Sob Demanda + CRON em Segundo Plano):**
+    - **Verificação Sob Demanda no `AiService`:** Ao receber uma nova mensagem, se o tempo decorrido desde a última interação no fluxo ultrapassar o limite, o estado é imediatamente resetado para `idle`/`active` antes de processar o novo texto.
+    - **Rotina em Segundo Plano no `CronService` (`cleanupInactiveFlows`):** Executa periodicamente a cada 2 minutos para limpar silenciosamente usuários inativos e registrar a volumetria no `SystemLogsService`.
+  - **Tempo Limite Configurável no Painel Administrativo:**
+    - Nova chave `flow_inactivity_timeout_minutes` na tabela `system_settings` (padrão de 15 minutos).
+    - Novo card **"Fluxos & Sessões Interativas"** na tela de **Configurações** (`/settings`) do painel web, permitindo aos administradores customizar o tempo de inatividade em minutos.
+  - **Migration SQL (`docs/migrations/20260926_flow_inactivity_timeout.sql`):** Adiciona a coluna `flow_updated_at` na tabela `users` com índice parcial para otimizar a varredura de fluxos ativos.
+
 ## [1.20.3] - 2026-09-24
 
 ### Added

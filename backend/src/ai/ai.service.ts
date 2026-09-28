@@ -837,6 +837,45 @@ export class AiService implements OnModuleInit {
 
     userStatus = user.status || 'active';
 
+    // 2.1. Verificar Inatividade em Fluxos Interativos (Auto-reset silencioso)
+    const hasActiveFlow =
+      (user.reminder_state && user.reminder_state !== 'idle') ||
+      (user.exam_state && user.exam_state !== 'idle') ||
+      userStatus.startsWith('flow:');
+
+    if (hasActiveFlow) {
+      const timeoutMinutes = await this.getFlowTimeoutMinutes();
+      const isExpired = await this.checkIfFlowExpired(user, timeoutMinutes);
+
+      if (isExpired) {
+        this.logger.log(
+          `Fluxo inativo expirado para o usuário ${userId} (> ${timeoutMinutes} min). Resetando para estado normal silenciosamente.`,
+        );
+
+        const resetPayload: any = {
+          reminder_state: 'idle',
+          reminder_context: {},
+          exam_state: 'idle',
+          exam_context: {},
+          flow_updated_at: null,
+        };
+
+        if (userStatus.startsWith('flow:')) {
+          resetPayload.status = 'active';
+          userStatus = 'active';
+          user.status = 'active';
+        }
+
+        await supabase.from('users').update(resetPayload).eq('id', userId);
+
+        user.reminder_state = 'idle';
+        user.reminder_context = {};
+        user.exam_state = 'idle';
+        user.exam_context = {};
+        user.flow_updated_at = null;
+      }
+    }
+
     if (userStatus.startsWith('flow:')) {
       await this.saveMessage(userId, 'user', message, false);
       const flowResponse = await this.handleFlowStep(user, userStatus, message);
@@ -1014,7 +1053,7 @@ export class AiService implements OnModuleInit {
       if (lowerMsg === 'cancelar' || lowerMsg === 'sair' || lowerMsg === 'parar') {
         await supabase
           .from('users')
-          .update({ exam_state: 'idle', exam_context: {} })
+          .update({ exam_state: 'idle', exam_context: {}, flow_updated_at: null })
           .eq('id', userId);
         const cancelMsg =
           'Exame de consciência cancelado. Quando quiser retomar, basta me pedir! Tenha uma noite abençoada. 🙏';
@@ -1034,6 +1073,7 @@ export class AiService implements OnModuleInit {
         .update({
           exam_state: 'exam_confession',
           exam_context: currentContext,
+          flow_updated_at: new Date().toISOString(),
         })
         .eq('id', userId);
 
@@ -1079,7 +1119,7 @@ export class AiService implements OnModuleInit {
       if (lowerMsg === 'cancelar' || lowerMsg === 'sair' || lowerMsg === 'parar') {
         await supabase
           .from('users')
-          .update({ exam_state: 'idle', exam_context: {} })
+          .update({ exam_state: 'idle', exam_context: {}, flow_updated_at: null })
           .eq('id', userId);
         const cancelMsg =
           'Exame de consciência cancelado. Quando quiser retomar, basta me pedir! Tenha uma noite abençoada. 🙏';
@@ -1146,6 +1186,7 @@ export class AiService implements OnModuleInit {
         .update({
           exam_state: 'idle',
           exam_context: {},
+          flow_updated_at: null,
         })
         .eq('id', userId);
 
@@ -1185,6 +1226,7 @@ export class AiService implements OnModuleInit {
         .update({
           exam_state: 'exam_gratitude',
           exam_context: {},
+          flow_updated_at: new Date().toISOString(),
         })
         .eq('id', userId);
 
@@ -1216,6 +1258,7 @@ export class AiService implements OnModuleInit {
         .update({
           exam_state: 'idle',
           exam_context: {},
+          flow_updated_at: null,
         })
         .eq('id', userId);
 
@@ -1284,7 +1327,7 @@ export class AiService implements OnModuleInit {
         : { isExit: lowerMsg === 'cancelar' || lowerMsg === 'sair', nextStepKey: null };
 
       if (resolution.isExit) {
-         await supabase.from('users').update({ reminder_state: 'idle', reminder_context: {} }).eq('id', userId);
+         await supabase.from('users').update({ reminder_state: 'idle', reminder_context: {}, flow_updated_at: null }).eq('id', userId);
          const cancelMsg = 'Agendamento de lembrete cancelado.';
          await this.saveMessage(userId, 'assistant', cancelMsg, false);
          return cancelMsg;
@@ -1293,14 +1336,14 @@ export class AiService implements OnModuleInit {
       const rSteps = rFlow?.steps || await getReminderSteps();
       
       if (resolution.nextStepKey === 'reminder_custom_title' || lowerMsg === '1' || lowerMsg === 'personalizado') {
-         await supabase.from('users').update({ reminder_state: 'reminder_title', reminder_context: { type: 'custom' } }).eq('id', userId);
+         await supabase.from('users').update({ reminder_state: 'reminder_title', reminder_context: { type: 'custom' }, flow_updated_at: new Date().toISOString() }).eq('id', userId);
          const respMsg = rSteps.reminder_custom_title?.text || 'Certo! Qual o título ou mensagem do seu lembrete?';
          await this.saveMessage(userId, 'assistant', respMsg, false);
          return respMsg;
       } else if (resolution.nextStepKey === 'reminder_prayer_select' || lowerMsg === '2' || lowerMsg === 'oração' || lowerMsg === 'oracao') {
          const { data: prayers } = await supabase.from('prayers').select('id, title').eq('is_selectable', true).limit(10);
          if (!prayers || prayers.length === 0) {
-            await supabase.from('users').update({ reminder_state: 'idle', reminder_context: {} }).eq('id', userId);
+            await supabase.from('users').update({ reminder_state: 'idle', reminder_context: {}, flow_updated_at: null }).eq('id', userId);
             const cancelMsg2 = 'Nenhuma oração disponível no momento. Lembrete cancelado.';
             await this.saveMessage(userId, 'assistant', cancelMsg2, false);
             return cancelMsg2;
@@ -1311,7 +1354,7 @@ export class AiService implements OnModuleInit {
            description: 'Oração sugerida',
          }));
          // Guardar lista no contexto para o próximo passo
-         await supabase.from('users').update({ reminder_state: 'reminder_prayer_select', reminder_context: { type: 'prayer', prayersList: prayers } }).eq('id', userId);
+         await supabase.from('users').update({ reminder_state: 'reminder_prayer_select', reminder_context: { type: 'prayer', prayersList: prayers }, flow_updated_at: new Date().toISOString() }).eq('id', userId);
          const respMsgText = rSteps.reminder_prayer_select?.text || 'Selecione a oração desejada (ou digite o nome se não estiver na lista):';
          const respMsg = {
            type: 'interactive',
@@ -1329,7 +1372,7 @@ export class AiService implements OnModuleInit {
 
     if (userReminderState === 'reminder_prayer_select') {
       if (lowerMsg === 'cancelar' || lowerMsg === 'sair') {
-         await supabase.from('users').update({ reminder_state: 'idle', reminder_context: {} }).eq('id', userId);
+         await supabase.from('users').update({ reminder_state: 'idle', reminder_context: {}, flow_updated_at: null }).eq('id', userId);
          const cancelMsg = 'Agendamento de lembrete cancelado.';
          await this.saveMessage(userId, 'assistant', cancelMsg, false);
          return cancelMsg;
@@ -1354,7 +1397,7 @@ export class AiService implements OnModuleInit {
       ctx.title = prayer.title;
       delete ctx.prayersList;
 
-      await supabase.from('users').update({ reminder_state: 'reminder_period', reminder_context: ctx }).eq('id', userId);
+      await supabase.from('users').update({ reminder_state: 'reminder_period', reminder_context: ctx, flow_updated_at: new Date().toISOString() }).eq('id', userId);
       
       const rSteps = await getReminderSteps();
       const defaultText = `Ótima escolha: {prayer_title}!\n\nEm qual período você quer receber?`;
@@ -1368,14 +1411,14 @@ export class AiService implements OnModuleInit {
 
     if (userReminderState === 'reminder_title') {
       if (lowerMsg === 'cancelar' || lowerMsg === 'sair') {
-         await supabase.from('users').update({ reminder_state: 'idle', reminder_context: {} }).eq('id', userId);
+         await supabase.from('users').update({ reminder_state: 'idle', reminder_context: {}, flow_updated_at: null }).eq('id', userId);
          const cancelMsg = 'Agendamento de lembrete cancelado.';
          await this.saveMessage(userId, 'assistant', cancelMsg, false);
          return cancelMsg;
       }
       const ctx = user.reminder_context || {};
       ctx.title = message;
-      await supabase.from('users').update({ reminder_state: 'reminder_period', reminder_context: ctx }).eq('id', userId);
+      await supabase.from('users').update({ reminder_state: 'reminder_period', reminder_context: ctx, flow_updated_at: new Date().toISOString() }).eq('id', userId);
       
       const rSteps = await getReminderSteps();
       const defaultText = `Perfeito. Título do lembrete: *{reminder_title}*.\n\nEm qual período você quer receber?`;
@@ -1447,7 +1490,7 @@ export class AiService implements OnModuleInit {
              ? timeStep.buttons
              : defaultTimeButtons;
            
-           await supabase.from('users').update({ reminder_state: 'reminder_time', reminder_context: ctx }).eq('id', userId);
+           await supabase.from('users').update({ reminder_state: 'reminder_time', reminder_context: ctx, flow_updated_at: new Date().toISOString() }).eq('id', userId);
            const respMsg = { type: 'interactive', text, buttons };
            await this.saveMessage(userId, 'assistant', text, false);
            return respMsg;
@@ -1458,7 +1501,7 @@ export class AiService implements OnModuleInit {
 
     if (userReminderState === 'reminder_time') {
        if (lowerMsg === 'cancelar' || lowerMsg === 'sair') {
-          await supabase.from('users').update({ reminder_state: 'idle', reminder_context: {} }).eq('id', userId);
+          await supabase.from('users').update({ reminder_state: 'idle', reminder_context: {}, flow_updated_at: null }).eq('id', userId);
           const cancelMsg = 'Agendamento de lembrete cancelado.';
           await this.saveMessage(userId, 'assistant', cancelMsg, false);
           return cancelMsg;
@@ -1470,7 +1513,7 @@ export class AiService implements OnModuleInit {
           return 'Desculpe, não consegui entender o horário exato. Por favor, seja um pouco mais específico (exemplo: "às 18:20", "oito da noite", "15h").';
        }
        ctx.time = extractedTime;
-       await supabase.from('users').update({ reminder_state: 'reminder_confirm', reminder_context: ctx }).eq('id', userId);
+       await supabase.from('users').update({ reminder_state: 'reminder_confirm', reminder_context: ctx, flow_updated_at: new Date().toISOString() }).eq('id', userId);
        
        const rSteps = await getReminderSteps();
        const defaultText = `Confirma o agendamento de *{title}* para às *{time}* (horário de Brasília)?`;
@@ -1488,7 +1531,7 @@ export class AiService implements OnModuleInit {
        const cancelBtn = rSteps.reminder_confirm?.buttons?.[1]?.text?.toLowerCase() || 'cancelar';
 
        if (lowerMsg === '2' || lowerMsg === 'não' || lowerMsg === 'nao' || lowerMsg === 'sair' || lowerMsg === cancelBtn || lowerMsg === 'cancelar') {
-          await supabase.from('users').update({ reminder_state: 'idle', reminder_context: {} }).eq('id', userId);
+          await supabase.from('users').update({ reminder_state: 'idle', reminder_context: {}, flow_updated_at: null }).eq('id', userId);
           const cancelMsg = 'Agendamento de lembrete cancelado.';
           await this.saveMessage(userId, 'assistant', cancelMsg, false);
           return cancelMsg;
@@ -1554,7 +1597,7 @@ export class AiService implements OnModuleInit {
             },
           );
 
-          await supabase.from('users').update({ reminder_state: 'idle', reminder_context: {} }).eq('id', userId);
+          await supabase.from('users').update({ reminder_state: 'idle', reminder_context: {}, flow_updated_at: null }).eq('id', userId);
           
           const defaultSuccess = `Lembrete *{title}* agendado com sucesso para às *{time}*! 🙌`;
           const successMsg = (rSteps.reminder_success?.text || defaultSuccess).replace('{title}', ctx.title).replace('{time}', ctx.time);
@@ -1578,7 +1621,7 @@ export class AiService implements OnModuleInit {
         return upgradeMsg;
       }
 
-      await supabase.from('users').update({ reminder_state: 'reminder_type', reminder_context: {} }).eq('id', userId);
+      await supabase.from('users').update({ reminder_state: 'reminder_type', reminder_context: {}, flow_updated_at: new Date().toISOString() }).eq('id', userId);
       
       const { data: remFlow } = await supabase.from('automatic_flows').select('steps').eq('key', 'reminder_flow').maybeSingle();
       const rSteps = remFlow?.steps || {};
@@ -1622,7 +1665,7 @@ export class AiService implements OnModuleInit {
         return upgradeMsg;
       }
 
-      await supabase.from('users').update({ reminder_state: 'reminder_type', reminder_context: {} }).eq('id', userId);
+      await supabase.from('users').update({ reminder_state: 'reminder_type', reminder_context: {}, flow_updated_at: new Date().toISOString() }).eq('id', userId);
       
       const { data: remFlow } = await supabase.from('automatic_flows').select('steps').eq('key', 'reminder_flow').maybeSingle();
       const rSteps = remFlow?.steps || {};
@@ -1701,6 +1744,7 @@ export class AiService implements OnModuleInit {
         .from('users')
         .update({
           status: 'flow:subscription_flow:select_plan',
+          flow_updated_at: new Date().toISOString(),
         })
         .eq('id', user.id);
 
@@ -2565,7 +2609,7 @@ export class AiService implements OnModuleInit {
       );
       await supabase
         .from('users')
-        .update({ status: 'active' })
+        .update({ status: 'active', flow_updated_at: null })
         .eq('id', user.id);
       return 'Desculpe, ocorreu um erro ao carregar o fluxo de pagamento. Por favor, tente novamente mais tarde.';
     }
@@ -2597,7 +2641,7 @@ export class AiService implements OnModuleInit {
       if (isCancel) {
         await supabase
           .from('users')
-          .update({ status: 'active' })
+          .update({ status: 'active', flow_updated_at: null })
           .eq('id', user.id);
         return 'Fluxo de assinatura cancelado com sucesso. Se precisar de algo mais, estou aqui! Que Deus te abençoe! 🙏';
       }
@@ -2633,7 +2677,7 @@ export class AiService implements OnModuleInit {
       if (userTier === 'premium' && tier === 'premium') {
         await supabase
           .from('users')
-          .update({ status: 'active' })
+          .update({ status: 'active', flow_updated_at: null })
           .eq('id', user.id);
         return 'Você já possui o *Plano Premium* ativo, que é o nosso plano máximo! Não é necessário assinar novamente ou fazer upgrade. Que Deus te abençoe! 🙏';
       }
@@ -2654,6 +2698,7 @@ export class AiService implements OnModuleInit {
         .from('users')
         .update({
           status: `flow:subscription_flow:select_cycle:${JSON.stringify(nextContext)}`,
+          flow_updated_at: new Date().toISOString(),
         })
         .eq('id', user.id);
 
@@ -2693,14 +2738,14 @@ export class AiService implements OnModuleInit {
         if (isCancel) {
           await supabase
             .from('users')
-            .update({ status: 'active' })
+            .update({ status: 'active', flow_updated_at: null })
             .eq('id', user.id);
           return 'Fluxo de assinatura cancelado com sucesso. Se precisar de algo mais, estou aqui! Que Deus te abençoe! 🙏';
         }
         if (isNo) {
           await supabase
             .from('users')
-            .update({ status: 'flow:subscription_flow:select_plan' })
+            .update({ status: 'flow:subscription_flow:select_plan', flow_updated_at: new Date().toISOString() })
             .eq('id', user.id);
           const selectStep = steps.select_plan;
           return await this.buildSelectPlanMessage(selectStep, user.affiliate_code);
@@ -2798,7 +2843,7 @@ export class AiService implements OnModuleInit {
       if (isBack) {
         await supabase
           .from('users')
-          .update({ status: 'flow:subscription_flow:select_plan' })
+          .update({ status: 'flow:subscription_flow:select_plan', flow_updated_at: new Date().toISOString() })
           .eq('id', user.id);
         const selectStep = steps.select_plan;
         return await this.buildSelectPlanMessage(selectStep, user.affiliate_code);
@@ -2833,7 +2878,7 @@ export class AiService implements OnModuleInit {
 
       await supabase
         .from('users')
-        .update({ status: 'active' })
+        .update({ status: 'active', flow_updated_at: null })
         .eq('id', user.id);
 
       try {
@@ -2994,5 +3039,68 @@ DIRETRIZES:
     const cancelSuccessMsg = `Prontinho, meu filho(a)! Cancelei o seu lembrete de *${targetReminder.title}*. Você não receberá mais este aviso diário. Se quiser agendar novamente em outro momento, é só me chamar! 🙏✨`;
     await this.saveMessage(userId, 'assistant', cancelSuccessMsg, false);
     return cancelSuccessMsg;
+  }
+
+  /**
+   * Obtém o tempo limite de inatividade para fluxos configurado no sistema (em minutos).
+   * Padrão: 15 minutos.
+   */
+  private async getFlowTimeoutMinutes(): Promise<number> {
+    try {
+      const supabase = this.supabaseService.getClient();
+      const { data } = await supabase
+        .from('system_settings')
+        .select('value')
+        .eq('key', 'flow_inactivity_timeout_minutes')
+        .maybeSingle();
+
+      if (data?.value) {
+        const parsed = parseInt(data.value, 10);
+        if (!isNaN(parsed) && parsed > 0) {
+          return parsed;
+        }
+      }
+    } catch (err: any) {
+      this.logger.warn(`Erro ao buscar flow_inactivity_timeout_minutes: ${err?.message}`);
+    }
+    return 15;
+  }
+
+  /**
+   * Verifica se o fluxo atual do usuário expirou por inatividade.
+   */
+  private async checkIfFlowExpired(user: any, timeoutMinutes: number): Promise<boolean> {
+    try {
+      let lastActivity: number | null = user.flow_updated_at
+        ? new Date(user.flow_updated_at).getTime()
+        : null;
+
+      if (!lastActivity) {
+        const supabase = this.supabaseService.getClient();
+        const { data: lastMsg } = await supabase
+          .from('messages')
+          .select('created_at')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (lastMsg?.created_at) {
+          lastActivity = new Date(lastMsg.created_at).getTime();
+        } else if (user.updated_at) {
+          lastActivity = new Date(user.updated_at).getTime();
+        }
+      }
+
+      if (!lastActivity) {
+        return false;
+      }
+
+      const elapsedMinutes = (Date.now() - lastActivity) / (1000 * 60);
+      return elapsedMinutes >= timeoutMinutes;
+    } catch (err: any) {
+      this.logger.warn(`Erro ao checar expiração de fluxo: ${err?.message}`);
+      return false;
+    }
   }
 }

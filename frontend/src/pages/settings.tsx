@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
-import { Cpu, DollarSign, ShieldCheck, Save, RefreshCw, AlertTriangle, Trash2, Power, ChevronDown, Search, FileText, Eye } from 'lucide-react'
+import { Cpu, DollarSign, ShieldCheck, Save, RefreshCw, AlertTriangle, Trash2, Power, ChevronDown, Search, FileText, Eye, Clock } from 'lucide-react'
 import { 
   Dialog, 
   DialogContent, 
@@ -297,6 +297,47 @@ export default function SettingsPage() {
                   <option value="sandbox">Sandbox (Ambiente de Testes)</option>
                   <option value="production">Produção (Pagamentos Reais)</option>
                 </select>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Flow Settings */}
+          <Card className="rounded-3xl border-none shadow-sm bg-white overflow-visible md:col-span-2">
+            <CardHeader className="border-b border-slate-50 pb-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-amber-50 text-amber-600 rounded-xl">
+                  <Clock size={20} />
+                </div>
+                <div>
+                  <CardTitle className="font-bold text-slate-800">Fluxos & Sessões Interativas</CardTitle>
+                  <CardDescription className="text-slate-500 font-medium">Controle de tempo e expiração automática de fluxos (Lembretes, Exame de Consciência, Assinatura)</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6 pt-8">
+              <div className="max-w-md space-y-2">
+                <Label className="font-bold text-slate-700 ml-1">Tempo Limite de Inatividade (minutos)</Label>
+                <div className="flex gap-2">
+                  <Input 
+                    type="number" 
+                    min="1"
+                    max="1440"
+                    placeholder="15"
+                    value={getSettingValue('flow_inactivity_timeout_minutes') || '15'} 
+                    onChange={(e) => setSettingValue('flow_inactivity_timeout_minutes', e.target.value)}
+                    className="rounded-xl border-slate-200 h-11"
+                  />
+                  <Button 
+                    onClick={() => handleUpdate('flow_inactivity_timeout_minutes', getSettingValue('flow_inactivity_timeout_minutes') || '15')} 
+                    variant="secondary" 
+                    className="rounded-xl font-bold bg-slate-100 h-11 px-5 hover:bg-slate-200"
+                  >
+                    <Save size={18} />
+                  </Button>
+                </div>
+                <p className="text-xs text-slate-500 mt-2 font-medium leading-relaxed">
+                  Tempo sem interação do usuário para liberar e resetar silenciosamente o estado de fluxos pendentes. Evita que o usuário fique bloqueado no WhatsApp se esquecer de concluir ou cancelar. Padrão: 15 minutos.
+                </p>
               </div>
             </CardContent>
           </Card>
