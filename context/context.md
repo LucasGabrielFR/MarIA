@@ -161,3 +161,48 @@ Este arquivo armazena o histórico contínuo de contexto, decisões de arquitetu
 - Conexão do canal de chat devocional com IA (`features/chat_ai`) com streaming em tempo real (SSE/WebSocket).
 ---
 
+## Sessão: 2026-10-13 11:05 (UTC-3)
+### 📌 Resumo da Sessão
+- **Unificação do Chat de IA (Mobile & WhatsApp):** Integração do chat mobile diretamente com o pipeline oficial do `AiService`, compartilhando a mesma persona maternal da MarIA, histórico de oração no Supabase e base de conhecimento.
+- **Rastreamento de Origem no Banco:** Criação da coluna `origin` na tabela `messages` do Supabase para diferenciar mensagens do WhatsApp (`origin = 'whatsapp'`) e do app nativo (`origin = 'mobile'`).
+- **Resolução de Fallback no Flutter Web:** Identificada e corrigida a causa raiz que impedia a comunicação HTTP no navegador (uso indevido de `Platform.isAndroid` do `dart:io` que lançava exceção na Web, forçando mensagens fixas offline com Sl 26).
+- **Indicador de Digitação Estilo WhatsApp:** Substituído o texto estático e spinner por um balão elegante com **três pontinhos animados pulsando em onda** (`_WhatsAppTypingIndicator`).
+- **Sincronização Bidirecional de Envios do WhatsApp:** Implementação da gestão de mensagens automáticas (Liturgia Diária matinal, Exame de Consciência noturno e Santo do Dia), permitindo ativar ou cancelar tanto pelo app quanto pelo WhatsApp.
+
+### 🏗️ Decisões Técnicas e de Arquitetura
+- **Persistência de Origem (`origin`):** Mensagens do app são persistidas com `origin: 'mobile'`, mantendo integridade com as regras de quota e resumo pastoral, enquanto o WhatsApp grava com `origin: 'whatsapp'`.
+- **Compatibilidade Web First (`kIsWeb`):** Garantida a detecção multiplataforma no Flutter (`kIsWeb`) para resolução dinâmica de URL (`localhost` na Web vs. `10.0.2.2` no Android Emulator) e omissão de headers restritos como `User-Agent`.
+- **Animação Fluida do Typing Indicator:** Criado widget com `SingleTickerProviderStateMixin` e onda senoidal de 1200ms para criar a sensação de chat vivo em tempo real.
+- **Ponte de Preferências Unificada:**
+  - Backend expõe `GET /mobile/preferences` e `PUT /mobile/preferences` consultando/atualizando diretamente o registro do usuário na tabela `users` do Supabase.
+  - Fallback defensivo no backend caso colunas opcionais (`receive_daily_exam`, etc.) ainda estejam pendentes de DDL no Supabase, garantindo estabilidade ininterrupta.
+  - Riverpod State com `WhatsAppPreferencesNotifier` e persistência local do número de WhatsApp para consulta transparente.
+
+### 🛠️ Alterações e Implementações
+- **Banco de Dados & Migrações:**
+  - [`docs/migrations/20261013000000_add_origin_to_messages.sql`](file:///d:/Programming/AcutisTech/MarIA/docs/migrations/20261013000000_add_origin_to_messages.sql): Adiciona coluna `origin` na tabela `messages`.
+  - [`docs/migrations/20261013000001_add_preferences_to_users.sql`](file:///d:/Programming/AcutisTech/MarIA/docs/migrations/20261013000001_add_preferences_to_users.sql): Adiciona `receive_daily_exam`, `receive_daily_saint` e `whatsapp_bridge_enabled` na tabela `users`.
+- **Backend:**
+  - [`backend/src/mobile/mobile.service.ts`](file:///d:/Programming/AcutisTech/MarIA/backend/src/mobile/mobile.service.ts): Integração com `AiService` e métodos `getPreferences` / `updatePreferences`.
+  - [`backend/src/mobile/mobile.controller.ts`](file:///d:/Programming/AcutisTech/MarIA/backend/src/mobile/mobile.controller.ts): Endpoints `GET` e `PUT /mobile/preferences`.
+  - [`backend/src/mobile/mobile.module.ts`](file:///d:/Programming/AcutisTech/MarIA/backend/src/mobile/mobile.module.ts): Injeção de `SupabaseModule`.
+  - [`backend/src/ai/ai.service.ts`](file:///d:/Programming/AcutisTech/MarIA/backend/src/ai/ai.service.ts): Persistência de `origin` em `saveMessage`.
+  - Rebuild Docker: Imagem reconstruída e contêiner `maria-backend-1` em execução.
+- **Mobile (Flutter):**
+  - [`mobile/lib/features/chat_ai/data/datasources/chat_remote_data_source.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/chat_ai/data/datasources/chat_remote_data_source.dart): Suporte a `kIsWeb`, timeout estendido e logs de rede.
+  - [`mobile/lib/core/network/api_client.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/core/network/api_client.dart): Header `User-Agent` condicional apenas para plataformas nativas.
+  - [`mobile/lib/features/chat_ai/presentation/chat_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/chat_ai/presentation/chat_page.dart): Widget `_WhatsAppTypingIndicator` com 3 pontinhos animados.
+  - [`mobile/lib/features/reminders/data/datasources/preferences_remote_data_source.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/reminders/data/datasources/preferences_remote_data_source.dart): Cliente remoto para as preferências de mensagens.
+  - [`mobile/lib/features/reminders/presentation/controllers/whatsapp_preferences_controller.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/reminders/presentation/controllers/whatsapp_preferences_controller.dart): Gerenciamento de estado das opções com Riverpod.
+  - [`mobile/lib/features/reminders/presentation/reminders_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/reminders/presentation/reminders_page.dart): Card visual de mensagens do WhatsApp, dialog de vinculação de número e toggles com SnackBar.
+- **Testes & Documentação:**
+  - 24 testes executados e 100% aprovados (`All tests passed!`).
+  - `flutter analyze` 100% limpo com 0 issues.
+  - [`CHANGELOG.md`](file:///d:/Programming/AcutisTech/MarIA/CHANGELOG.md) atualizado com versões `1.27.0` a `1.28.0`.
+  - [`docs/ROADMAP_MOBILE.md`](file:///d:/Programming/AcutisTech/MarIA/docs/ROADMAP_MOBILE.md) atualizado com a conclusão da Fase 4.
+
+### ⏳ Pendências e Próximos Passos
+- Executar no Supabase SQL Editor a migration `docs/migrations/20261013000001_add_preferences_to_users.sql` para oficializar as novas colunas na nuvem (o backend já possui fallback funcional).
+- Iniciar a **Fase 5 do Roadmap: Autenticação Mínima & Identificação (WhatsApp OTP via Uazapi)** para login sem fricção.
+---
+

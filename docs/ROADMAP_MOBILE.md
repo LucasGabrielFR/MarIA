@@ -109,6 +109,9 @@ Para permitir a validação imediata e fluida de todas as funcionalidades pelo u
   - Registro de constância diária e anel circular de progresso (% de santificação com `SpiritualPlanPage`).
   - Persistência local segura dos 5 hábitos centrais e badge dinâmico de streak com feedback háptico.
   - Sincronização em tempo real com `SpiritualHabitsRow` da Home.
+- [x] **4.4. Sincronização Bidirecional de Mensagens Diárias do WhatsApp:**
+  - Controle centralizado no App para ativar ou cancelar mensagens automáticas da MarIA no WhatsApp (Liturgia Diária matinal, Exame de Consciência noturno e Santo do Dia).
+  - Integração em tempo real com as colunas da tabela `users` do Supabase, sincronizando com os botões interativos do chat do WhatsApp.
 
 ---
 

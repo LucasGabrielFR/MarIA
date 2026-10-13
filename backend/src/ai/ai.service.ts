@@ -618,7 +618,7 @@ export class AiService implements OnModuleInit {
   }
 
   /**
-   * Salva uma mensagem no banco de dados.
+   * Salva uma mensagem no banco de dados com canal de origem.
    * Lança exceção se o insert falhar — evita que userMessageId fique undefined
    * e subsequentes .eq('id', undefined) atualizem registros errados.
    */
@@ -627,13 +627,31 @@ export class AiService implements OnModuleInit {
     role: string,
     content: string,
     isLlm = false,
+    origin: 'whatsapp' | 'mobile' = 'whatsapp',
   ): Promise<string> {
     const supabase = this.supabaseService.getClient();
-    const { data: msg, error } = await supabase
+    let insertPayload: any = { user_id: userId, role, content, is_llm: isLlm, origin };
+
+    let { data: msg, error } = await supabase
       .from('messages')
-      .insert({ user_id: userId, role, content, is_llm: isLlm })
+      .insert(insertPayload)
       .select('id')
       .single();
+
+    // Fallback defensivo se a coluna origin ainda não estiver criada no Supabase
+    if (error && error.message && error.message.includes('origin')) {
+      this.logger.warn(
+        `Coluna 'origin' ainda não existe na tabela messages. Salvando sem origin temporariamente. Execute docs/migrations/20261013000000_add_origin_to_messages.sql.`,
+      );
+      insertPayload = { user_id: userId, role, content, is_llm: isLlm };
+      const fallbackResult = await supabase
+        .from('messages')
+        .insert(insertPayload)
+        .select('id')
+        .single();
+      msg = fallbackResult.data;
+      error = fallbackResult.error;
+    }
 
     if (error || !msg?.id) {
       throw new Error(
@@ -852,7 +870,7 @@ export class AiService implements OnModuleInit {
       this.logger.log(
         `Pausa Pastoral ativa para o usuário ${userId}. Nenhuma resposta da IA será gerada.`,
       );
-      await this.saveMessage(userId, 'user', message, false);
+      await this.saveMessage(userId, 'user', message, false, source);
       return null;
     }
 
@@ -898,12 +916,12 @@ export class AiService implements OnModuleInit {
     }
 
     if (userStatus.startsWith('flow:')) {
-      await this.saveMessage(userId, 'user', message, false);
+      await this.saveMessage(userId, 'user', message, false, source);
       const flowResponse = await this.handleFlowStep(user, userStatus, message);
       if (typeof flowResponse === 'string') {
-        await this.saveMessage(userId, 'assistant', flowResponse, false);
+        await this.saveMessage(userId, 'assistant', flowResponse, false, source);
       } else if (flowResponse && flowResponse.type === 'interactive') {
-        await this.saveMessage(userId, 'assistant', flowResponse.text, false);
+        await this.saveMessage(userId, 'assistant', flowResponse.text, false, source);
       }
       return flowResponse;
     }
@@ -930,6 +948,7 @@ export class AiService implements OnModuleInit {
       'user',
       message,
       false,
+      source,
     );
 
     const corePersona = this.promptService.getCorePersona();
@@ -2004,7 +2023,7 @@ export class AiService implements OnModuleInit {
         response = `*${intent === 'LITURGY' ? 'Liturgia' : 'Conteúdo'} do Dia (${formattedTargetDate})*\n\n${response}`;
       }
 
-      await this.saveMessage(userId, 'assistant', response, false);
+      await this.saveMessage(userId, 'assistant', response, false, source);
       return response;
     }
 
@@ -2052,7 +2071,7 @@ export class AiService implements OnModuleInit {
       }
     }
 
-    await this.saveMessage(userId, 'assistant', finalResponse, true);
+    await this.saveMessage(userId, 'assistant', finalResponse, true, source);
     this.updateContextIfNeeded(userId, userMessageId).catch((e) =>
       this.logger.error(e),
     );

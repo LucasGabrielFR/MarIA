@@ -6,6 +6,50 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.28.0] - 2026-10-13
+
+### Added
+
+- **MarIA Mobile & Backend — Sincronização de Preferências de Mensagens do WhatsApp (`RemindersPage`):**
+  - **Card de Mensagens no WhatsApp:** Inserido na tela [`reminders_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/reminders/presentation/reminders_page.dart) um card dedicado com status de vinculação do número de telefone e controles interativos de mensagens diárias enviadas pela MarIA.
+  - **Controle Bidirecional de Envios Diários:**
+    - **Liturgia Diária (Manhã):** Permite ligar/desligar o envio diário matinal das leituras bíblicas diretamente pelo aplicativo ou pelo WhatsApp (botão *"Cancelar envio diário"* / *"Receber envio diário"*).
+    - **Exame de Consciência (Noite):** Toggle sincronizado para o convite guiado do exame de consciência às 21:30.
+    - **Santo do Dia & Virtude:** Opção de receber a devoção e biografia do santo matinal.
+  - **Endpoints Dedicados no Gateway Mobile:**
+    - `GET /mobile/preferences?phone=...`: Consulta em tempo real o estado gravado na tabela `users` do Supabase.
+    - `PUT /mobile/preferences`: Persiste no Supabase as alterações feitas nos switches do aplicativo, refletindo instantaneamente nos disparos agendados.
+  - **Script de Migração SQL Supabase:** Criado [`docs/migrations/20261013000001_add_preferences_to_users.sql`](file:///d:/Programming/AcutisTech/MarIA/docs/migrations/20261013000001_add_preferences_to_users.sql) adicionando as colunas `receive_daily_exam`, `receive_daily_saint` e `whatsapp_bridge_enabled` com índices parciais.
+  - **Fallback Seguro:** O backend opera com compatibilidade defensiva para atualizar os dados mesmo se a migração ainda estiver pendente no banco, com logs limpos de acompanhamento.
+  - **Docker Rebuild:** Imagem do backend reconstruída e contêiner `maria-backend-1` em execução com os novos endpoints ativos.
+
+## [1.27.3] - 2026-10-13
+
+### Changed
+
+- **MarIA Mobile — Indicador de Digitação Estilo WhatsApp (`features/chat_ai/presentation/chat_page.dart`):**
+  - **Três Pontos Animados (Typing Dots):** Substituído o texto estático e spinner (*"MarIA está orando e formulando resposta..."*) por um balão compacto e fluido com 3 pontos animados que pulsam e saltam sequencialmente em onda (`_WhatsAppTypingIndicator`), reproduzindo com fidelidade a experiência nativa do WhatsApp.
+  - **Harmonia Visual Católica:** O indicador mantém o fundo acolhedor de cartão, cantos arredondados assimétricos e os pontinhos dourados sagrados (`AppColors.sacredGold`) com micro-ícone de luz divina, transmitindo presença viva sem sobrecarregar a interface.
+
+## [1.27.2] - 2026-10-13
+
+### Fixed
+
+- **MarIA Mobile — Comunicação Real do Chat com o Backend no Navegador (Flutter Web):**
+  - **Compatibilidade Web em `ChatRemoteDataSource` (`kIsWeb`):** Resolvida a exceção silenciosa `Unsupported operation: Platform._operatingSystem` que ocorria ao avaliar `Platform.isAndroid` diretamente no navegador, a qual fazia a aplicação cair indevidamente no fallback de mensagens locais pré-configuradas (com o Sl 26).
+  - **Resolução Segura de Host (`_baseUrl`):** Adicionada checagem com `kIsWeb` antes do acesso a `Platform.isAndroid`, garantindo que no navegador o app se conecte diretamente a `http://localhost:3002/mobile/chat` e receba em tempo real as respostas vivas e personalizadas geradas pela IA do backend.
+  - **Headers HTTP Seguros no Browser (`ApiClient`):** Tornada condicional a atribuição do cabeçalho restrito `User-Agent` apenas para plataformas não-web (`if (!kIsWeb)`), evitando advertências de CORS ou recusa de headers inseguros pelo navegador.
+  - **Aumento de Timeout e Observabilidade:** Ampliado o `receiveTimeout` para 30s para acomodar o tempo de reflexão e busca bíblica da MarIA sem timeout precoce, além da inclusão de logs detalhados via `debugPrint` para facilitar o diagnóstico de rede.
+
+## [1.27.1] - 2026-10-13
+
+### Added
+
+- **MarIA Backend & Banco de Dados — Coluna de Origem (`origin`) na Tabela `messages` do Supabase:**
+  - **Script de Migração SQL:** Criado [`docs/migrations/20261013000000_add_origin_to_messages.sql`](file:///d:/Programming/AcutisTech/MarIA/docs/migrations/20261013000000_add_origin_to_messages.sql) adicionando a coluna `origin VARCHAR(20) DEFAULT 'whatsapp'` e índice `idx_messages_origin` na tabela `messages`.
+  - **Persistência de Origem no `AiService`:** Método `saveMessage` atualizado para receber o canal de origem (`'whatsapp'` ou `'mobile'`) e persistir tanto a mensagem do usuário quanto a resposta da MarIA com sua respectiva procedência.
+  - **Fallback Defensivo sem Bloqueio:** O backend tenta persistir `origin` nativamente e, caso a coluna ainda não tenha sido criada no ambiente do Supabase, realiza o salvamento retrocompatível com log de aviso amigável sem interromper a experiência do fiel.
+
 ## [1.27.0] - 2026-10-12
 
 ### Added

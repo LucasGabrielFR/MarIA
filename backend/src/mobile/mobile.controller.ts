@@ -1,5 +1,5 @@
-import { Controller, Post, Body, Get, HttpCode, HttpStatus } from '@nestjs/common';
-import { MobileService, MobileChatRequestDto } from './mobile.service';
+import { Controller, Post, Body, Get, Put, Query, HttpCode, HttpStatus } from '@nestjs/common';
+import { MobileService, MobileChatRequestDto, UpdatePreferencesDto } from './mobile.service';
 
 @Controller('mobile')
 export class MobileController {
@@ -24,5 +24,19 @@ export class MobileController {
       };
     }
     return this.mobileService.processChat(dto);
+  }
+
+  @Get('preferences')
+  async getPreferences(
+    @Query('phone') phone?: string,
+    @Query('userId') userId?: string,
+  ) {
+    return this.mobileService.getPreferences(phone, userId);
+  }
+
+  @Put('preferences')
+  @HttpCode(HttpStatus.OK)
+  async updatePreferences(@Body() dto: UpdatePreferencesDto) {
+    return this.mobileService.updatePreferences(dto);
   }
 }
