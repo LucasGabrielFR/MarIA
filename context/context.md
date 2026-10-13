@@ -128,3 +128,36 @@ Este arquivo armazena o histórico contínuo de contexto, decisões de arquitetu
 - Executar a migration `docs/migrations/20260926_flow_inactivity_timeout.sql` no banco Supabase.
 - Executar `docker compose up --build -d` assim que o Docker Desktop for iniciado no host.
 ---
+## Sessão: 2026-10-05 02:22 (UTC-3)
+### 📌 Resumo da Sessão
+- Configuração e resolução de ambiente completa para desenvolvimento mobile Flutter (Flutter 3.47+, Android Studio, Android SDK 35, Command-line Tools, licenças e emulador Android `Medium_Phone_API_37.0`).
+- Relocação permanente do cache do Gradle para `D:\.gradle` via variável `GRADLE_USER_HOME` e liberação do disco `C:` que estava com 0 bytes livres.
+- Desenvolvimento e entrega da **Milestone 1** do aplicativo móvel MarIA (`com.acutistech.maria_app`) em Clean Architecture + Feature-First com Flutter Riverpod 3.x e GoRouter.
+- Implementação da tela inicial (Santuário Diurno com Saudação, Santo do Dia, Plano de Vida Espiritual com hábitos interativos, Liturgia da Palavra e Atalhos Rápidos).
+- Rebranding visual de cores guiado pela logo oficial da MarIA: substituição do ocre/queimado pelo **Ouro Real Radiante (`#D4AF37`)** e introdução do **Azul Cobalto Mariano Oficial (`#0047AB`)** e **Azul Sagrado Profundo (`#002D6E`)**.
+- Compilação do APK de debug, instalação no emulador e validação visual em execução real via captura de tela.
+
+### 🏗️ Decisões Técnicas e de Arquitetura
+- **Estrutura do Projeto:** Criado dentro de `mobile/` preservando a estrutura de monorepo com `backend`, `frontend` e `landing`.
+- **Arquitetura & Estado:** Clean Architecture desacoplada com Feature-First, Riverpod 3.x (`NotifierProvider` para alternância de tema entre Santuário Claro e Capela Noturna) e GoRouter com `AppScaffold` baseado em `IndexedStack`.
+- **Design System Sacro MarIA:**
+  - `AppColors`: Paleta fiel à logo (`#0047AB` Azul Cobalto, `#002D6E` Azul Sagrado, `#001B44` Azul Noturno, `#D4AF37` Ouro Real Radiante, `#FDE68A` Ouro Estrelar e `#F4F7FC` Fundo Celeste).
+  - `AppTypography`: Tipografia nobre com títulos sacros em *Cinzel* e corpo de leitura em *Plus Jakarta Sans*.
+- **Compatibilidade de Dependências:** Substituição de `lucide_icons` por `lucide_icons_flutter` para suportar `IconData` final no Flutter 3.47+ / Dart 3.13+.
+
+### 🛠️ Alterações e Implementações
+- **Mobile (`mobile/`):**
+  - Design System & Configurações: `lib/core/theme/app_colors.dart`, `app_typography.dart`, `app_theme.dart`.
+  - Navegação & Shell: `lib/core/router/app_router.dart`, `app_scaffold.dart`.
+  - Santuário / Home: `lib/features/home/presentation/home_page.dart` e widgets (`daily_liturgical_header.dart`, `saint_hero_card.dart`, `spiritual_habits_row.dart`, `liturgy_summary_card.dart`, `quick_actions_grid.dart`).
+  - Módulos Complementares: `features/liturgy/presentation/liturgy_page.dart`, `features/prayers/presentation/prayers_page.dart`, `features/chat_ai/presentation/chat_page.dart`, `features/settings/presentation/settings_page.dart`.
+  - Testes: `test/widget_test.dart` com 100% de aprovação.
+- **Documentação & Versionamento:**
+  - `CHANGELOG.md` atualizado com as versões `1.22.0` (Milestone 1 Mobile) e `1.22.1` (Rebranding Visual Oficial).
+
+### ⏳ Pendências e Próximos Passos
+- Conexão do app mobile com as APIs do backend NestJS / Supabase para carregar dinamicamente o Santo do Dia e as Leituras Litúrgicas.
+- Implementação do fluxo de autenticação via OTP por WhatsApp no mobile (`features/auth`).
+- Conexão do canal de chat devocional com IA (`features/chat_ai`) com streaming em tempo real (SSE/WebSocket).
+---
+

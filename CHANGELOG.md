@@ -5,6 +5,200 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [1.27.0] - 2026-10-12
+
+### Added
+
+- **MarIA Backend & Mobile — Unificação do Chat da IA (App & WhatsApp compartilhando o mesmo Motor `AiService`):**
+  - **Arquitetura de Endpoints Dedicados com Motor Único:** O aplicativo mobile (`POST /mobile/chat`) agora utiliza diretamente o pipeline completo e oficial do `AiService`, o mesmo responsável pelas respostas da MarIA no WhatsApp.
+  - **Identificação Unificada do Fiel e Persistência no Supabase:**
+    - O backend agora suporta busca inteligente de usuários por número de telefone e identificadores mobile, associando a conta do fiel tanto no app quanto no WhatsApp.
+    - As mensagens de oração e reflexões trocadas no app são persistidas na tabela `messages` do Supabase, alimentando o resumo pastoral contínuo (`general_summary`) e a memória de oração do fiel.
+    - Se o usuário for anônimo/convidado, um telefone provisório não-nulo é gerado para satisfazer as restrições do banco de dados, sem travar o onboarding.
+  - **Tratamento de Origem (`source: 'mobile' | 'whatsapp'`):**
+    - Se a requisição vier do aplicativo móvel (`source: 'mobile'`), o backend pula automaticamente os fluxos de texto de triagem específicos do WhatsApp (perguntas de "como posso te chamar?") e entrega diretamente a resposta pastoral e maternal em formato síncrono no corpo HTTP.
+    - Respostas interativas ou com botões do WhatsApp são normalizadas e tratadas com elegância para exibição no aplicativo Flutter.
+  - **Docker Rebuild:** Imagem do backend reconstruída e contêiner `maria-backend-1` recriado e operando com sucesso.
+
+## [1.26.3] - 2026-10-12
+
+### Fixed
+
+- **MarIA Mobile — Quebra Dinâmica e Exibição Completa da Virtude do Santo do Dia (`features/home/`):**
+  - **Eliminação de Truncamento por Reticências:** Removida a limitação de `maxLines: 1` e `TextOverflow.ellipsis` que cortava virtudes mais extensas (como *"Maternidade Espiritual e Intercessão Materna"*) no card do Santo do Dia em telas menores.
+  - **Quebra Natural de Linha (`softWrap: true`):** O texto agora se adapta suavemente à largura do aparelho, fluindo para a linha seguinte quando necessário sem truncar a frase no meio da palavra.
+  - **Alinhamento e Responsividade do Card:** Ajustado o alinhamento da linha inferior entre a virtude e o botão de oração com `crossAxisAlignment: CrossAxisAlignment.center` e alinhamento do ícone sagrado no topo (`top: 1`), mantendo o layout harmônico e legível em qualquer resolução.
+
+## [1.26.2] - 2026-10-12
+
+### Changed
+
+- **MarIA Mobile — Seletor Intuitivo dos Mistérios do Santo Terço (`features/prayers/`):**
+  - **Substituição do Ícone de Filtro Oculto:** Substituído o antigo ícone ambíguo de funil (`listFilter`) por um botão direto e evidente no topo da AppBar: uma pílula com borda dourada e ícone sacro indicando `'Mistérios ▾'`.
+  - **Header do Mistério Interativo com Feedback Tátil:** Transformado todo o cabeçalho superior do Terço em um cartão tocável com indicação clara de abertura (`'Toque para alterar'`), ícone temático e seta para baixo (`chevronDown`).
+  - **Novo BottomSheet Nobre e Educativo de Mistérios:** Implementada uma folha modal com os 4 grupos de mistérios da Igreja Católica (Gozosos, Dolorosos, Gloriosos e Luminosos), indicando seus dias tradicionais, resumo contemplativo, badge `'Hoje'` para o mistério do dia da semana atual e marcação de seleção ativa com feedback háptico.
+  - **Testes Automatizados:** Adicionado teste no Flutter (`testWidgets`) garantindo a abertura da folha modal e a seleção dos mistérios.
+
+## [1.26.1] - 2026-10-12
+
+### Fixed
+
+- **MarIA Mobile — Correção de Transição Dinâmica no Leitor Litúrgico (`features/liturgy/`):**
+  - **Eliminação de Exceção `Unexpected null value`:** Corrigido problema em que a transição entre dias litúrgicos de solenidades (com 4 abas: 1ª Leitura, Salmo, 2ª Leitura e Evangelho) e dias comuns de semana (com 3 abas, sem 2ª Leitura) causava falha de ciclo de vida e crash no Flutter.
+  - **Adoção de `DefaultTabController` Declarativo:** Substituído o gerenciamento imperativo de `TabController` (que descartava o controller durante a renderização da árvore de widgets) pelo widget declarativo `DefaultTabController` com `ValueKey('${liturgy.dataFormatada}_${tabs.length}')`.
+  - **Resiliência do Leitor de Leituras:** Eliminação de referências nulas ao esqueleto de carregamento (Shimmer) e garantia de que o usuário pode navegar livremente para frente, para trás ou por qualquer data do calendário sem travamento.
+
+## [1.26.0] - 2026-10-12
+
+### Added
+
+- **MarIA Mobile — Fase 4 Concluída (Gestão Unificada de Lembretes & Hábitos do Plano de Vida):**
+  - **Rastreador de Hábitos do Plano de Vida (`features/spiritual_plan/`):**
+    - Entidade `SpiritualHabitEntity`, data source com `SharedPreferences` e `SpiritualPlanNotifier` com Riverpod 3.x.
+    - Tela completa `SpiritualPlanPage` com gauge circular de santificação (% concluído), badge dinâmico de streak de constância diária e checklist interativa dos 5 hábitos católicos essenciais.
+    - Atalhos diretos de "Rezar Agora" na checklist (abre o Santo Terço háptico, o Exame Noturno ou a Liturgia do Dia com 1 toque).
+    - `SpiritualHabitsRow` da tela inicial (Home) conectado ao Riverpod, persistindo instantaneamente no aparelho e com atalho para o plano completo.
+  - **Lembretes Devocionais & Ponte Híbrida com o WhatsApp (`features/reminders/`):**
+    - Entidade `SpiritualReminderEntity`, persistência de configurações com `RemindersLocalDataSource` e `RemindersNotifier`.
+    - Tela `RemindersPage` com ajuste dinâmico de horários de oração via seletor `showTimePicker`.
+    - Suporte nativo à arquitetura híbrida: permite ao fiel selecionar simultaneamente `[x] Tocar no Celular` (com carrilhões e sinos de mosteiro) e `[x] Enviar no WhatsApp` para receber a meditação guiada pelo mensageiro.
+    - Diálogo para criação de novos lembretes devocionais personalizados.
+  - **Integração no Ecossistema:**
+    - Atalho "Lembretes & Sinos" integrado no grid de ações da Home (`QuickActionsGrid`).
+    - Seção "Vida Devocional & Lembretes" integrada na tela de ajustes (`SettingsPage`).
+  - **Qualidade, Testes & Build:**
+    - Suíte de testes expandida para **22 testes automatizados** aprovados com 100% de sucesso (`reminders_spiritual_plan_test.dart`, `chat_ai_test.dart`, `liturgy_saint_test.dart`, `rosary_conscience_test.dart`, `widget_test.dart`).
+    - Análise de código estática com 0 issues (`flutter analyze`).
+    - APK Android gerado com sucesso em `build\app\outputs\flutter-apk\app-debug.apk`.
+
+## [1.25.0] - 2026-10-12
+
+### Added
+
+- **MarIA Mobile — Fase 3 Concluída (Inteligência Devocional Nativa, Chat Espiritual & Magisterium IA):**
+  - **Diálogo Espiritual Fluido & Consistente (`features/chat_ai/presentation/chat_page.dart`):**
+    - Interface devocional sacra com `ConsumerStatefulWidget` conectado ao Riverpod (`chatNotifierProvider`).
+    - Chips dinâmicos com sugestões de partilha e oração para acolhimento inicial (*ansiedade à luz da fé*, *preparação para confissão*, *oração pela família*, *perdão sincero*, *meditação da Palavra*).
+    - Indicador visual suave de digitação e oração ("MarIA está orando e formulando resposta...").
+    - Auto-scroll suave para novas mensagens e suporte a cópia rápida para oração pessoal via toque longo com feedback tátil.
+    - Botão de **Sigilo Espiritual** no AppBar com diálogo seguro para limpeza completa do histórico no dispositivo local.
+  - **Camada de Dados & Resiliência Offline (`features/chat_ai/data/datasources/chat_remote_data_source.dart`):**
+    - Comunicação com o gateway backend (`/mobile/chat`).
+    - Fallback pastoral compassivo e teologicamente ancorado quando o dispositivo estiver offline ou em adoração silenciosa.
+  - **Gateway Backend NestJS (`backend/src/mobile/`):**
+    - Módulo `MobileModule` com `MobileController` e `MobileService` registrado no `AppModule`.
+    - Integração de alta fidelidade doutrinária com `AiService`, `PromptService` (persona maternal da MarIA) e `MagisteriumService` para subsídio teológico sob demanda.
+  - **Qualidade, Testes & Build:**
+    - Suíte de testes expandida para 18 testes aprovados com 100% de sucesso (`chat_ai_test.dart`, `liturgy_saint_test.dart`, `rosary_conscience_test.dart`, `widget_test.dart`).
+    - Análise estática do Flutter com 0 issues (`flutter analyze`).
+    - Build de produção do backend (`nest build`) compilado com sucesso.
+    - Build do APK Android gerado com sucesso (`build\app\outputs\flutter-apk\app-debug.apk`).
+
+## [1.24.0] - 2026-10-12
+
+### Added
+
+- **MarIA Mobile — Fase 2 Concluída (Experiência Sacra Imersiva, Terço Háptico & Modos de Leitura):**
+  - **Santo Terço Interativo (`features/prayers/presentation/rosary_page.dart`):**
+    - Contador tátil de contas contemplativo com detecção automática do mistério do dia da semana (Gozosos, Dolorosos, Gloriosos, Luminosos) e troca manual.
+    - Feedback háptico tátil a cada Ave-Maria (`lightImpact`), nas dezenas (`mediumImpact`) e na conclusão (`heavyImpact`), permitindo que o fiel reze de olhos fechados.
+    - Meditação do mistério, virtudes associadas e barra de progresso visual (1 a 50 contas).
+  - **Exame de Consciência Noturno Estruturado (`features/prayers/presentation/conscience_exam_page.dart`):**
+    - Roteiro guiado em 4 passos: 1) Presença de Deus & Gratidão, 2) Luz do Espírito Santo, 3) Revisão dos atos do dia com perguntas compassivas, 4) Ato de Contrição e Resolução Prática.
+    - Persistência da resolução espiritual pessoal no dispositivo com total sigilo (`SharedPreferences`).
+  - **Modos de Contraste e Leitura na Liturgia (`features/liturgy/presentation/liturgy_page.dart`):**
+    - Novo seletor de contraste na AppBar permitindo alternar entre **Modo Padrão**, **Modo Sepia (Pergaminho)** e **Modo Capela Noturna (OLED preto absoluto)** para leitura em ambientes escuros e adoração.
+  - **Integração de Atalhos Rápidos:**
+    - `QuickActionsGrid` da Home e banners de destaque em `PrayersPage` conectados para abrir diretamente o Santo Terço e o Exame Noturno.
+  - **Qualidade & Testes:**
+    - Novos testes de widget em `rosary_conscience_test.dart` aprovados com 100% de sucesso (totalizando 14 testes passando).
+    - Compilação do APK de debug bem-sucedida (`app-debug.apk`).
+
+## [1.23.0] - 2026-10-12
+
+### Added
+
+- **MarIA Mobile — Fase 1 Concluída (Liturgia Anual, Santo do Dia & Orações Reais):**
+  - **Liturgia Diária Dinâmica (`features/liturgy/`):**
+    - Integração de rede (`ApiClient` com Dio) consumindo a API Litúrgica oficial (`liturgia.up.railway.app/v2/`).
+    - Cache local offline-first com `SharedPreferences` por chave de data (`LiturgyLocalDataSource`).
+    - Navegação anual completa: permite avançar, recuar e navegar livremente por qualquer data do ano via `showDatePicker` e botão de retorno rápido "Hoje".
+    - `LiturgyPage` redesenhada com abas adaptáveis (1ª Leitura, Salmo com refrão destacado, 2ª Leitura quando houver e Evangelho), seletor de tamanho de fonte e skeleton Shimmer.
+  - **Santo do Dia Dinâmico (`features/saint_of_day/`):**
+    - Calendário de santos católicos e memórias litúrgicas com dados de biografia, virtude e orações de intercessão, com suporte 100% offline.
+    - Card de destaque da `HomePage` e modal BottomSheet atualizados para exibir os santos reais do dia.
+  - **Catálogo de Orações Enriquecido (`features/prayers/`):**
+    - Adição de barra de pesquisa instantânea para busca por nome ou trecho de oração.
+    - Inclusão de orações essenciais: Oração a São Miguel Arcanjo, Angelus, Consagração a Nossa Senhora, Lembrai-vos (Memorare), Alma de Cristo, Santo Anjo e Terço da Divina Misericórdia.
+  - **Qualidade & Testes:**
+    - Testes unitários para `DateFormatterHelper`, `LiturgicalColorHelper`, `SaintDataSource` e `LiturgyModel` aprovados com 100% de sucesso.
+    - APK de debug compilado e verificado sem erros (`app-debug.apk`).
+
+## [1.22.2] - 2026-10-12
+
+### Added
+
+- **MarIA Mobile — Roadmap Estratégico & Ecossistema Híbrido (`docs/ROADMAP_MOBILE.md`):**
+  - Definição do plano de evolução em 6 fases cronológicas, priorizando a testabilidade integral imediata (adiamento da autenticação para etapa final).
+  - Mapeamento das capacidades exclusivas do aplicativo nativo frente ao WhatsApp (Modo Offline em Capela, Santo Terço com feedback háptico, Leitor Litúrgico com modos de contraste e ajuste tipográfico, Lembretes com badaladas sacras, Navegação Litúrgica anual e Biometria).
+  - Estratégia de integração com a API Litúrgica oficial para carregamento dinâmico de qualquer dia do ano.
+
+## [1.22.1] - 2026-10-05
+
+### Changed
+
+- **MarIA Mobile — Rebranding Visual de Cores Oficial da Logo:**
+  - **Paleta de Cores (`AppColors`):**
+    - Substituição do azul marinho escuro pelo **Azul Cobalto Mariano Oficial (`#0047AB`)**, idêntico à logo da MarIA e às plataformas web/landing.
+    - Adição do **Azul Sagrado Profundo (`#002D6E`)** e **Azul Noturno Celestial (`#001B44`)** para títulos, contraste e degradês nobres.
+    - Substituição do tom dourado ocre/queimado pelo **Ouro Real Radiante (`#D4AF37`)**, com realces celestiais nas 12 estrelas da coroa (`#FDE68A`) e halo radiante.
+    - Atualização do fundo para superfície suavemente celeste (`#F4F7FC`) com bordas delicadas (`#E1EAF5`).
+  - **Componentes do Santuário e Navegação:**
+    - `DailyLiturgicalHeader`: Saudação "SALVE MARIA" em ouro radiante com marcador luminoso e título "Santuário MarIA" com destaque nobre em degradê/cobalto.
+    - `SaintHeroCard`: Badge e halo do Santo do Dia em ouro luminoso, citações em superfície azulada celeste e botão de oração com estilo pílula em azul cobalto.
+    - `SpiritualHabitsRow`: Marcadores de hábitos concluídos e badge de progresso padronizados no Azul Cobalto Mariano (`#0047AB`).
+    - `LiturgySummaryCard`: Acentos, ícones e botões de leitura completa adaptados ao azul cobalto oficial.
+    - `ChatPage`: Balões de mensagem do devoto em Azul Cobalto Mariano com tipografia branca nítida.
+    - `NavigationBar`: Destaques ativos e ícone selecionado padronizados em Azul Cobalto Mariano.
+  - **Testes & Qualidade:**
+    - `widget_test.dart` atualizado e aprovado com 100% de sucesso.
+    - `flutter analyze` validado com 0 avisos e 0 erros.
+
+## [1.22.0] - 2026-10-05
+
+### Added
+
+- **MarIA Mobile — Santuário Digital Católico (Milestone 1 / Flutter):**
+  - **Inicialização do Projeto e Arquitetura:**
+    - Projeto Flutter 3.47+ configurado sob o identificador `com.acutistech.maria_app` no diretório `mobile/`.
+    - Adoção do padrão arquitetural **Clean Architecture + Feature-First** desacoplado, com injeção de dependência e gerenciamento de estado via **Flutter Riverpod 3.x** e roteamento declarativo com **GoRouter**.
+  - **Design System Sacro e Mariana (`lib/core/theme/`):**
+    - **`AppColors`:** Paleta litúrgica e nobre com Azul Mariano Profundo (`#0A192F`), Ouro Sacro (`#C5A059`), Marfim Litúrgico e suporte a cores litúrgicas dinâmicas (Verde do Tempo Comum, Roxo Penitencial, Vermelho de Mártires, Branco Pascal e Rosa).
+    - **`AppTypography`:** Tipografia nobre com títulos sacros em *Cinzel* e corpo de leitura de alta legibilidade em *Plus Jakarta Sans* via Google Fonts.
+    - **`AppTheme`:** Temas completos Claro (Santuário Diurno) e Escuro (Capela Noturna de Oração) com CardThemeData e NavigationBarThemeData personalizados.
+  - **App Shell & Navegação Sacra (`lib/core/router/`):**
+    - `AppScaffold` com barra de navegação inferior fluida baseada em `IndexedStack` e ícones `lucide_icons_flutter` para as 5 áreas centrais:
+      - 🏠 **Santuário (Hoje)**
+      - 📖 **Liturgia Diária**
+      - 📿 **Orações & Terço**
+      - 🕊️ **MarIA (Chat Devocional)**
+      - ⚙️ **Ajustes & Perfil**
+  - **Módulo Santuário / Home (`lib/features/home/`):**
+    - `DailyLiturgicalHeader`: Saudação "Salve Maria", data por extenso e badge do Tempo Litúrgico com cor sacra do dia.
+    - `SaintHeroCard`: Card do Santo do Dia com nome, título, virtude inspiradora, citação célebre e modal de oração de intercessão.
+    - `SpiritualHabitsRow`: Checklist interativo do Plano de Vida Espiritual (Oferecimento da Manhã, Angelus, Santo Terço e Exame Guiado) com contagem de progresso em tempo real.
+    - `LiturgySummaryCard`: Evangelho do Dia com destaque tipográfico nobre, botão de leitura das leituras completas e ação de escuta em áudio.
+    - `QuickActionsGrid`: Atalhos rápidos em grade com Santo Terço, Exame de Consciência, Diálogo com a MarIA e Entrega de Intenções de Oração.
+  - **Módulos Complementares Funcionais:**
+    - `LiturgyPage`: Leitor litúrgico completo com abas (1ª Leitura, Salmo Responsorial, Evangelho e Reflexão) e ajuste dinâmico de tamanho de fonte.
+    - `PrayersPage`: Catálogo de orações fundamentais (Pai Nosso, Ave Maria, Salve Rainha, Credo, Mistérios do Rosário e Ato de Contrição) em cards sanfonados com diálogo de leitura.
+    - `ChatPage`: Interface de diálogo e acolhimento com a MarIA AI, com banner de sigilo espiritual e privacidade.
+    - `SettingsPage`: Gerenciamento de perfil, alternância dinâmica de tema (Claro / Escuro / Sistema) via Riverpod e switches de lembretes devocionais.
+  - **Qualidade & Testes:**
+    - `widget_test.dart`: Teste de inicialização e renderização do `MariaApp` com `ProviderScope` aprovado com 100% de sucesso.
+    - Análise estática com `flutter analyze` sem qualquer erro, aviso ou depreciação (`No issues found!`).
+
 ## [1.21.0] - 2026-09-26
 
 ### Added

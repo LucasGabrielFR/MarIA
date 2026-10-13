@@ -14,6 +14,7 @@ import { MailModule } from './mail/mail.module';
 import { PlansModule } from './plans/plans.module';
 import { BroadcastModule } from './broadcast/broadcast.module';
 import { AffiliatesModule } from './affiliates/affiliates.module';
+import { MobileModule } from './mobile/mobile.module';
 
 import { BullModule } from '@nestjs/bullmq';
 import { RemindersModule } from './reminders/reminders.module';
@@ -52,6 +53,7 @@ import { SystemLogsModule } from './system-logs/system-logs.module';
     BroadcastModule,
     AffiliatesModule,
     RemindersModule,
+    MobileModule,
   ],
   controllers: [],
   providers: [],

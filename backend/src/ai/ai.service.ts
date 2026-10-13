@@ -353,21 +353,41 @@ export class AiService implements OnModuleInit {
     pushName?: string,
     phone?: string,
     affiliateCode?: string | null,
+    source: 'whatsapp' | 'mobile' = 'whatsapp',
   ): Promise<any> {
     const supabase = this.supabaseService.getClient();
     let { data: user } = await supabase
       .from('users')
       .select('*')
       .eq('wa_chatid', waChatId)
-      .single();
+      .maybeSingle();
+
+    if (!user && phone) {
+      const { data: userByPhone } = await supabase
+        .from('users')
+        .select('*')
+        .eq('phone', phone)
+        .maybeSingle();
+      if (userByPhone) {
+        user = userByPhone;
+      }
+    }
 
     if (!user) {
+      const fallbackPhone =
+        phone ||
+        (source === 'mobile'
+          ? `55009${Math.floor(10000000 + Math.random() * 90000000)}`
+          : waChatId.replace(/\D/g, '') || `55009${Date.now().toString().slice(-8)}`);
+
       const insertData: any = {
         wa_chatid: waChatId,
-        status: 'triage_intro', // Novo fluxo começa em triage_intro
+        status: source === 'mobile' ? 'active' : 'triage_intro', // No mobile, já inicia ativo
         subscription_tier: 'free',
+        origin: source,
+        phone: fallbackPhone,
+        name: pushName || 'Fiel',
       };
-      if (phone) insertData.phone = phone;
       if (affiliateCode) insertData.affiliate_code = affiliateCode;
 
       const { data: newUser, error } = await supabase
@@ -764,6 +784,7 @@ export class AiService implements OnModuleInit {
     pushName?: string,
     phone?: string,
     affiliateCode?: string | null,
+    source: 'whatsapp' | 'mobile' = 'whatsapp',
   ): Promise<any> {
     const supabase = this.supabaseService.getClient();
 
@@ -778,7 +799,7 @@ export class AiService implements OnModuleInit {
       return this.promptService.getPrompt('maintenance_message');
     }
 
-    const user = await this.getOrCreateUser(waChatId, pushName, phone, affiliateCode);
+    const user = await this.getOrCreateUser(waChatId, pushName, phone, affiliateCode, source);
     const userId = user.id;
 
     // --- Tratamento de Código Promocional (Affiliates) ---
@@ -914,6 +935,17 @@ export class AiService implements OnModuleInit {
     const corePersona = this.promptService.getCorePersona();
 
     // --- MÁQUINA DE ESTADOS (TRIAGEM) ---
+    // Se a chamada for originada do aplicativo mobile, não aplicar triagem de onboarding de WhatsApp
+    if (source === 'mobile' && (userStatus === 'triage_intro' || userStatus === 'triage_name')) {
+      userStatus = 'active';
+      user.status = 'active';
+      if (!user.name && pushName && pushName !== 'Fiel' && pushName !== 'Usuário') {
+        user.name = pushName;
+        await supabase.from('users').update({ status: 'active', name: pushName }).eq('id', userId);
+      } else {
+        await supabase.from('users').update({ status: 'active' }).eq('id', userId);
+      }
+    }
 
     // 1. Triagem Inicial (Nome)
     if (userStatus === 'triage_intro' || userStatus === 'triage_name') {
