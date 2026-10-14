@@ -3,7 +3,7 @@
 ## 📌 Sobre o Projeto
 
 ## 🚀 Funcionalidades
-- **MarIA Mobile (Santuário Digital iOS & Android em Flutter):** Aplicativo multiplataforma com Design System Sacro, tipografia clássica (*Cinzel* e *Plus Jakarta Sans*), Liturgia Diária com leitura e áudio, Santo do Dia com virtudes e orações de intercessão, checklist diário de hábitos do Plano de Vida Espiritual, catálogo de orações/Rosário e diálogo de acolhimento sob sigilo de oração. Consulte o planejamento e modelo híbrido em [`docs/ROADMAP_MOBILE.md`](file:///d:/Programming/AcutisTech/MarIA/docs/ROADMAP_MOBILE.md).
+- **MarIA Mobile (Santuário Digital iOS & Android em Flutter):** Aplicativo multiplataforma com Design System Sacro, tipografia clássica (*Cinzel* e *Plus Jakarta Sans*), Liturgia Diária com leitura e áudio, Santo do Dia com virtudes e orações de intercessão, Plano de Vida Espiritual personalizado (com hábitos devocionais customizáveis, lembretes híbridos no celular e WhatsApp, streak diário e sincronização resiliente offline-first via Supabase), catálogo de orações/Rosário e diálogo de acolhimento sob sigilo de oração. Consulte o planejamento e modelo híbrido em [`docs/ROADMAP_MOBILE.md`](file:///d:/Programming/AcutisTech/MarIA/docs/ROADMAP_MOBILE.md).
 - **Linguagem Maternal:** Interação empática e acolhedora.
 - **Arquitetura de Cache Híbrido:** Sistema inteligente de dois níveis (Diário e Semântico) para otimização radical de custos de API e redução drástica de latência.
 - **Geração Noturna Automatizada:** Processamento via CRON que prepara Liturgia, Santo do Dia e Mistérios do Terço (com reflexões atreladas à Palavra) diariamente às 00:01.

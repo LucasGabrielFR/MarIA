@@ -1,5 +1,10 @@
 import { Controller, Post, Body, Get, Put, Query, HttpCode, HttpStatus } from '@nestjs/common';
-import { MobileService, MobileChatRequestDto, UpdatePreferencesDto } from './mobile.service';
+import {
+  MobileService,
+  MobileChatRequestDto,
+  UpdatePreferencesDto,
+  UpdateSpiritualPlanDto,
+} from './mobile.service';
 
 @Controller('mobile')
 export class MobileController {
@@ -39,4 +44,19 @@ export class MobileController {
   async updatePreferences(@Body() dto: UpdatePreferencesDto) {
     return this.mobileService.updatePreferences(dto);
   }
+
+  @Get('spiritual-plan')
+  async getSpiritualPlan(
+    @Query('phone') phone?: string,
+    @Query('userId') userId?: string,
+  ) {
+    return this.mobileService.getSpiritualPlan(phone, userId);
+  }
+
+  @Put('spiritual-plan')
+  @HttpCode(HttpStatus.OK)
+  async updateSpiritualPlan(@Body() dto: UpdateSpiritualPlanDto) {
+    return this.mobileService.updateSpiritualPlan(dto);
+  }
 }
+

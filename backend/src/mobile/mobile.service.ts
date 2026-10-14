@@ -36,6 +36,38 @@ export class UserPreferencesResponseDto {
   isRegisteredOnWhatsapp: boolean;
 }
 
+export class SpiritualHabitDto {
+  id: string;
+  title: string;
+  description?: string;
+  period: string; // 'Manhã', 'Meio-dia', 'Tarde', 'Noite'
+  defaultTime: string; // '07:00'
+  isCompleted?: boolean;
+  completedAt?: string;
+  reminderEnabled?: boolean;
+  notifyOnDevice?: boolean;
+  notifyOnWhatsApp?: boolean;
+  soundType?: string;
+  isCustom?: boolean;
+  orderIndex?: number;
+  updatedAt?: string;
+}
+
+export class UpdateSpiritualPlanDto {
+  phone?: string;
+  userId?: string;
+  habits: SpiritualHabitDto[];
+  streakDays?: number;
+}
+
+export class SpiritualPlanResponseDto {
+  userId: string;
+  phone: string;
+  habits: SpiritualHabitDto[];
+  streakDays: number;
+  updatedAt: string;
+}
+
 @Injectable()
 export class MobileService {
   private readonly logger = new Logger(MobileService.name);
@@ -275,6 +307,112 @@ export class MobileService {
       receiveDailySaint: user.receive_daily_saint ?? dto.receiveDailySaint ?? false,
       whatsappBridgeEnabled: user.whatsapp_bridge_enabled ?? dto.whatsappBridgeEnabled ?? true,
       isRegisteredOnWhatsapp: !!user.wa_chatid || !!user.phone,
+    };
+  }
+
+  async getSpiritualPlan(phone?: string, userId?: string): Promise<SpiritualPlanResponseDto> {
+    const cleanPhone = phone ? phone.replace(/\D/g, '') : undefined;
+    const supabase = this.supabaseService.getClient();
+
+    let user: any = null;
+    if (userId) {
+      const { data } = await supabase.from('users').select('id, phone, name').eq('id', userId).maybeSingle();
+      user = data;
+    }
+    if (!user && cleanPhone) {
+      const { data } = await supabase.from('users').select('id, phone, name').ilike('phone', `%${cleanPhone}%`).maybeSingle();
+      user = data;
+    }
+
+    if (!user) {
+      return {
+        userId: userId || '',
+        phone: cleanPhone || '',
+        habits: [],
+        streakDays: 0,
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
+    const { data: plan } = await supabase
+      .from('user_spiritual_plans')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    return {
+      userId: user.id,
+      phone: user.phone || cleanPhone || '',
+      habits: (plan?.habits as SpiritualHabitDto[]) || [],
+      streakDays: plan?.streak_days || 0,
+      updatedAt: plan?.updated_at || new Date().toISOString(),
+    };
+  }
+
+  async updateSpiritualPlan(dto: UpdateSpiritualPlanDto): Promise<SpiritualPlanResponseDto> {
+    const cleanPhone = dto.phone ? dto.phone.replace(/\D/g, '') : undefined;
+    const supabase = this.supabaseService.getClient();
+
+    let user: any = null;
+    if (dto.userId) {
+      const { data } = await supabase.from('users').select('id, phone, name').eq('id', dto.userId).maybeSingle();
+      user = data;
+    }
+    if (!user && cleanPhone) {
+      const { data } = await supabase.from('users').select('id, phone, name').ilike('phone', `%${cleanPhone}%`).maybeSingle();
+      user = data;
+    }
+
+    if (!user && cleanPhone) {
+      const { data: newUser } = await supabase
+        .from('users')
+        .insert({
+          phone: cleanPhone,
+          name: 'Fiel App',
+          subscription_tier: 'free',
+        })
+        .select()
+        .single();
+      user = newUser;
+    }
+
+    if (!user) {
+      return {
+        userId: dto.userId || '',
+        phone: cleanPhone || '',
+        habits: dto.habits || [],
+        streakDays: dto.streakDays || 0,
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
+    const nowIso = new Date().toISOString();
+    const { data: savedPlan, error } = await supabase
+      .from('user_spiritual_plans')
+      .upsert(
+        {
+          user_id: user.id,
+          habits: dto.habits || [],
+          streak_days: dto.streakDays ?? 0,
+          updated_at: nowIso,
+        },
+        { onConflict: 'user_id' },
+      )
+      .select()
+      .single();
+
+    if (error) {
+      this.logger.error(`[Spiritual Plan] Erro ao salvar plano para usuário ${user.id}: ${error.message}`);
+    } else {
+      this.logger.log(`[Spiritual Plan] Plano salvo para ${user.id} com ${dto.habits?.length ?? 0} hábitos.`);
+    }
+
+    return {
+      userId: user.id,
+      phone: user.phone || cleanPhone || '',
+      habits: (savedPlan?.habits as SpiritualHabitDto[]) || dto.habits || [],
+      streakDays: savedPlan?.streak_days ?? dto.streakDays ?? 0,
+      updatedAt: savedPlan?.updated_at || nowIso,
     };
   }
 }

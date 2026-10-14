@@ -6,6 +6,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.29.0] - 2026-10-14
+
+### Added
+
+- **MarIA Mobile & Backend — Plano de Vida Espiritual Personalizado (Offline-First & Sincronizado):**
+  - **Unificação de Hábitos & Lembretes Devocionais:** Transformação do Plano de Vida no coração devocional do app, onde cada momento espiritual combina disciplina diária (checklist com cálculo de streak consecutivo) e lembrete pontual com horário configurável.
+  - **Template Padrão "Plano Mariano Completo":** Inicialização com os 6 momentos fundamentais da tradição católica:
+    1. *Oferecimento da Manhã* (07:00 - Manhã)
+    2. *Liturgia da Palavra & Evangelho* (09:00 - Manhã)
+    3. *Oração do Angelus* (12:00 - Meio-dia)
+    4. *Terço da Misericórdia* (15:00 - Tarde)
+    5. *Santo Terço Mariano* (18:00 - Tarde)
+    6. *Exame de Consciência* (21:30 - Noite)
+  - **Catálogo de Sugestões da Tradição Católica & Criação Livre:** Novo modal [`AddHabitBottomSheet`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/spiritual_plan/presentation/widgets/add_habit_bottom_sheet.dart) com duas abas:
+    - *Tradição Católica:* Adição com um toque de práticas como Visita ao Santíssimo, Lectio Divina, Oração a São Miguel Arcanjo, Jejum das Sextas e Jaculatória de Repouso.
+    - *Criar Meu Hábito:* Formulário completo permitindo definir título livre, turno litúrgico, horário via `TimePicker` sacro e canais de notificação.
+  - **Lembretes Híbridos (Celular & WhatsApp):** Cada item permite alternar de forma independente se dispara notificação local no smartphone (🔔 com toque sacro) e/ou mensagem direta no WhatsApp (💬 pela MarIA).
+  - **Arquitetura Offline-First Resiliente:**
+    - Operação 100% autônoma no dispositivo via `SharedPreferences`, garantindo leitura instantânea (0 delay na UI) e funcionamento sem internet ou em modo avião.
+    - Sincronização em segundo plano transparente quando online, enviando o plano ativo para o banco de dados.
+  - **Backend NestJS & Supabase Migration:**
+    - Criada a tabela `user_spiritual_plans` via migration [`docs/migrations/20261014000000_create_user_spiritual_plans.sql`](file:///d:/Programming/AcutisTech/MarIA/docs/migrations/20261014000000_create_user_spiritual_plans.sql) com RLS para service role.
+    - Endpoints `GET` e `PUT /mobile/spiritual-plan` implementados em [`mobile.controller.ts`](file:///d:/Programming/AcutisTech/MarIA/backend/src/mobile/mobile.controller.ts) e [`mobile.service.ts`](file:///d:/Programming/AcutisTech/MarIA/backend/src/mobile/mobile.service.ts).
+    - Contêiner `maria-backend-1` reconstruído com Docker e em execução saudável.
+  - **Testes & Qualidade:** 25 testes unitários e de widgets executados e 100% aprovados (`All tests passed!`), `flutter analyze` com 0 issues.
+
 ## [1.28.0] - 2026-10-13
 
 ### Added
