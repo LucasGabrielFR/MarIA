@@ -6,6 +6,123 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.33.0] - 2026-10-15
+
+### Added
+
+- **MarIA Mobile & Backend — Novenas Litúrgicas Dinâmicas com Início Inteligente, Card na Home, Lembretes Multi-canal e Integração ao Plano de Vida Espiritual:**
+  - **Cálculo Canônico Litúrgico Regressivo:** Algoritmo implementado na entidade `Novena` (`getFeastDate()`, `idealStartDate`, `daysUntilIdealStart` e `liturgicalBadge`) que calcula a data de início ideal com base na comemoração do santo (Festa no 9º dia: `festa - 8 dias = Dia 1`). Para a *Novena a São João Paulo II* (Festa em 22/10), a data ideal é 14/10, gerando badges pastorais contextualizados como *"COMEÇOU ONTEM (DIA 2/9)"* e *"COMEÇA HOJE!"*.
+  - **Card Dinâmico na Tela Inicial (`UpcomingNovenasCard`):** Integrado à tela principal (`HomePage`), logo abaixo do Santo do Dia, destacando a próxima novena mais oportuna segundo o calendário litúrgico, com atalho direto para iniciar a oração ou visualizar o catálogo. Quando o fiel inicia uma novena, o widget transita automaticamente para o modo **"SUA NOVENA ATIVA"**, exibindo a barra de progresso dos 9 dias, intenção consagrada, horário de lembrete e botão de oração rápida do dia.
+  - **Modal Completo de Inicialização de Novena com Lembretes:**
+    - Campo para consagração da intenção particular.
+    - Seletor de horário diário com presets rápidos (`07:00` Manhã, `12:00` Ângelus, `18:00` Tarde, `20:00` Noite) e TimePicker customizado.
+    - Configuração de lembretes diários por notificação no celular e envio automático pelo WhatsApp (com campo de telefone).
+    - Informativo de inclusão automática no Plano de Vida Espiritual.
+  - **Integração Bidirecional ao Plano de Vida Espiritual (`SpiritualPlanNotifier`):**
+    - A novena ativa é injetada dinamicamente na lista de hábitos diários do fiel (`novena_habit_${un.id}`) com o horário programado e período correspondente (*Manhã*, *Meio-dia*, *Tarde*, *Noite*).
+    - Sincronização mútua: marcar o hábito no Plano de Vida conclui o dia correspondente na novena e vice-versa.
+    - Expiração automática após o 9º dia de oração.
+  - **Novena a São João Paulo II Semeada no Backend & Offline:** Povoamento completo dos 9 dias com orações iniciais, meditações, leituras bíblicas, orações próprias do Papa Wojtyła e ladainha, tanto na sementeira do Supabase (`initial-novenas-data.ts`) quanto nos dados offline do app (`default_novenas_data.dart`).
+  - **Resiliência de Identificador Anônimo de Dispositivo:** Suporte a UUID determinístico no cliente mobile para compatibilidade imediata com esquemas relacionais do Supabase.
+
+## [1.32.0] - 2026-10-15
+
+### Added
+
+- **MarIA Mobile — Santuário de Novenas Católicas com Modo Offline-First & Ritmo Pastoral Flexível (`mobile/lib/features/novenas/`):**
+  - **Experiência Devocional das Grandes Novenas no App:** Implementado módulo nativo completo para vivência dos 9 dias de devoção, consumindo dinamicamente o catálogo do Supabase através do backend NestJS (`/mobile/novenas`) com sincronização transparente.
+  - **Arquitetura Offline-First Resiliente:** Persistência local em cache via `SharedPreferences` ([`novenas_local_data_source.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/novenas/data/datasources/novenas_local_data_source.dart)) com fila de ações pendentes (`novenas_pending_sync_queue`) e pacote embutido de novenas canônicas de alta fidelidade ([`default_novenas_data.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/novenas/data/datasources/default_novenas_data.dart)). O fiel pode rezar em capelas ou igrejas sem sinal de internet com registro imediato de progresso e sincronização em segundo plano ao reconectar.
+  - **Ritmo Pastoral Flexível:** Possibilidade de rezar o dia sugerido, compensar dias esquecidos ou revisar orações de dias anteriores com total liberdade devocional.
+  - **Indicador Sagrado de Progresso (9 Contas/Velas Táteis):** Widget acessível [`NovenaProgressBeads`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/novenas/presentation/widgets/novena_progress_beads.dart) com alvos de toque superiores a 44x44px, diferenciação cromática para dias concluídos (Ouro Sacro `#D4AF37`), dia atual em destaque pulsante (Azul Mariano `#0047AB`) e dias futuros.
+  - **Itinerário Litúrgico Contemplativo por Dia ([`novena_prayer_day_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/novenas/presentation/pages/novena_prayer_day_page.dart)):** Cada um dos 9 dias estrutura a oração em 5 momentos sagrados com tipografia litúrgica e cards devocionais:
+    1. *Sinal da Cruz & Oração Inicial*
+    2. *Palavra de Deus* (com citação e referência bíblica)
+    3. *Meditação do Dia*
+    4. *Oração Própria do Xº Dia* (com destaque dourado)
+    5. *Orações Conclusivas & Amém* (Pai Nosso, Ave Maria e Glória)
+    - Botão de ação inferior com feedback háptico (`HapticFeedback.mediumImpact()`) e diálogo celebrativo ao concluir o dia ou finalizar o novenário.
+  - **Gestão de Intenções Pessoais ([`novena_detail_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/novenas/presentation/pages/novena_detail_page.dart)):** Modal devocional na abertura da novena para consagrar a intenção particular no Coração de Jesus e Maria, mantendo-a visível como lembrete constante no topo da oração diária, com botão de ação simplificado para **"Iniciar Novena"** (removendo a redundância devocional).
+  - **Catálogo Santuário de Novenas ([`novenas_catalog_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/novenas/presentation/pages/novenas_catalog_page.dart)):** Tela principal com busca em tempo real, chips de filtro por categoria (*Marianas*, *Santos*, *Causas Urgentes*, *Cristológicas*, *Penitenciais*), card hero com atalho rápido para a novena em andamento e pull-to-refresh.
+  - **Ponto de Acesso em Orações ([`prayers_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/prayers/presentation/prayers_page.dart)):** Banner nobre com insígnia sagrada e badge de 9 Dias integrado à aba de Devoções, logo abaixo do Santo Terço.
+  - **Rotas Declarativas no GoRouter ([`app_router.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/core/router/app_router.dart)):** Registro de rotas `/novenas` e `/novenas/:idOrSlug`.
+  - **Bateria de Testes Automatizados ([`mobile/test/novenas_test.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/test/novenas_test.dart)):** Testes unitários de modelos, serialização de progresso do usuário, renderização do indicador de 9 contas, cards e fluxo de oração com 100% de aprovação.
+
+## [1.31.0] - 2026-10-15
+
+### Added
+
+- **Novenário MarIA & Supabase como Fonte Única da Verdade (`backend/src/novenas/` & `docs/migrations/`):**
+  - **Modelagem Relacional de Novenas no Supabase:** Criação das tabelas [`public.novenas`](file:///d:/Programming/AcutisTech/MarIA/docs/migrations/20261015000000_create_novenas_module.sql), `public.novena_days`, `public.user_novenas` e `public.user_novena_logs`, permitindo que todo o acervo devocional seja editável e expansível via CMS, eliminando hardcodes no aplicativo móvel.
+  - **Módulo Backend NestJS Completo (`novenas`):** Implementados [`NovenasService`](file:///d:/Programming/AcutisTech/MarIA/backend/src/novenas/novenas.service.ts), `PanelNovenasController` (`/panel/novenas`) para o CMS e `MobileNovenasController` (`/mobile/novenas`) para o aplicativo mobile, com suporte a consulta pública de novenas publicadas, detalhamento dia a dia, inicialização de percurso espiritual com intenção pessoal e avanço diário.
+  - **Sementeira das Grandes Novenas Católicas (Canção Nova & Tradição):** Povoamento de 4 novenas completas de 9 dias cada (36 dias de oração) com textos canônicos revisados:
+    - *Novena a Nossa Senhora Desatadora dos Nós* (categoria Marianas)
+    - *Novena a Santa Rita de Cássia* (categoria Causas Urgentes / Impossíveis)
+    - *Novena ao Beato Carlo Acutis* (categoria Santos & Eucaristia)
+    - *Novena a São Bento Abade* (categoria Santos & Libertação)
+  - **Endpoint de Sementeira Administrativa:** Rota `POST /panel/novenas/seed` para reidratação ou atualização automática de novenas no Supabase.
+
+## [1.30.1] - 2026-10-14
+
+### Added
+
+- **MarIA Mobile — Etapa Interativa Solene da Salve Rainha no Santo Terço (`rosary_page.dart`):**
+  - **Etapa Dedicada da Salve Rainha:** Em vez de apresentar a Salve Rainha apenas em um pop-up após a 5ª dezena, o fluxo do Santo Terço agora transita diretamente para uma etapa interativa dedicada (`DecadeStage.hailHolyQueen`), com insígnia de coroa em ouro sacro, cabeçalho de *Encerramento do Santo Terço*, medalha de confirmação de *50 Ave-Marias Concluídas* e texto sagrado completo com versículo e resposta litúrgica (*"V. Rogai por nós, Santa Mãe de Deus / R. Para que sejamos dignos das promessas de Cristo. Amém"*).
+  - **Navegação Contínua e Responsiva:** Ao terminar o Glória ao Pai da 5ª dezena, o botão de ação inferior convida expressamente a *"Rezar Salve Rainha"*, preservando a navegação bidirecional (possibilidade de retroceder conta para o 5º Glória).
+  - **Celebração e Conclusão Limpa:** Ao tocar para concluir na Salve Rainha, exibe o diálogo celebrativo com a bênção da coroa de rosas e a reflexão espiritual de São João Paulo II (*"«Rezar o Terço é contemplar com Maria o rosto de Cristo.»"*), sem poluição ou duplicação do texto da oração em telas pequenas.
+
+## [1.30.0] - 2026-10-14
+
+### Added
+
+- **MarIA Mobile — Módulo Completo de Preparação para a Confissão (Cofre Sacramental com Biometria & 10 Mandamentos):**
+  - **Segurança Sacramental & Sigilo Absoluto (Zero-Knowledge):** Todo o exame de consciência e as anotações do fiel são persistidos estritamente no armazenamento local do dispositivo (`FlutterSecureStorage` com fallback para `SharedPreferences` na Web). Nenhum pecado ou anotação é transmitido para servidores ou salvo em banco de dados na nuvem.
+  - **Bloqueio com a Senha do Celular & Biometria:** Integração com `local_auth` permitindo autenticação nativa com a impressão digital, Face ID ou senha/PIN/padrão do próprio smartphone (semelhante ao bloqueio de aplicativos como o WhatsApp), além de suporte a PIN numérico alternativo de 4 dígitos.
+  - **Auto-Bloqueio por Inatividade de 2 Minutos:** Monitoramento ativo de inatividade que tranca automaticamente o cofre após 120 segundos sem uso ou ao minimizar o aplicativo.
+  - **Exame Detalhado dos 10 Mandamentos da Lei de Deus:** Itinerário catequético e moral minucioso fundamentado no Magistério da Igreja e nos ensinamentos clássicos dos santos confessores (Santo Afonso de Ligório, São Tomás de Aquino). Cada mandamento conta com versículo bíblico meditativo, perguntas de exame com alerta visual de matéria grave e campo para anotações pessoais de circunstâncias/frequência.
+  - **Modo Confessionário (Espelho de Leitura Diante do Sacerdote):** Interface de alto contraste e foco total, apresentando exclusivamente as faltas assinaladas agrupadas por mandamento, anotações pessoais, roteiro do diálogo com o padre (*"Abençoai-me, padre, porque pequei..."*) e o texto completo do Ato de Contrição.
+  - **Expurgo e Selamento Sacramental ("Recebi a Absolvição!"):** Botão solene que, mediante confirmação, destrói e apaga irreversivelmente todas as anotações e seleções de pecados do aparelho, abrindo uma página sagrada de Ação de Graças com o versículo da reconciliação (*Lc 7, 48-50*) e oração pós-confissão.
+  - **Acesso em Destaque na Aba de Orações:** Banner nobre incorporado em [`prayers_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/prayers/presentation/prayers_page.dart) com badge e indicador de cofre protegido.
+  - **Refinamento do Guia Litúrgico:** Simplificação do título do 2º passo dos 5 passos clássicos da boa confissão para expressar diretamente a virtude sacramental de **Contrição** em [`confession_prep_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/confession/presentation/pages/confession_prep_page.dart).
+
+## [1.29.4] - 2026-10-14
+
+### Fixed
+
+- **MarIA Mobile — Inclusão do Pai-Nosso no Início das Dezenas do Santo Terço (`rosary_page.dart`):**
+  - **Pai-Nosso Inicial (Conta Grande):** Corrigido o fluxo do Santo Terço para contemplar o Pai-Nosso no início de cada uma das 5 dezenas (após a meditação do mistério), exibindo a oração completa e a representação visual da conta grande dourada antes das 10 Ave-Marias.
+  - **Glória ao Pai & Jaculatória de Fátima:** Ao concluir a 10ª Ave-Maria de cada dezena, o aplicativo apresenta o Glória ao Pai e a oração de Fátima (*"Ó meu Jesus, perdoai-nos..."*) antes de transitar para o mistério seguinte.
+  - **Navegação Bidirecional Perfeita:** Suporte completo ao botão de retroceder conta (`_previousBead`), permitindo retornar da Ave-Maria para o Pai-Nosso da dezena, e do Pai-Nosso para o Glória da dezena anterior.
+  - **Textos das Orações Tradicionais:** Disponibilização dos textos litúrgicos completos do Pai-Nosso, Ave-Maria e Glória ao Pai dentro dos cards de contemplação para oração assistida.
+
+## [1.29.3] - 2026-10-14
+
+### Changed
+
+- **MarIA Mobile — Exame de Consciência Noturno (100% Contemplativo & Privacidade Total):**
+  - **Identidade e Distinção Noturna:** Rebatizado expressamente para *Exame de Consciência Noturno* em [`conscience_exam_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/prayers/presentation/conscience_exam_page.dart), nos atalhos e planos espirituais, com indicativo claro de que se trata de uma oração diária serena para o repouso em Deus, distinta do exame preparatório para a Confissão Sacramental.
+  - **Privacidade Absoluta (Sem Digitação de Textos):** Removidos campos de texto e caixas de entrada de resoluções pessoais, assegurando que o fiel viva uma experiência meditativa interior sem risco de sentir sua intimidade exposta ou gravada.
+  - **Seleção Rápida de Virtude Guia com 1 Toque:** Substituição do formulário livre por uma grade contemplativa de 8 virtudes católicas fundamentais (Paciência na Família, Pureza de Coração, Humildade & Mansidão, Fidelidade na Oração, Desapego das Telas, Silêncio contra Fofocas, Caridade com os Pobres, Gratidão sem Reclamar).
+  - **Pausa de Silêncio Guiada (`_SilenceTimerWidget`):** Novo temporizador visual de 30 segundos com contagem suave e pulso respiratório para auxiliar o fiel a desacelerar e recolher a mente na presença de Deus.
+  - **Modo Noturno Sereno (Focus Mode Escuro):** Paleta noturna profunda em azul marinho meia-noite (`#071120`) e ouro sacro, minimizando luz azul nos olhos antes do sono.
+  - **Oração das Completas:** Inclusão da jaculatória litúrgica tradicional da Igreja (*"Em vossas mãos, Senhor, entrego o meu espírito"*) para concluir o exame e repousar em paz.
+
+## [1.29.2] - 2026-10-14
+
+### Changed
+
+- **MarIA Mobile — Navegação Direta ao Tocar nos Cards & Otimização da Home (`home_page.dart`):**
+  - **Acesso Direto ao Santo do Dia:** O card inteiro de `SaintHeroCard` agora possui feedback tátil e clique direto (`InkWell`), abrindo a nova tela dedicada [`SaintDetailPage`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/saint_of_day/presentation/saint_detail_page.dart) com arte sacra, memória litúrgica, citação, biografia e oração de intercessão.
+  - **Plano de Vida sem Scroll Horizontal:** Transformação de `SpiritualHabitsRow` em um card coeso e interativo que abre o [`SpiritualPlanPage`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/spiritual_plan/presentation/spiritual_plan_page.dart) ao toque em qualquer parte do card. O scroll horizontal oculto foi substituído por uma visão geral estática e elegante com barra de progresso, 6 ícones circulares do dia com horários e indicação da próxima oração pendente.
+  - **Liturgia da Palavra Direta:** O card `LiturgySummaryCard` agora é 100% clicável com transição direta para a leitura bíblica completa. Removido o ícone de fone de ouvido provisório e o botão pesado em favor de uma navegação fluida com affordance visual de chevron.
+
+## [1.29.1] - 2026-10-14
+
+### Changed
+
+- **MarIA Mobile — Aprimoramento da Aba de Adicionar Prática Espiritual (`AddHabitBottomSheet`):**
+  - **Remoção do Botão X:** Eliminado o ícone de fechamento estático em favor de um fechamento fluido e nativo através da barra de arraste (*drag handle*) e clique/toque fora (*barrier dismissible*).
+  - **Barra de Arraste Superior & Título Centralizado:** Refinada a barra de arraste no topo do modal com dimensões proporcionais e centralizado o título sacro da prática espiritual.
+
 ## [1.29.0] - 2026-10-14
 
 ### Added

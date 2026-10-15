@@ -206,3 +206,135 @@ Este arquivo armazena o histórico contínuo de contexto, decisões de arquitetu
 - Iniciar a **Fase 5 do Roadmap: Autenticação Mínima & Identificação (WhatsApp OTP via Uazapi)** para login sem fricção.
 ---
 
+## Sessão: 2026-10-14 01:47 (UTC-3)
+### 📌 Resumo da Sessão
+- **Aprimoramento do Santo Terço Interativo:** Inclusão do Pai-Nosso (conta grande) no início de cada uma das 5 dezenas e do Glória ao Pai com Jaculatória de Fátima na conclusão de cada dezena, restabelecendo a fidelidade litúrgica tradicional.
+- **Reformulação do Exame de Consciência Noturno:** Transformação do exame em uma experiência 100% contemplativa e privada, sem inputs de texto ("Minha pequena resolução..." removida), com seletor de 8 virtudes em chips de 1 toque, timer de silêncio guiado de 30s e modo foco noturno escuro, além de distinção pedagógica clara em relação ao exame preparatório para a Confissão Sacramental.
+- **Otimização da Tela Inicial (Home):** Navegação direta por toque nos cards do Santo do Dia (abertura de `SaintDetailPage`), da Liturgia da Palavra e do Plano de Vida Espiritual (substituição do scroll horizontal por card coeso com indicador estático de práticas).
+- **Ajustes de UX no Modal de Hábitos:** Remoção do botão de fechar ('X') em `AddHabitBottomSheet` em favor de drag handle nativo e dismiss fora da área.
+- **Validação Cruzada Web vs. Mobile:** Análise comparativa e garantias de equivalência de comportamento para lançamento nas lojas Android/iOS.
+
+### 🏗️ Decisões Técnicas e de Arquitetura
+- **Estrutura de Estados da Dezena no Rosário:** Criação do enum `DecadeStage { ourFather, hailMary, glory }` em [`rosary_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/prayers/presentation/rosary_page.dart), desacoplando a oração do Pai-Nosso das 10 contas de Ave-Maria e garantindo reversibilidade bidirecional perfeita com `_previousBead`.
+- **Privacidade Radical no Exame Noturno:** Eliminação completa de gravação/digitação de textos íntimos de faltas ou resoluções no app para que o usuário sinta segurança e intimidade com Deus, usando chips rápidos de virtude cristã como bússola de oração.
+- **Prevenção de Cache Stale no Flutter Web:** Remoção da injeção rígida de `serviceWorkerSettings` em `flutter_bootstrap.js` e script de desregistro no `index.html` para desenvolvimento e testes locais com hot-reload confiável.
+
+### 🛠️ Alterações e Implementações
+- **Mobile (`mobile/`):**
+  - [`lib/features/prayers/presentation/rosary_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/prayers/presentation/rosary_page.dart): Implementação do Pai-Nosso nas dezenas, Glória, Jaculatória de Fátima e cartões com textos litúrgicos completos.
+  - [`lib/features/prayers/presentation/conscience_exam_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/prayers/presentation/conscience_exam_page.dart): Reescrita para *Exame de Consciência Noturno*, modo noturno, timer de silêncio (`_SilenceTimerWidget`) e grade de virtudes.
+  - [`lib/features/home/presentation/home_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/home/presentation/home_page.dart) e widgets (`saint_hero_card.dart`, `spiritual_habits_row.dart`, `liturgy_summary_card.dart`, `quick_actions_grid.dart`): Navegação direta sem cliques intermediários.
+  - [`lib/features/saint_of_day/presentation/saint_detail_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/saint_of_day/presentation/saint_detail_page.dart): Nova tela com biografia e oração do Santo do Dia.
+  - [`lib/features/spiritual_plan/presentation/widgets/add_habit_bottom_sheet.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/spiritual_plan/presentation/widgets/add_habit_bottom_sheet.dart): Remoção do 'X' e barra de arraste limpa.
+  - [`test/rosary_conscience_test.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/test/rosary_conscience_test.dart): Testes de widget atualizados para os novos fluxos do Terço e Exame Noturno.
+- **Documentação & Versionamento:**
+  - [`CHANGELOG.md`](file:///d:/Programming/AcutisTech/MarIA/CHANGELOG.md): Registradas as versões `1.29.0`, `1.29.1`, `1.29.2`, `1.29.3` e `1.29.4`.
+
+### ⏳ Pendências e Próximos Passos
+- Implementar o módulo dedicado de **Preparação para a Confissão Sacramental** (com os 5 passos do sacramento, mandamentos e fórmula de absolvição).
+- Avaliar a persistência local (Hive/Isar ou SQLite) com sincronização offline para a Liturgia e Plano de Vida.
+- Avançar para a **Fase 5: Autenticação com OTP via WhatsApp** no app mobile.
+---
+
+## Sessão: 2026-10-14 21:15 (UTC-3)
+### 📌 Resumo da Sessão
+- **Módulo Completo de Preparação para a Confissão Sacramental (`features/confession`):**
+  - Desenvolvido do zero o módulo completo de exame de consciência detalhado baseado nos 10 Mandamentos da Lei de Deus com fundamentação moral clássica da Igreja e alertas visuais de matéria grave.
+  - Implementado o **Cofre Sacramental** com criptografia local (`FlutterSecureStorage` e fallback para web), bloqueio por biometria ou senha do próprio celular via `local_auth` (estilo WhatsApp) e PIN alternativo de 4 dígitos.
+  - Temporizador de auto-bloqueio após 2 minutos de inatividade sem uso.
+  - Modo Confessionário ("Espelho de Leitura") com resumo de faltas assinaladas, anotações de circunstâncias, roteiro litúrgico de diálogo com o sacerdote e Ato de Contrição.
+  - Expurgo sacramental irreversível ("Recebi a Absolvição!") que destrói completamente todos os dados do dispositivo após a confissão, conduzindo à página sagrada de Ação de Graças.
+  - Ajuste pastoral no guia de preparação: etapa 2 simplificada para **"2 | CONTRIÇÃO"**.
+  - Banner nobre de acesso integrado na aba de Orações (`prayers_page.dart`) com layout responsivo ajustado para evitar qualquer aviso de overflow em telas estreitas.
+- **Etapa Interativa Dedicada da Salve Rainha no Santo Terço (`rosary_page.dart`):**
+  - Substituição do pop-up abrupto ao final da 5ª dezena por uma etapa litúrgica própria (`DecadeStage.hailHolyQueen`).
+  - Convite dinâmico "Rezar Salve Rainha", ícone dourado de coroa, medalha "50 Ave-Marias Concluídas" e texto litúrgico completo com versículo e resposta.
+  - Diálogo celebrativo limpo com a bênção da coroa de rosas e citação espiritual de São João Paulo II.
+
+### 🏗️ Decisões Técnicas e de Arquitetura
+- **Zero-Knowledge Sacramental:** O exame de consciência e as anotações nunca trafegam pela rede nem são salvos em nuvem/Supabase. Os dados residem estritamente no armazenamento seguro do dispositivo e são sobrescritos e apagados após a absolvição.
+- **Autenticação Biométrica e Senha do Aparelho:** Uso de `local_auth` sem impor `biometricOnly: true`, permitindo ao usuário desbloquear seu exame com Face ID, impressão digital ou o PIN/padrão nativo do smartphone.
+- **Auto-Lock por Inatividade:** Implementado no `ConfessionVaultController` com `Timer` de 120s reiniciado a cada interação do usuário (`recordActivity()`), bloqueando o estado para `locked` caso o aparelho seja deixado aberto.
+- **Fluxo do Rosário Ampliado:** Inclusão de `hailHolyQueen` no enum `DecadeStage`, preservando a navegação bidirecional (`_previousBead`) do início ao encerramento do Santo Terço.
+
+### 🛠️ Alterações e Implementações
+- **Mobile (`mobile/`):**
+  - [`lib/features/confession/domain/entities/commandment_exam_entity.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/confession/domain/entities/commandment_exam_entity.dart): Perguntas detalhadas dos 10 Mandamentos com distinção de matéria grave.
+  - [`lib/features/confession/domain/entities/confession_vault_state.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/confession/domain/entities/confession_vault_state.dart): Estado imutável do cofre com controle de lock e contagem de pecados.
+  - [`lib/features/confession/data/datasources/confession_vault_local_data_source.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/confession/data/datasources/confession_vault_local_data_source.dart): Armazenamento criptografado local com fallback web.
+  - [`lib/features/confession/presentation/controllers/confession_vault_controller.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/confession/presentation/controllers/confession_vault_controller.dart): Gerenciamento de auto-bloqueio (120s), biometria e expurgo.
+  - [`lib/features/confession/presentation/pages/confession_vault_pin_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/confession/presentation/pages/confession_vault_pin_page.dart): Tela de destravamento com suporte a biometria nativa e PIN.
+  - [`lib/features/confession/presentation/pages/confession_prep_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/confession/presentation/pages/confession_prep_page.dart): Itinerário dos 5 passos e exame dos mandamentos.
+  - [`lib/features/confession/presentation/pages/confession_absolution_celebration_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/confession/presentation/pages/confession_absolution_celebration_page.dart): Tela celebrativa pós-absolvição e oração de ação de graças.
+  - [`lib/features/confession/presentation/widgets/confessional_mirror_view.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/confession/presentation/widgets/confessional_mirror_view.dart): Espelho de leitura para uso dentro do confessionário.
+  - [`lib/features/confession/presentation/widgets/commandment_accordion_tile.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/confession/presentation/widgets/commandment_accordion_tile.dart): Acordeão responsivo com perguntas e anotações.
+  - [`lib/features/prayers/presentation/prayers_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/prayers/presentation/prayers_page.dart): Banner da Preparação para a Confissão e responsividade com `Wrap` para eliminar overflows.
+  - [`lib/features/prayers/presentation/rosary_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/prayers/presentation/rosary_page.dart): Etapa dedicada da Salve Rainha e conclusão devocional.
+  - [`test/confession_vault_test.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/test/confession_vault_test.dart): Testes unitários do cofre e do auto-lock de 2 minutos.
+  - [`test/rosary_conscience_test.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/test/rosary_conscience_test.dart): Teste de widget cobrindo todo o percurso do Santo Terço até a Salve Rainha.
+- **Documentação & Versionamento:**
+  - [`CHANGELOG.md`](file:///d:/Programming/AcutisTech/MarIA/CHANGELOG.md): Registradas as versões `1.30.0` (Módulo de Preparação para a Confissão) e `1.30.1` (Salve Rainha no Santo Terço).
+  - [`README.md`](file:///d:/Programming/AcutisTech/MarIA/README.md): Atualizado com a nova funcionalidade de Confissão e Cofre Sacramental.
+
+### ⏳ Pendências e Próximos Passos
+- Avançar para a **Fase 5 do Roadmap Mobile**: Autenticação com OTP via WhatsApp (Uazapi) para sincronização de perfil e histórico pastoral entre canais.
+- Avaliar suporte a áudio guiado com voz serena para o Santo Terço e para a Liturgia Diária.
+---
+
+## Sessão: 2026-10-15 03:03 (UTC-3)
+### 📌 Resumo da Sessão
+- **Santuário de Novenas MarIA (Novenário Católico & Supabase como Fonte da Verdade):**
+  - Implementação completa do módulo de novenas no Supabase e backend NestJS (`backend/src/novenas/`), eliminando hardcodes no mobile e permitindo gestão dinâmica pelo CMS Web Admin.
+  - Construção do Painel CMS Web Admin (`frontend/src/pages/admin/NovenasAdmin.tsx`) com listagem, busca, filtros de status/categoria, modal de criação e edição com os 9 dias e suporte a temas Light e Dark.
+  - Sementeira de 5 novenas tradicionais canônicas completas: Nossa Senhora Desatadora dos Nós, Santa Rita de Cássia, Beato Carlo Acutis, São Bento Abade e São João Paulo II.
+- **Inteligência Litúrgica e Cálculo Canônico Regressivo:**
+  - Regra canônica implementada: a festa do santo coincide com o 9º dia da novena (`festa - 8 dias = Dia 1`).
+  - Para São João Paulo II (festa em 22 de outubro), a data ideal de início é 14 de outubro. No dia 15/10, o app calcula dinamicamente o badge *"COMEÇOU ONTEM (DIA 2/9)"* e *"DATA IDEAL PARA COMEÇAR"*.
+- **Card Dinâmico na Tela Inicial (`UpcomingNovenasCard`):**
+  - Integrado à `HomePage` logo abaixo do Santo do Dia e acima do Plano de Vida Espiritual.
+  - Exibe a próxima novena litúrgica recomendada com datas, badge pastoral e atalho para iniciar a oração.
+  - Alternância automática para o modo "SUA NOVENA ATIVA" com progresso dos 9 dias, intenção consagrada, horário de lembrete e botão "Rezar Dia X Agora".
+  - Layout totalmente responsivo com proteção contra overflow mesmo em telas ultracompactas (320px).
+- **Modal Unificado de Iniciação com Lembretes Multi-canal:**
+  - Consagração da intenção particular do fiel.
+  - Seletor de horário diário com presets rápidos (`07:00` Manhã, `12:00` Ângelus, `18:00` Tarde, `20:00` Noite) e TimePicker customizado.
+  - Ativação de alertas no celular (notificação local) e no WhatsApp (com campo para número de telefone).
+  - Card informativo de integração automática com o Plano de Vida Espiritual.
+- **Integração Bidirecional ao Plano de Vida Espiritual (`SpiritualPlan`):**
+  - Injeção dinâmica da novena ativa na rotina de hábitos diários do fiel pelo período de 9 dias no horário definido.
+  - Sincronização mútua de conclusão: marcar no Plano de Vida avança o novenário e vice-versa.
+  - Expiração automática após o 9º dia de oração.
+
+### 🏗️ Decisões Técnicas e de Arquitetura
+- **Fonte Única da Verdade:** Dados estruturados no Supabase (`novenas`, `novena_days`, `user_novenas`, `user_novena_logs`) consumidos via NestJS `/mobile/novenas` e `/panel/novenas`, com fallback offline e pacote embutido em `default_novenas_data.dart` para resiliência offline em igrejas e capelas sem sinal.
+- **Precedência de Rotas no NestJS:** Ajuste da ordem dos endpoints em `MobileNovenasController` para garantir que rotas especializadas como `/mobile/novenas/user/:userId/active` tenham precedência sobre o parâmetro curinga `:idOrSlug`.
+- **Compatibilidade com UUID Postgres:** Tratamento de identificadores anônimos no mobile com mapeamento determinístico para UUID válido (`a0000000-0000-0000-0000-000000000001`), evitando erros de sintaxe no Postgres.
+- **Sinergia Reativa no Riverpod 3:** `SpiritualPlanNotifier` assiste reativamente a `userNovenasProvider`, sincronizando o estado dos hábitos diários e o avanço da novena em tempo real sem chamadas redundantes.
+
+### 🛠️ Alterações e Implementações
+- **Mobile (`mobile/`):**
+  - [`lib/features/novenas/domain/entities/novena.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/novenas/domain/entities/novena.dart): Adicionada lógica de datas litúrgicas (`getFeastDate()`, `idealStartDate`, `daysUntilIdealStart`, `displayFeastDay` e `liturgicalBadge`) e atributos de lembrete em `UserNovena`.
+  - [`lib/features/novenas/data/models/novena_model.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/novenas/data/models/novena_model.dart): Serialização e suporte a `feast_date` e lembretes em `UserNovenaModel`.
+  - [`lib/features/novenas/data/datasources/default_novenas_data.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/novenas/data/datasources/default_novenas_data.dart): Povoamento canônico completo dos 9 dias da Novena a São João Paulo II.
+  - [`lib/features/novenas/presentation/pages/novena_detail_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/novenas/presentation/pages/novena_detail_page.dart): Modal `_openStartNovenaModal` interativo com presets de horário, toggles de lembrete (push/WhatsApp) e aviso do Plano de Vida.
+  - [`lib/features/home/presentation/widgets/upcoming_novenas_card.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/home/presentation/widgets/upcoming_novenas_card.dart): Novo widget para a Home com cálculo litúrgico dinâmico e alternância para novena ativa.
+  - [`lib/features/home/presentation/home_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/home/presentation/home_page.dart): Inserção do `UpcomingNovenasCard` no layout principal.
+  - [`lib/features/spiritual_plan/presentation/controllers/spiritual_plan_controller.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/spiritual_plan/presentation/controllers/spiritual_plan_controller.dart): Injeção dinâmica de hábitos da novena e sincronização bidirecional de conclusão.
+  - [`test/novenas_test.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/test/novenas_test.dart) & [`test/reminders_spiritual_plan_test.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/test/reminders_spiritual_plan_test.dart): Bateria de testes automatizados com 100% de aprovação.
+- **Backend (`backend/`):**
+  - [`backend/src/novenas/initial-novenas-data.ts`](file:///d:/Programming/AcutisTech/MarIA/backend/src/novenas/initial-novenas-data.ts): Adicionada a Novena a São João Paulo II para sementeira no Supabase.
+  - [`backend/src/novenas/novenas.controller.ts`](file:///d:/Programming/AcutisTech/MarIA/backend/src/novenas/novenas.controller.ts): Ajustada precedência de rotas para `user/:userId/active`.
+  - [`backend/src/novenas/novenas.service.ts`](file:///d:/Programming/AcutisTech/MarIA/backend/src/novenas/novenas.service.ts): Tratamento de validação e fallback de UUID para usuários do dispositivo.
+  - Container Docker `maria-backend-1` reconstruído com sucesso via `docker compose up --build -d backend`.
+- **Frontend CMS (`frontend/`):**
+  - [`frontend/src/pages/admin/NovenasAdmin.tsx`](file:///d:/Programming/AcutisTech/MarIA/frontend/src/pages/admin/NovenasAdmin.tsx): Gestão de novenas com paleta de cores harmonizada para os temas Light e Dark.
+- **Documentação:**
+  - [`CHANGELOG.md`](file:///d:/Programming/AcutisTech/MarIA/CHANGELOG.md): Registradas as versões `1.31.0` (CMS e Backend), `1.32.0` (Novenário Mobile Offline-First) e `1.33.0` (Cálculo Litúrgico, Home Card, Lembretes e Plano de Vida).
+  - [`README.md`](file:///d:/Programming/AcutisTech/MarIA/README.md): Atualizado com os novos recursos.
+
+### ⏳ Pendências e Próximos Passos
+- Avançar para a **Fase 5 do Roadmap Mobile**: Autenticação com OTP via WhatsApp (Uazapi) para sincronização de perfil do fiel entre o app e o WhatsApp.
+- Pipeline do scheduler BullMQ para disparo das notificações diárias de novenas via WhatsApp no horário configurado pelo fiel.
+---
+
+

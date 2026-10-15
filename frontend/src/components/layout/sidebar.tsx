@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import styled from 'styled-components';
-import { LayoutDashboard, MessageSquare, Settings, Users, Database, LogOut, Brain, Calendar, CalendarClock, DollarSign, GitFork, Megaphone, ChevronDown, ChevronRight, Send, Wrench, Handshake } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Settings, Users, Database, LogOut, Brain, Calendar, CalendarClock, DollarSign, GitFork, Megaphone, ChevronDown, ChevronRight, Send, Wrench, Handshake, Sparkles } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 interface SidebarContainerProps {
@@ -276,6 +276,10 @@ export function Sidebar({ collapsed = false, onToggleCollapse }: SidebarProps) {
                 <NavItemLink to="/prayers" $active={isActive('/prayers')} $collapsed={collapsed} title="Orações">
                   <svg xmlns="http://www.w3.org/2000/svg" width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M11 6.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 1 0 0-5Z"/><path d="M12 11.5v3"/></svg>
                   <span className={`font-medium ${collapsed ? 'hidden' : 'inline'}`}>Orações</span>
+                </NavItemLink>
+                <NavItemLink to="/novenas" $active={isActive('/novenas')} $collapsed={collapsed} title="Novenário">
+                  <Sparkles size={18} />
+                  <span className={`font-medium ${collapsed ? 'hidden' : 'inline'}`}>Novenário</span>
                 </NavItemLink>
                 <NavItemLink to="/daily-content" $active={isActive('/daily-content')} $collapsed={collapsed} title="Conteúdo Diário">
                   <Calendar size={18} />

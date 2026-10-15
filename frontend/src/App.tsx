@@ -8,6 +8,7 @@ import DailyContentPage from './pages/daily-content'
 import WaUsersPage from './pages/wa-users'
 import BroadcastsPage from './pages/broadcasts'
 import PrayersPage from './pages/prayers'
+import NovenasPage from './pages/novenas'
 import LogsPage from './pages/logs'
 import SettingsPage from './pages/settings'
 import FinancePage from './pages/finance'
@@ -28,6 +29,7 @@ function App() {
         <Route path="/ai-settings" element={<AiSettingsPage />} />
         <Route path="/flows" element={<FlowsPage />} />
         <Route path="/prayers" element={<PrayersPage />} />
+        <Route path="/novenas" element={<NovenasPage />} />
         <Route path="/daily-content" element={<DailyContentPage />} />
         <Route path="/wa-users" element={<WaUsersPage />} />
         <Route path="/broadcasts" element={<BroadcastsPage />} />

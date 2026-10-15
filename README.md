@@ -3,7 +3,8 @@
 ## 📌 Sobre o Projeto
 
 ## 🚀 Funcionalidades
-- **MarIA Mobile (Santuário Digital iOS & Android em Flutter):** Aplicativo multiplataforma com Design System Sacro, tipografia clássica (*Cinzel* e *Plus Jakarta Sans*), Liturgia Diária com leitura e áudio, Santo do Dia com virtudes e orações de intercessão, Plano de Vida Espiritual personalizado (com hábitos devocionais customizáveis, lembretes híbridos no celular e WhatsApp, streak diário e sincronização resiliente offline-first via Supabase), catálogo de orações/Rosário e diálogo de acolhimento sob sigilo de oração. Consulte o planejamento e modelo híbrido em [`docs/ROADMAP_MOBILE.md`](file:///d:/Programming/AcutisTech/MarIA/docs/ROADMAP_MOBILE.md).
+- **MarIA Mobile (Santuário Digital iOS & Android em Flutter):** Aplicativo multiplataforma com Design System Sacro, tipografia clássica (*Cinzel* e *Plus Jakarta Sans*), Liturgia Diária com leitura e áudio, Santo do Dia com virtudes e orações de intercessão, **Plano de Vida Espiritual personalizado** (com hábitos devocionais customizáveis, lembretes híbridos no celular e WhatsApp, streak diário, integração automática com novenas ativas por 9 dias e sincronização resiliente offline-first via Supabase), catálogo de orações/Rosário, **Santuário de Novenas (Novenário Litúrgico com início inteligente baseado na festa do santo — ex: São João Paulo II —, card dinâmico na tela inicial, 9 contas/velas táteis, modal com presets de horários de lembrete no celular e WhatsApp, e catálogo expansível via Supabase/NestJS)**, **Preparação para a Confissão** (com cofre sacramental protegido por biometria/senha do celular, exame detalhado dos 10 Mandamentos, modo confessionário de leitura rápida e expurgo irreversível pós-absolvição) e diálogo de acolhimento sob sigilo de oração. Consulte o planejamento e modelo híbrido em [`docs/ROADMAP_MOBILE.md`](file:///d:/Programming/AcutisTech/MarIA/docs/ROADMAP_MOBILE.md).
+
 - **Linguagem Maternal:** Interação empática e acolhedora.
 - **Arquitetura de Cache Híbrido:** Sistema inteligente de dois níveis (Diário e Semântico) para otimização radical de custos de API e redução drástica de latência.
 - **Geração Noturna Automatizada:** Processamento via CRON que prepara Liturgia, Santo do Dia e Mistérios do Terço (com reflexões atreladas à Palavra) diariamente às 00:01.
@@ -48,13 +49,18 @@
 - **Parametrização IA Pro Max**: Interface administrativa totalmente redesenhada com navegação lateral, busca global e labels educativas ("Onde Funciona" e "Impacto") para cada prompt do sistema.
 - **Gestão de Administradores e Controle de Acesso (RBAC)**: Tela de gerenciamento dedicada permitindo que superadministradores convidem administradores (com senha padrão `MarIA123` e primeiro login com alteração de senha obrigatória), redefinam senhas a quente, alterem cargos e excluam contas de acesso.
 - **Auditoria Operacional Completa (Timeline)**: Registro detalhado em tempo real de todas as ações administrativas críticas na tabela `activity_logs`. Ações como logins, alterações de planos/bônus de fiéis, edições de prompts e resets de cache são exibidos individualmente em uma timeline de auditoria elegante e interativa (Drawer).
-- **Dashboard Admin:** Painel Vite + React para parametrização de prompts, gestão de fiéis, controle financeiro e curadoria de conteúdos.
+- **Novenário MarIA & Supabase como Fonte Única da Verdade:**
+  - **Catálogo de Novenas Dinâmicas**: Acervo relacional no Supabase (`novenas` e `novena_days`) editável pelo painel admin em tempo real, sem necessidade de atualizar o app nas lojas.
+  - **Sementeira das Grandes Novenas Católicas**: Povoamento de orações completas para os 9 dias de grandes devoções (Nossa Senhora Desatadora dos Nós, Santa Rita de Cássia, Beato Carlo Acutis e São Bento Abade), com passagens bíblicas, reflexões, orações diárias e preces de conclusão.
+  - **Acompanhamento Espiritual & Progresso**: Estrutura para registro de intenções pessoais do fiel, controle de dias rezados e integração com lembretes no WhatsApp.
+- **Dashboard Admin:** Painel Vite + React para parametrização de prompts, gestão de fiéis, controle financeiro, curadoria de conteúdos e gestão de novenas.
 
 ## 🛠 Arquitetura
 - **Motor Cognitivo & Backend:** NestJS (TypeScript) com arquitetura de **Triagem Híbrida**.
   - **Roteador de Intenções:** Classificação inteligente de mensagens e roteamento para caches ou LLMs.
   - **Injeção de Contexto Teológico:** Integração nativa com **Magisterium AI** e Cache Semântico local.
-- **Supabase:** Postgres com extensões `vector` para busca por similaridade. Utilizado para a gestão de Prompts Dinâmicos, Cache Diário e Cache Semântico Global.
+  - **Módulo de Novenas:** Endpoints para o CMS Admin (`/panel/novenas`) e consumo do app móvel (`/mobile/novenas`).
+- **Supabase:** Postgres com extensões `vector` para busca por similaridade. Utilizado para a gestão de Prompts Dinâmicos, Cache Diário, Cache Semântico Global, Santos e Novenário Sagrado.
 - **Frontend (Admin):** Vite + React + Tailwind CSS v4 + shadcn/ui.
 - **Landing Page:** Next.js (React) + Tailwind CSS v4 para conversão, onboarding seguro e ativação de assinaturas.
 
