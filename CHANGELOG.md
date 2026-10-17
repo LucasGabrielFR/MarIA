@@ -5,6 +5,80 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.35.0] - 2026-10-17
+
+### Added
+
+- **MarIA Mobile — Integração da Identidade Visual Sagrada (Logo MarIA Premium) e Redesign Solene da Tela de Login:**
+  - **Pipeline de Assets e Emblema Sagrado (`maria_emblem.png`):**
+    - Importada a identidade visual oficial de `landing/public/maria_logo_premium.png` para a pasta de assets móveis (`mobile/assets/images/`).
+    - Realizado recorte de alta precisão do medalhão circular mariano (570x570 px), isolando o véu tecnológico e a coroa de doze estrelas de Nossa Senhora.
+    - Atualizados os ícones oficiais do app web e favicon (`mobile/web/favicon.png`, `Icon-192.png`, `Icon-512.png`, `Icon-maskable-192.png` e `Icon-maskable-512.png`).
+  - **Redesign Solene e Imersivo da Tela de Login ([`LoginPage`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/auth/presentation/pages/login_page.dart)):**
+    - Fundo noturno mariano com gradiente radial e aura dourada (`#001538` → `#000E24`).
+    - Emblema da MarIA posicionado como herói central em medalhão circular de 110 px com halo duplo dourado e glow suave.
+    - Tipografia nobre com cabeçalho sagrado Cinzel ("MARIA", "INTELIGÊNCIA ARTIFICIAL CATÓLICA") e a passagem bíblica *«Fazei tudo o que Ele vos disser» (Jo 2, 5)*.
+    - Card formulário em estilo *glassmorphic* translúcido (`rgba(0, 22, 58, 0.82)`) com bordas em dourado sacro.
+    - Botão primário "Entrar" com efeito de centelhas (`sparkles`), botões sociais para Google e Apple lado a lado em estilo glass, e botão dedicado **"Acessar sem conta • Modo Visitante"** no rodapé.
+  - **Posicionamento Estratégico da Identidade Visual pelo Aplicativo:**
+    - **Portal de Autenticação & Cadastro:** Presente na [`LoginPage`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/auth/presentation/pages/login_page.dart) e na [`RegisterPage`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/auth/presentation/pages/register_page.dart).
+    - **Modal Devocional Gatekeeper ([`DevotionalGatekeeperModal`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/auth/presentation/widgets/devotional_gatekeeper_modal.dart)):** Emblema circular com halo no topo do modal de conversão.
+    - **Santuário MarIA ([`DailyLiturgicalHeader`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/home/presentation/widgets/daily_liturgical_header.dart)):** Medalhão circular de 42 px com halo dourado ao lado da saudação e título "Santuário MarIA".
+    - **Aba de Ajustes ([`SettingsPage`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/settings/presentation/settings_page.dart)):** Avatar de perfil do fiel visitante e selo no rodapé acima da versão.
+
+### Changed
+
+- **MarIA Mobile — Transição Suave via Modal Devocional ao Acessar Recursos Bloqueados:**
+  - Substituída a navegação abrupta direta para o login ao clicar nos cards de recursos bloqueados (*Plano de Vida*, *Próxima Novena*, *Ações Rápidas* e banners de *Orações*).
+  - O aplicativo agora abre o [`DevotionalGatekeeperModal`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/auth/presentation/widgets/devotional_gatekeeper_modal.dart), oferecendo uma experiência acolhedora que explica os benefícios da conta, convida para cadastro gratuito, oferece login direto ou permite continuar como visitante.
+
+## [1.34.2] - 2026-10-17
+
+### Changed
+
+- **MarIA Mobile — Harmonização Visual dos Cards Bloqueados (Novena & Plano de Vida) e Eliminação de Ações Duplicadas:**
+  - **Harmonização do Card de Novena (`UpcomingNovenasCard`):** Quando desativado para visitantes, o card de Próxima Novena adota o mesmo tratamento visual do Plano de Vida (opacidade 0.6, bordas atenuadas e sem botões pesados no rodapé).
+  - **Badge Superior como Botão Único de Conversão:**
+    - O badge no topo à direita (`[ 🔒 Entre para liberar → ]`) atua como o botão exclusivo de conversão para a tela de autenticação ([`LoginPage`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/auth/presentation/pages/login_page.dart)).
+    - Removida a duplicidade de CTAs no rodapé dos cards de **Plano de Vida** ([`SpiritualHabitsRow`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/home/presentation/widgets/spiritual_habits_row.dart)) e de **Próxima Novena** ([`UpcomingNovenasCard`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/home/presentation/widgets/upcoming_novenas_card.dart)).
+    - Ambos os rodapés agora exibem harmoniosamente a descrição do recurso à esquerda e o indicador discreto `🔒 Bloqueado` à direita, proporcionando uma experiência visual limpa e sacra.
+
+## [1.34.1] - 2026-10-17
+
+### Added
+
+- **MarIA Mobile — Tela Inicial de Login/Cadastro, Modo Restrito & Aspecto Desativado dos Blocos ("Entre para liberar"):**
+  - **Portal Inicial de Autenticação (`LoginPage` & `RegisterPage`):** O aplicativo agora apresenta na inicialização a tela de login/cadastro para novos e recorrentes fiéis. Abaixo do formulário de acesso, foi disponibilizada a ação expressa **"Acessar sem conta"**, permitindo explorar o aplicativo em modo restrito (`guestAccessGrantedProvider`).
+  - **Aspecto Desativado e Não-Clicável para Visitantes (`QuickActionsGrid`, `SpiritualHabitsRow` & `PrayersPage`):**
+    - Os blocos de **Plano de Vida**, **Exame Noturno**, **Lembretes & Sinos** (Lembrar teus ensinos) e **Falar com a MarIA** adotam uma estética sacra desativada quando o usuário não estiver logado:
+      - Opacidade atenuada (0.55 a 0.6) e paleta esmaecida.
+      - Ícones com badges de cadeado dourado (`LucideIcons.lock`).
+      - Inscrição nobre e explicativa: badge `🔒 Entre para liberar` e subtítulo contextualizado.
+      - Totalmente não-clicáveis (`onTap: null`), sem disparos de cliques acidentais ou modais intrusivos.
+  - **Otimização Visual e Omissão da Aba da MarIA para Visitantes (`AppScaffold`):**
+    - Quando o usuário estiver no modo restrito (não logado), a barra inferior de navegação oculta de forma limpa a aba de acesso à IA MarIA, exibindo um layout harmonioso de 4 itens (*Santuário*, *Liturgia*, *Orações*, *Ajustes*).
+    - Para usuários autenticados, a aba da MarIA é exibida nativamente na barra de navegação com todas as suas capacidades pastorais.
+
+## [1.34.0] - 2026-10-17
+
+### Added
+
+- **MarIA Mobile & Backend — Autenticação Híbrida, Identidade e Sincronização Omnichannel (Supabase Auth + Uazapi OTP + Smart Merge):**
+  - **Modelo Híbrido de Acesso (Inspirado em Hallow & Capela):**
+    - Acesso livre para visitantes: Santo Terço, Liturgia Diária, Santo do Dia e Exame de Consciência Noturno disponíveis sem necessidade de cadastro.
+    - Gatekeeper Devocional ([`DevotionalGatekeeperModal`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/auth/presentation/widgets/devotional_gatekeeper_modal.dart)): Intercepta tentativas de acesso ao Plano de Vida Espiritual, Santuário de Novenas, Lembretes e Chat de IA com convite nobre, lista de benefícios e botões *"Criar conta grátis"*, *"Já tenho uma conta"* e *"Continuar como visitante"*.
+  - **Autenticação Nativa por E-mail & Senha via Supabase Auth:**
+    - Módulo Clean Architecture completo em `mobile/lib/features/auth/` (`UserEntity`, `UserModel`, `AuthRemoteDataSource`, `AuthLocalDataSource`, `AuthRepositoryImpl`, `AuthController`).
+    - Telas de Login ([`LoginPage`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/auth/presentation/pages/login_page.dart)) e Cadastro ([`RegisterPage`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/auth/presentation/pages/register_page.dart)) com validação de campos, Nome e Sobrenome, redefinição de senha oficial por e-mail e persistência criptografada em `FlutterSecureStorage` (com fallback Web).
+    - Botões sociais desenhados para Google e Apple preparados para integração nativa.
+  - **Vinculação Desacoplada do WhatsApp via OTP com Uazapi ([`LinkWhatsAppBottomSheet`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/auth/presentation/widgets/link_whatsapp_bottom_sheet.dart)):**
+    - Disparo de código de 6 dígitos pelo WhatsApp da MarIA com validade de 15 minutos e expurgo de códigos expirados.
+    - Motor de **Smart Merge** no backend NestJS ([`MobileAuthService`](file:///d:/Programming/AcutisTech/MarIA/backend/src/mobile/mobile-auth.service.ts)): se o fiel já conversava com a MarIA no WhatsApp antes de baixar o app, as duas contas são consolidadas sem perda de dados, unindo histórico de orações, novenas, hábitos e assinaturas ativas sob o mesmo perfil.
+  - **Integração Reativa Multiprovider (Riverpod 3):**
+    - `UserNovenasNotifier` e `SpiritualPlanNotifier` conectados reativamente ao `activeUserIdProvider`, sincronizando imediatamente o acervo sagrado ao realizar login ou logout.
+    - Aba de Perfil ([`SettingsPage`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/settings/presentation/settings_page.dart)) com card dinâmico do fiel, status da assinatura, indicador de sincronização do WhatsApp e botão de encerramento de sessão.
+  - **Banco de Dados (Supabase Migration):**
+    - Executada a migration [`docs/migrations/20261017000000_mobile_auth_and_sync.sql`](file:///d:/Programming/AcutisTech/MarIA/docs/migrations/20261017000000_mobile_auth_and_sync.sql) tornando `phone` opcional em `public.users` e adicionando as colunas `email` e `auth_user_id` com índices dedicados.
 
 ## [1.33.0] - 2026-10-15
 
