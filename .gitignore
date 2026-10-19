@@ -45,7 +45,8 @@ Thumbs.db
 admin/dist/
 admin/build/
 uazapi/node_modules/
-scripts/
+/scripts/*
+!/scripts/deploy.sh
 context/
 
 # Mobile App (Repositório Git Dedicado)
