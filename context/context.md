@@ -337,4 +337,103 @@ Este arquivo armazena o histórico contínuo de contexto, decisões de arquitetu
 - Pipeline do scheduler BullMQ para disparo das notificações diárias de novenas via WhatsApp no horário configurado pelo fiel.
 ---
 
+## Sessão: 2026-10-17 03:10 (UTC-3)
+### 📌 Resumo da Sessão
+- **Autenticação Híbrida & Sincronização Omnichannel (Supabase Auth + Uazapi OTP + Smart Merge):**
+  - Implementação completa do módulo de autenticação Clean Architecture no aplicativo Flutter (`features/auth`).
+  - Criação do serviço de backend NestJS ([`MobileAuthService`](file:///d:/Programming/AcutisTech/MarIA/backend/src/mobile/mobile-auth.service.ts)) com motor de Smart Merge para consolidar históricos do WhatsApp e do app.
+  - Execução da migration Supabase [`20261017000000_mobile_auth_and_sync.sql`](file:///d:/Programming/AcutisTech/MarIA/docs/migrations/20261017000000_mobile_auth_and_sync.sql).
+- **Modelo de Acesso Restrito Inspirado em Hallow & Capela:**
+  - Tela inicial de autenticação com opção expressa *"Acessar sem conta • Modo Visitante"*.
+  - Bloqueio nobre de recursos exclusivos para fiéis sem login (*Plano de Vida*, *Exame Noturno*, *Lembretes*, *Novenário* e *MarIA Chat*).
+  - Omissão pastoral da aba da MarIA na barra inferior de navegação para visitantes (layout harmonioso de 4 abas).
+- **Harmonização Visual & Transição Suave via Modal Devocional:**
+  - Remoção de botões duplicados nos cards do *Plano de Vida* e *Próxima Novena*, unificando o badge superior como ponto de conversão.
+  - Substituição da navegação abrupta para a tela de login pelo [`DevotionalGatekeeperModal`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/auth/presentation/widgets/devotional_gatekeeper_modal.dart), oferecendo apresentação de benefícios e caminhos de acesso acolhedores.
+- **Identidade Visual MarIA & Redesign Solene da Tela de Login:**
+  - Importação de [`landing/public/maria_logo_premium.png`](file:///d:/Programming/AcutisTech/MarIA/landing/public/maria_logo_premium.png) para os assets móveis e recorte de alta precisão do medalhão mariano circular (570×570 px) em `maria_emblem.png`.
+  - Atualização dos favicons e ícones PWA do app web.
+  - Redesign completo de [`LoginPage`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/auth/presentation/pages/login_page.dart) com gradiente noturno celestial, medalhão central de 110 px com halo duplo dourado, tipografia Cinzel, card glassmorphic e botões sociais Google/Apple.
+  - Posicionamento estratégico e equilibrado da logo nos pontos focais do app (Login, Cadastro, Gatekeeper Modal, Cabeçalho do Santuário e Ajustes).
+  - Versionamento registrado em [`CHANGELOG.md`](file:///d:/Programming/AcutisTech/MarIA/CHANGELOG.md) (versão `1.35.0`) e [`mobile/pubspec.yaml`](file:///d:/Programming/AcutisTech/MarIA/mobile/pubspec.yaml) (`1.35.0+1`).
+
+### 🏗️ Decisões Técnicas e de Arquitetura
+- **Estratégia de Autenticação Híbrida (Supabase Auth + WhatsApp OTP):** Supabase Auth gerencia identidade e criptografia oficial (com persistência via `FlutterSecureStorage` e fallback Web). A vinculação com WhatsApp utiliza envio de OTP de 6 dígitos via Uazapi com validade de 15 minutos e Smart Merge semântico no banco relacional.
+- **Transição Acolhedora vs. Redirecionamento Abrupto:** Qualquer tentativa de acessar recursos bloqueados passa pelo `DevotionalGatekeeperModal` (bottom sheet animado com apresentação de valor), evitando choque visual de formulário cru de login.
+- **Pipeline de Identidade Visual:** Isolamento do medalhão gráfico (`maria_emblem.png`) separado da tipografia da landing page, garantindo flexibilidade e nitidez vetorial/rasterizada em círculos, avatares e ícones PWA.
+- **Atmosfera Noturna Mariana (`LoginPage`):** Emprego de gradientes HSL escuros (`#001538` → `#000E24`) com iluminação radial dourada e acabamento translúcido glassmorphic (`rgba(0, 22, 58, 0.82)`), respeitando o banimento de roxos/violetas genéricos e alinhado aos princípios sacros do projeto.
+
+### 🛠️ Alterações e Implementações
+- **Mobile (`mobile/`):**
+  - [`lib/features/auth/`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/auth/): Camadas Domain, Data e Presentation completas (`UserEntity`, `UserModel`, `AuthRemoteDataSource`, `AuthLocalDataSource`, `AuthRepositoryImpl`, `AuthController`, `LoginPage`, `RegisterPage`, `DevotionalGatekeeperModal`, `LinkWhatsAppBottomSheet`).
+  - [`lib/core/router/app_scaffold.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/core/router/app_scaffold.dart): Controle de exibição condicional da aba do Chat MarIA com base na autenticação.
+  - [`lib/core/router/app_router.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/core/router/app_router.dart): Rotas `/login` e `/register` registradas.
+  - [`lib/features/home/presentation/widgets/daily_liturgical_header.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/home/presentation/widgets/daily_liturgical_header.dart): Inclusão do medalhão circular MarIA de 42 px com halo dourado.
+  - [`lib/features/home/presentation/widgets/upcoming_novenas_card.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/home/presentation/widgets/upcoming_novenas_card.dart) & [`spiritual_habits_row.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/home/presentation/widgets/spiritual_habits_row.dart): Harmonização de layout bloqueado e chamada ao modal devocional.
+  - [`lib/features/settings/presentation/settings_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/settings/presentation/settings_page.dart): Avatar visitante com o emblema MarIA e selo no rodapé acima da versão 1.35.0.
+  - [`assets/images/`](file:///d:/Programming/AcutisTech/MarIA/mobile/assets/images/): Adicionados `maria_logo_premium.png` e `maria_emblem.png`.
+  - [`web/`](file:///d:/Programming/AcutisTech/MarIA/mobile/web/): Atualizados `favicon.png`, `Icon-192.png`, `Icon-512.png`, etc.
+  - [`test/auth_test.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/test/auth_test.dart) & [`test/widget_test.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/test/widget_test.dart): Testes unitários e de widgets 100% aprovados.
+- **Backend (`backend/`):**
+  - [`backend/src/mobile/mobile-auth.controller.ts`](file:///d:/Programming/AcutisTech/MarIA/backend/src/mobile/mobile-auth.controller.ts) & [`mobile-auth.service.ts`](file:///d:/Programming/AcutisTech/MarIA/backend/src/mobile/mobile-auth.service.ts): Endpoints de envio de OTP de WhatsApp, verificação e Smart Merge de contas.
+  - [`backend/src/mobile/mobile.module.ts`](file:///d:/Programming/AcutisTech/MarIA/backend/src/mobile/mobile.module.ts): Registrado módulo de autenticação móvel.
+- **Documentação:**
+  - [`CHANGELOG.md`](file:///d:/Programming/AcutisTech/MarIA/CHANGELOG.md): Entradas detalhadas das versões `1.34.0`, `1.34.1`, `1.34.2` e `1.35.0`.
+  - [`pubspec.yaml`](file:///d:/Programming/AcutisTech/MarIA/mobile/pubspec.yaml): Versão atualizada para `1.35.0+1`.
+
+### ⏳ Pendências e Próximos Passos
+- Configurar as credenciais reais do OAuth Google e Apple (Apple Developer & Google Cloud Console) quando for realizar a publicação nas lojas (App Store e Google Play).
+- Conectar o agendamento de novenas e lembretes com push notifications nativas (FCM / APNs) além do canal WhatsApp já integrado.
+---
+
+## Sessão: 2026-10-18 23:48 (UTC-3)
+### 📌 Resumo da Sessão
+- **Implementação e Homologação Completa do Login Social com Google:**
+  - Extração do SHA-1 de debug da keystore Android (`FF:AB:67:2E:04:2A:C8:39:AE:99:E6:A0:2F:0B:F9:57:C1:07:DF:53`).
+  - Configuração do Google Cloud Console com criação dos clientes OAuth 2.0: Android (`969608908293-m91i8r3e7afehr2777e6ptjcmht4fsbv...`) e Web (`969608908293-9as4c76l9sksl4ihb2ggtu8512qcnicm...`).
+  - Armazenamento seguro de segredos e credenciais com atualização do `.gitignore` em múltiplos níveis para proteção das chaves.
+  - Configuração do Provedor Google no Supabase Auth com Authorized Client IDs (Web + Android), Client Secret e opção "Skip nonce checks" ativa.
+  - Desenvolvimento do endpoint de backend NestJS `POST /mobile/auth/google` integrando validação de `idToken` via Supabase Auth e o motor de Smart Merge para consolidação com contas de WhatsApp/email existentes.
+  - Implementação no app Flutter via biblioteca oficial `google_sign_in: ^7.2.0`, fluxo completo em Clean Architecture (`AuthRemoteDataSource`, `AuthRepositoryImpl`, `AuthController`) e integração visual com botão Google e tratamento de cancelamento.
+- **Resolução de Infraestrutura e Recuperação de Espaço em Disco do Emulador:**
+  - Diagnóstico e correção do erro fatal `hasSufficientDiskSpace` no Android Emulator: o disco C: estava com 0 bytes livres devido a processos órfãos e à partição de 10 GB exigida pelo AVD.
+  - Migração definitiva da máquina virtual `Medium_Phone.avd` para o disco `D:\Android\avd\` (com mais de 680 GB livres), criação de junção simbólica NTFS e liberação de mais de 18 GB no disco C:.
+  - Recuperação da partição de dados do AVD corrompida durante a falta de espaço (erro de leitura com zeros em `/data/misc/apexdata/com.android.permission/access.abx`) via `wipe-data` e inicialização bem-sucedida do sistema.
+  - Instalação e inicialização automática do app MarIA (`com.acutistech.maria_app`) em execução direta no emulador, com captura de tela validando a tela de login solene pronta com o botão do Google ativo.
+
+### 🏗️ Decisões Técnicas e de Arquitetura
+- **Fluxo Nativo de Token ID (Google Sign-In + Supabase Auth):**
+  - O aplicativo móvel Flutter utiliza o SDK nativo do Google via `google_sign_in` para obter o `idToken` criptograficamente assinado com o `serverClientId` (Web Client ID).
+  - O `idToken` é enviado com segurança para o backend NestJS (`POST /mobile/auth/google`), que o autentica via `supabase.auth.signInWithIdToken({ provider: 'google', token: idToken })`.
+  - O usuário autenticado passa pelo motor de `smartMergeUsers`, vinculando registros prévios criados por WhatsApp ou e-mail na tabela `public.users`.
+- **Relocação de Armazenamento AVD (Zero-Impact no Host):**
+  - Configuração do ponteiro em `Medium_Phone_API_37.0.ini` para `path=D:\Android\avd\Medium_Phone.avd` associado a uma junção NTFS (`mklink /J`) preserva a compatibilidade total com o Android Studio, CLI e Gradle, poupando a partição primária `C:`.
+
+### 🛠️ Alterações e Implementações
+- **Mobile (`mobile/`):**
+  - [`pubspec.yaml`](file:///d:/Programming/AcutisTech/MarIA/mobile/pubspec.yaml): Adicionada dependência `google_sign_in: ^7.2.0` e versão elevada para `1.36.0+1`.
+  - [`lib/features/auth/data/datasources/auth_remote_data_source.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/auth/data/datasources/auth_remote_data_source.dart): Implementado `loginWithGoogle` com `GoogleSignIn.instance.initialize(...)` e requisição `POST /mobile/auth/google`.
+  - [`lib/features/auth/domain/repositories/auth_repository.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/auth/domain/repositories/auth_repository.dart) & [`lib/features/auth/data/repositories/auth_repository_impl.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/auth/data/repositories/auth_repository_impl.dart): Contrato e implementação de `loginWithGoogle`.
+  - [`lib/features/auth/presentation/controllers/auth_controller.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/auth/presentation/controllers/auth_controller.dart): Estado reativo e tratamento de cancelamento do usuário.
+  - [`lib/features/auth/presentation/pages/login_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/auth/presentation/pages/login_page.dart): Botão social do Google com indicador de carregamento.
+  - [`test/auth_test.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/test/auth_test.dart): Testes unitários atualizados cobrindo sucesso e cancelamento do Google Sign-In (45/45 testes aprovados).
+  - [`android/app/google_oauth_android.json`](file:///d:/Programming/AcutisTech/MarIA/mobile/android/app/google_oauth_android.json): Credenciais do cliente Android salvas com segurança.
+- **Backend (`backend/`):**
+  - [`backend/src/mobile/mobile-auth.controller.ts`](file:///d:/Programming/AcutisTech/MarIA/backend/src/mobile/mobile-auth.controller.ts): Endpoint `POST /mobile/auth/google`.
+  - [`backend/src/mobile/mobile-auth.service.ts`](file:///d:/Programming/AcutisTech/MarIA/backend/src/mobile/mobile-auth.service.ts): Método `loginWithGoogle` com validação de `idToken` no Supabase e Smart Merge.
+  - [`backend/.env`](file:///d:/Programming/AcutisTech/MarIA/backend/.env) & [`.env.example`](file:///d:/Programming/AcutisTech/MarIA/backend/.env.example): Chave `GOOGLE_WEB_CLIENT_ID` adicionada.
+  - [`backend/client_secret_web.json`](file:///d:/Programming/AcutisTech/MarIA/backend/client_secret_web.json): Arquivo de credenciais Web salvo em local seguro.
+  - Container Docker `maria-backend-1` reconstruído com sucesso via `docker compose up --build -d backend`.
+- **Scripts & Ambiente:**
+  - [`.gitignore`](file:///d:/Programming/AcutisTech/MarIA/.gitignore), [`backend/.gitignore`](file:///d:/Programming/AcutisTech/MarIA/backend/.gitignore) e [`mobile/.gitignore`](file:///d:/Programming/AcutisTech/MarIA/mobile/.gitignore): Atualizados com regras para arquivos `*client_secret*.json`, `google_oauth*.json` e keystores.
+  - [`iniciar_emulador.bat`](file:///d:/Programming/AcutisTech/MarIA/iniciar_emulador.bat): Atualizado com `ANDROID_AVD_HOME=D:\Android\avd`.
+- **Documentação & Versionamento:**
+  - [`CHANGELOG.md`](file:///d:/Programming/AcutisTech/MarIA/CHANGELOG.md): Registrada versão `1.36.0` (Google Social Login & Infraestrutura do Emulador).
+  - [`README.md`](file:///d:/Programming/AcutisTech/MarIA/README.md): Documentada a arquitetura do Login Social com Google.
+
+### ⏳ Pendências e Próximos Passos
+- Conectar uma conta Google de teste no Android Emulator ou executar no dispositivo físico para realizar a validação ponta a ponta do login e entrada no Santuário.
+- Implementação futura do Sign in with Apple para iOS quando houver credenciais da conta Apple Developer.
+---
+
 

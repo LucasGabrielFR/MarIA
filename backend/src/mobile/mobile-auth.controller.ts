@@ -30,6 +30,15 @@ export class MobileAuthController {
     return this.mobileAuthService.login(dto);
   }
 
+  @Post('google')
+  @HttpCode(HttpStatus.OK)
+  async loginWithGoogle(
+    @Body('idToken') idToken: string,
+    @Body('accessToken') accessToken?: string,
+  ) {
+    return this.mobileAuthService.loginWithGoogle({ idToken, accessToken });
+  }
+
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
   async forgotPassword(@Body('email') email: string) {

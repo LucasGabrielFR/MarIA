@@ -237,6 +237,106 @@ export class MobileAuthService {
   }
 
   /**
+   * Login/Cadastro no aplicativo via Google OAuth (idToken validado no Supabase Auth).
+   */
+  async loginWithGoogle(dto: {
+    idToken: string;
+    accessToken?: string;
+  }): Promise<{
+    user: MobileUserResponse;
+    token: string;
+    refreshToken?: string;
+  }> {
+    const supabase = this.supabaseService.getClient();
+
+    if (!dto.idToken || !dto.idToken.trim()) {
+      throw new BadRequestException('O token de identificação do Google (idToken) é obrigatório.');
+    }
+
+    // 1. Valida o idToken no Supabase Auth oficial
+    const { data: authData, error: authError } =
+      await supabase.auth.signInWithIdToken({
+        provider: 'google',
+        token: dto.idToken.trim(),
+        access_token: dto.accessToken?.trim(),
+      });
+
+    if (authError || !authData.session || !authData.user) {
+      this.logger.error(`[MobileAuth] Falha no login Google: ${authError?.message}`);
+      throw new UnauthorizedException(
+        authError?.message || 'Falha ao autenticar com o Google.',
+      );
+    }
+
+    const authUser = authData.user;
+    const cleanEmail = (authUser.email || '').toLowerCase().trim();
+    const fullName =
+      authUser.user_metadata?.full_name ||
+      authUser.user_metadata?.name ||
+      'Fiel MarIA';
+
+    // 2. Localiza registro em public.users
+    let { data: publicUser } = await supabase
+      .from('users')
+      .select('*')
+      .or(`auth_user_id.eq.${authUser.id},email.eq.${cleanEmail}`)
+      .maybeSingle();
+
+    if (!publicUser) {
+      // 3. Primeiro acesso: inicializa perfil em public.users
+      const { data: createdUser, error: createError } = await supabase
+        .from('users')
+        .insert({
+          auth_user_id: authUser.id,
+          email: cleanEmail,
+          name: fullName,
+          status: 'active',
+          origin: 'mobile',
+          subscription_tier: 'free',
+          receive_daily_liturgy: true,
+          receive_daily_exam: true,
+          receive_daily_saint: false,
+          whatsapp_bridge_enabled: true,
+        })
+        .select()
+        .single();
+
+      if (createError) {
+        this.logger.error(
+          `[MobileAuth] Erro ao criar public.users pós-Google: ${createError.message}`,
+        );
+        throw new BadRequestException(
+          'Falha ao inicializar perfil do usuário com Google.',
+        );
+      }
+      publicUser = createdUser;
+    } else {
+      // 4. Usuário existente: atualiza vínculo com auth.users se necessário
+      const updates: any = {};
+      if (!publicUser.auth_user_id) updates.auth_user_id = authUser.id;
+      if (!publicUser.email && cleanEmail) updates.email = cleanEmail;
+      if ((!publicUser.name || publicUser.name === 'Fiel MarIA') && fullName) {
+        updates.name = fullName;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await supabase.from('users').update(updates).eq('id', publicUser.id);
+        publicUser = { ...publicUser, ...updates };
+      }
+    }
+
+    this.logger.log(
+      `[MobileAuth] Login Google bem-sucedido para usuário ${publicUser.id} (${cleanEmail})`,
+    );
+
+    return {
+      user: this.mapUser(publicUser),
+      token: authData.session.access_token,
+      refreshToken: authData.session.refresh_token,
+    };
+  }
+
+  /**
    * Solicitação de redefinição de senha por e-mail padrão do Supabase.
    */
   async forgotPassword(email: string): Promise<{ message: string }> {

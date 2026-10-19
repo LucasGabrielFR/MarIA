@@ -4,6 +4,7 @@ echo ==============================================
 echo   Iniciando Emulador Android (Medium Phone)
 echo ==============================================
 set ANDROID_HOME=C:\Users\lucas\AppData\Local\Android\Sdk
+set ANDROID_AVD_HOME=D:\Android\avd
 set JAVA_HOME=D:\Android\jbr
 "C:\Users\lucas\AppData\Local\Android\Sdk\emulator\emulator.exe" -avd Medium_Phone_API_37.0
 pause

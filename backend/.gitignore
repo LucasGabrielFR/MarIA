@@ -3,3 +3,7 @@ node_modules
 .env
 
 /generated/prisma
+
+# OAuth & Credentials
+client_secret*.json
+*.keystore
