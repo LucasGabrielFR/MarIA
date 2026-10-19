@@ -378,12 +378,22 @@ MarIA/
 │       └── ...
 │
 ├── docs/                       # Documentação
-│   └── DOCUMENTATION.md        # Este arquivo
+│   ├── DOCUMENTATION.md        # Este arquivo
+│   ├── MAGISTERIUM_AI.md       # Guia Magisterium
+│   ├── MESSAGE_FLOW.md         # Fluxo de mensagens
+│   ├── PLANO_ARQUITETURA_MOBILE.md
+│   ├── ROADMAP_MOBILE.md
+│   ├── plans/                  # Planos de arquitetura e features
+│   ├── business/               # Propostas e documentos de negócio
+│   └── migrations/             # Migrações SQL
 │
+├── scripts/                    # Scripts utilitários e automação
+│   └── deploy.sh               # Script de deploy
 ├── package.json                # Scripts orquestradores
 ├── ecosystem.config.js         # Configuração PM2
-├── deploy.sh                   # Script de deploy
+├── dev.bat                     # Dev launcher Windows
 ├── dev.ps1                     # Dev script Windows
+├── iniciar_emulador.bat        # Launcher do emulador Android
 └── CHANGELOG.md
 ```
 
@@ -1430,7 +1440,7 @@ npm run build:all    # build de produção de todos os projetos
 ### 18.3 Deploy
 
 ```bash
-./deploy.sh
+./scripts/deploy.sh
 # 1. git pull
 # 2. npm run install:all
 # 3. npm run build:all

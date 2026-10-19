@@ -3,7 +3,7 @@
 ## 📌 Sobre o Projeto
 
 ## 🚀 Funcionalidades
-- **MarIA Mobile (Santuário Digital iOS & Android em Flutter):** Aplicativo multiplataforma com Design System Sacro, tipografia clássica (*Cinzel* e *Plus Jakarta Sans*), Liturgia Diária com leitura e áudio, Santo do Dia com virtudes e orações de intercessão, **Autenticação Híbrida & Sincronização Omnichannel** (portal de abertura com Login/Cadastro e opção "Acessar sem conta" em modo restrito, exibindo o Plano de Vida e Exame Noturno na Home com Gatekeeper Devocional bloqueando recursos como Exame Noturno, MarIA Chat e Lembretes & Sinos, e ocultando a aba da MarIA na navegação inferior para convidados; login por E-mail/Senha via Supabase Auth, UI preparada para Google/Apple, e vinculação de WhatsApp OTP via Uazapi com Smart Merge de contas pré-existentes), **Plano de Vida Espiritual personalizado** (com hábitos devocionais customizáveis, lembretes híbridos no celular e WhatsApp, streak diário, integração automática com novenas ativas por 9 dias e sincronização resiliente offline-first via Supabase), catálogo de orações/Rosário, **Santuário de Novenas (Novenário Litúrgico com início inteligente baseado na festa do santo — ex: São João Paulo II —, card dinâmico na tela inicial, 9 contas/velas táteis, modal com presets de horários de lembrete no celular e WhatsApp, e catálogo expansível via Supabase/NestJS)**, **Preparação para a Confissão** (com cofre sacramental protegido por biometria/senha do celular, exame detalhado dos 10 Mandamentos, modo confessionário de leitura rápida e expurgo irreversível pós-absolvição) e diálogo de acolhimento sob sigilo de oração. Consulte o planejamento e modelo híbrido em [`docs/ROADMAP_MOBILE.md`](file:///d:/Programming/AcutisTech/MarIA/docs/ROADMAP_MOBILE.md).
+- **MarIA Mobile (Santuário Digital iOS & Android em Flutter):** Aplicativo multiplataforma com Design System Sacro, tipografia clássica (*Cinzel* e *Plus Jakarta Sans*), Liturgia Diária com leitura e áudio, Santo do Dia com virtudes e orações de intercessão, **Autenticação Híbrida & Sincronização Omnichannel** (portal de abertura com Login/Cadastro e opção "Acessar sem conta" em modo restrito, exibindo o Plano de Vida e Exame Noturno na Home com Gatekeeper Devocional bloqueando recursos como Exame Noturno, MarIA Chat e Lembretes & Sinos, e ocultando a aba da MarIA na navegação inferior para convidados; **Login Social nativo com Google OAuth via Google Play Services / Supabase Auth**, login tradicional por E-mail/Senha, e vinculação de WhatsApp OTP via Uazapi com Smart Merge de contas pré-existentes), **Plano de Vida Espiritual personalizado** (com hábitos devocionais customizáveis, lembretes híbridos no celular e WhatsApp, streak diário, integração automática com novenas ativas por 9 dias e sincronização resiliente offline-first via Supabase), catálogo de orações/Rosário, **Santuário de Novenas (Novenário Litúrgico com início inteligente baseado na festa do santo — ex: São João Paulo II —, card dinâmico na tela inicial, 9 contas/velas táteis, modal com presets de horários de lembrete no celular e WhatsApp, e catálogo expansível via Supabase/NestJS)**, **Preparação para a Confissão** (com cofre sacramental protegido por biometria/senha do celular, exame detalhado dos 10 Mandamentos, modo confessionário de leitura rápida e expurgo irreversível pós-absolvição) e diálogo de acolhimento sob sigilo de oração. Consulte o planejamento e modelo híbrido em [`docs/ROADMAP_MOBILE.md`](file:///d:/Programming/AcutisTech/MarIA/docs/ROADMAP_MOBILE.md).
 
 - **Linguagem Maternal:** Interação empática e acolhedora.
 - **Arquitetura de Cache Híbrido:** Sistema inteligente de dois níveis (Diário e Semântico) para otimização radical de custos de API e redução drástica de latência.
@@ -98,21 +98,29 @@ O Docker irá gerenciar automaticamente o banco de imagens, dependências, o bui
 Para ambientes que não possuem Docker, também fornecemos scripts automatizados baseados no `pm2` para gerenciar os processos.
 
 1. Conecte-se via SSH e puxe o projeto.
-2. Na raiz do projeto, dê permissão ao script:
+2. Dê permissão ao script de deploy:
    ```bash
-   chmod +x deploy.sh
+   chmod +x scripts/deploy.sh
    ```
 3. Execute o script de deploy:
    ```bash
-   ./deploy.sh
+   ./scripts/deploy.sh
    ```
 Este comando instala dependências, gera a build e reinicia o projeto via **PM2** (`ecosystem.config.js`).
 
 ## 📄 Documentação
-- [Análise Financeira](ANALISE_FINANCEIRA.md)
+- [Documentação Geral da Arquitetura](docs/DOCUMENTATION.md)
 - [Guia Magisterium AI](docs/MAGISTERIUM_AI.md)
-- [Proposta de Negócio](PROPOSTA_MARIA.md)
-- [Plano de Ação e Arquitetura](action-plan.md)
+- [Fluxo de Mensagens](docs/MESSAGE_FLOW.md)
+- [Arquitetura Mobile](docs/PLANO_ARQUITETURA_MOBILE.md)
+- [Roadmap Mobile](docs/ROADMAP_MOBILE.md)
+- [Planos de Ação e Arquitetura](docs/plans/)
+  - [Plano de Ação e Arquitetura Geral](docs/plans/action-plan.md)
+  - [Arquitetura de Autenticação e Sync](docs/plans/auth-sync-architecture-plan.md)
+  - [Arquitetura do CMS de Novenas](docs/plans/novenas-cms-architecture-plan.md)
+  - [Plano de Vida Espiritual](docs/plans/spiritual-life-plan.md)
+- [Propostas & Negócio](docs/business/)
+  - [Proposta de Negócio MarIA](docs/business/PROPOSTA_MARIA.md)
 
 ---
 *Projeto em desenvolvimento ativo. Migração arquitetural em andamento para a arquitetura híbrida (Backend/Flows).*

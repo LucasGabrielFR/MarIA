@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.36.1] - 2026-10-19
+
+### Changed
+
+- **Organização e Limpeza Estrutural da Raiz do Monorepo:**
+  - **Planos Técnicos e de Arquitetura:** Movimentação de `action-plan.md`, `auth-sync-architecture-plan.md`, `novenas-cms-architecture-plan.md` e `spiritual-life-plan.md` para a pasta dedicada [`docs/plans/`](docs/plans/).
+  - **Documentação de Negócio e Propostas:** Movimentação de `PROPOSTA_MARIA.md` para [`docs/business/`](docs/business/).
+  - **Scripts de Automação:** Script de deploy movido de `deploy.sh` para [`scripts/deploy.sh`](scripts/deploy.sh) com navegação automática para a raiz do repositório (`cd "$(dirname "$0")/.."`), mantendo os launchers de desenvolvimento rápido ([`dev.bat`](dev.bat) e [`iniciar_emulador.bat`](iniciar_emulador.bat)) na raiz para conveniência.
+  - **Sincronização de Referências e Documentação:** Atualizados comandos em [`package.json`](package.json) (`"deploy": "bash scripts/deploy.sh"`), referências no [`README.md`](README.md) e árvore de diretórios em [`docs/DOCUMENTATION.md`](docs/DOCUMENTATION.md).
+
+### Removed
+
+- **Expurgo de Documentos Obsoletos da Raiz:**
+  - Remoção definitiva no Git dos arquivos legados `ANALISE_FINANCEIRA.md`, `GUIA_TESTERS_MARIA.md`, `GUIA_TESTERS_MARIA.pdf`, `_Proposta de Negócio_ Maria no WhatsApp.pdf`, `analise_gateways_pagamento.md` e `pdf_styles.css`.
+
+## [1.36.0] - 2026-10-18
+
+### Added
+
+- **MarIA Mobile & Backend — Login Social com Google OAuth Nativo (One-Tap / Google Play Services + Supabase Auth + Smart Merge):**
+  - **Autenticação Nativa Mobile (`google_sign_in: ^7.2.0`):**
+    - Adicionado suporte nativo à biblioteca `google_sign_in` com padrão Singleton (`GoogleSignIn.instance`) e inicialização única com o Web Client ID.
+    - Acionamento direto da folha de contas do Google Play Services no Android / iOS sem redirecionamentos externos para navegador.
+    - Captura do `idToken` criptografado e tratamento amigável de cancelamento (`GoogleSignInExceptionCode.canceled`) sem exibição de falsos erros ao fiel.
+  - **Integração no Backend NestJS ([`MobileAuthController`](file:///d:/Programming/AcutisTech/MarIA/backend/src/mobile/mobile-auth.controller.ts) & [`MobileAuthService`](file:///d:/Programming/AcutisTech/MarIA/backend/src/mobile/mobile-auth.service.ts)):**
+    - Novo endpoint `POST /mobile/auth/google` recebendo `{ idToken, accessToken }`.
+    - Validação de identidade via `supabase.auth.signInWithIdToken({ provider: 'google', token: idToken })`.
+    - Smart Merge: se o fiel já possuir conta registrada ou histórico pastoral vinculado pelo e-mail do Google, as informações e quotas são consolidadas sem duplicação de perfil.
+  - **Proteção e Gestão de Credenciais:**
+    - Credenciais do cliente Android salvas e protegidas em [`mobile/android/app/google_oauth_android.json`](file:///d:/Programming/AcutisTech/MarIA/mobile/android/app/google_oauth_android.json).
+    - Credenciais do cliente Web salvas em [`backend/client_secret_web.json`](file:///d:/Programming/AcutisTech/MarIA/backend/client_secret_web.json) e configuradas no Supabase Dashboard.
+    - Variáveis de ambiente registradas em `backend/.env` (`GOOGLE_WEB_CLIENT_ID`, `GOOGLE_WEB_CLIENT_SECRET`, `GOOGLE_ANDROID_CLIENT_ID`).
+    - Regras nos arquivos `.gitignore` na raiz, no backend e no mobile para impedir qualquer exposição acidental de credenciais no Git.
+  - **Interface & Experiência de Usuário ([`LoginPage`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/auth/presentation/pages/login_page.dart)):**
+    - Conexão do botão "Google" com feedback de carregamento em tempo real ("Conectando..." + spinner azul celestial).
+    - Exibição de saudação acolhedora ("Bem-vindo! Que a Virgem Maria abençoe suas orações.") ao autenticar com sucesso.
+
 ## [1.35.0] - 2026-10-17
 
 ### Added

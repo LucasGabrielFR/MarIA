@@ -2,6 +2,7 @@
 set -e
 
 # Script de Deploy para VPS (Usando PM2)
+cd "$(dirname "$0")/.."
 
 echo "🚀 Iniciando processo de deploy..."
 
