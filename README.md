@@ -50,9 +50,11 @@
 - **Gestão de Administradores e Controle de Acesso (RBAC)**: Tela de gerenciamento dedicada permitindo que superadministradores convidem administradores (com senha padrão `MarIA123` e primeiro login com alteração de senha obrigatória), redefinam senhas a quente, alterem cargos e excluam contas de acesso.
 - **Auditoria Operacional Completa (Timeline)**: Registro detalhado em tempo real de todas as ações administrativas críticas na tabela `activity_logs`. Ações como logins, alterações de planos/bônus de fiéis, edições de prompts e resets de cache são exibidos individualmente em uma timeline de auditoria elegante e interativa (Drawer).
 - **Novenário MarIA & Supabase como Fonte Única da Verdade:**
-  - **Catálogo de Novenas Dinâmicas**: Acervo relacional no Supabase (`novenas` e `novena_days`) editável pelo painel admin em tempo real, sem necessidade de atualizar o app nas lojas.
-  - **Sementeira das Grandes Novenas Católicas**: Povoamento de orações completas para os 9 dias de grandes devoções (Nossa Senhora Desatadora dos Nós, Santa Rita de Cássia, Beato Carlo Acutis e São Bento Abade), com passagens bíblicas, reflexões, orações diárias e preces de conclusão.
-  - **Acompanhamento Espiritual & Progresso**: Estrutura para registro de intenções pessoais do fiel, controle de dias rezados e integração com lembretes no WhatsApp.
+  - **Catálogo Canônico Integral de 25 Novenas (225 Dias Estruturados):** Acervo relacional no Supabase (`novenas` e `novena_days`) com curadoria teológica rigorosa segundo a ordem de preferência: **1. Padre Paulo Ricardo (`padrepauloricardo.org`) → 2. Canção Nova (`cancaonova.com`) → 3. ACI Digital (`acidigital.com`)**.
+  - **Categorias Contempladas:** Marianas (7), Santos de Devoção Universal (12), Devoções a Nosso Senhor Jesus Cristo (3) e Ciclos Litúrgicos (3).
+  - **Riqueza de Conteúdo por Dia:** Cada um dos 225 dias contém Oração Inicial, Citação Bíblica completa com capítulo e versículo, Meditação Teológica aprofundada, Oração do Dia, Proposta de Intenção Particular e Orações Conclusivas tradicionais (Pai Nosso, Ave Maria, Glória, jaculatórias e bênção).
+  - **Ferramentas de Automação & Auditoria:** Utilitário Python [`scripts/scrape_novenas.py`](scripts/scrape_novenas.py) para auditoria e raspagem com fallback sequencial entre as três fontes canônicas.
+  - **Acompanhamento Espiritual & Progresso:** Registro de intenções pessoais do fiel, controle de dias rezados via contas/velas táteis no app e integração com lembretes no WhatsApp e push notifications.
 - **Dashboard Admin:** Painel Vite + React para parametrização de prompts, gestão de fiéis, controle financeiro, curadoria de conteúdos e gestão de novenas.
 
 ## 🛠 Arquitetura

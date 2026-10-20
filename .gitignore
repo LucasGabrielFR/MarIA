@@ -47,6 +47,9 @@ admin/build/
 uazapi/node_modules/
 /scripts/*
 !/scripts/deploy.sh
+!/scripts/scrape_novenas.py
+!/scripts/scrape_saints.py
+!/scripts/requirements.txt
 context/
 
 # Mobile App (Repositório Git Dedicado)

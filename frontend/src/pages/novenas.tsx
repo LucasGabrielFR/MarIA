@@ -648,12 +648,12 @@ export default function NovenasPage() {
                         <label className="text-xs font-bold uppercase tracking-wider text-slate-600 block">
                           Título da Novena *
                         </label>
-                        <input
-                          type="text"
+                        <textarea
+                          rows={2}
                           placeholder="Ex: Novena a Nossa Senhora Desatadora dos Nós"
                           value={editingNovena.title || ''}
                           onChange={e => setEditingNovena({ ...editingNovena, title: e.target.value })}
-                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-y"
                         />
                       </div>
 
@@ -679,12 +679,12 @@ export default function NovenasPage() {
                       <label className="text-xs font-bold uppercase tracking-wider text-slate-600 block">
                         Subtítulo / Intenção Geral
                       </label>
-                      <input
-                        type="text"
+                      <textarea
+                        rows={2}
                         placeholder="Ex: Para desatar os nós e dificuldades insolúveis da vida espiritual e familiar"
                         value={editingNovena.subtitle || ''}
                         onChange={e => setEditingNovena({ ...editingNovena, subtitle: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-y leading-relaxed"
                       />
                     </div>
 
@@ -814,12 +814,12 @@ export default function NovenasPage() {
                             <label className="text-xs font-bold uppercase tracking-wider text-slate-600 block">
                               Título do {selectedDayNumber}º Dia *
                             </label>
-                            <input
-                              type="text"
+                            <textarea
+                              rows={2}
                               placeholder="Ex: 1º Dia: O abandono à Divina Providência"
                               value={currentDayData.title || ''}
                               onChange={e => updateCurrentDayField('title', e.target.value)}
-                              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-y"
                             />
                           </div>
 
@@ -827,12 +827,12 @@ export default function NovenasPage() {
                             <label className="text-xs font-bold uppercase tracking-wider text-slate-600 block">
                               Leitura Bíblica de Apoio
                             </label>
-                            <input
-                              type="text"
+                            <textarea
+                              rows={2}
                               placeholder="Ex: Lucas 1, 37: Porque para Deus nada é impossível."
                               value={currentDayData.scripture_reading || ''}
                               onChange={e => updateCurrentDayField('scripture_reading', e.target.value)}
-                              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-y leading-relaxed"
                             />
                           </div>
                         </div>
@@ -841,12 +841,12 @@ export default function NovenasPage() {
                           <label className="text-xs font-bold uppercase tracking-wider text-slate-600 block">
                             Oração Inicial / Sinal da Cruz
                           </label>
-                          <input
-                            type="text"
+                          <textarea
+                            rows={3}
                             placeholder="Em nome do Pai... Ato de contrição..."
                             value={currentDayData.opening_prayer || ''}
                             onChange={e => updateCurrentDayField('opening_prayer', e.target.value)}
-                            className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                            className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-y leading-relaxed font-serif"
                           />
                         </div>
 
@@ -855,11 +855,11 @@ export default function NovenasPage() {
                             Meditação e Reflexão Central do Dia *
                           </label>
                           <textarea
-                            rows={4}
+                            rows={5}
                             placeholder="Texto meditativo para leitura orante..."
                             value={currentDayData.meditation || ''}
                             onChange={e => updateCurrentDayField('meditation', e.target.value)}
-                            className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 leading-relaxed"
+                            className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-y leading-relaxed"
                           />
                         </div>
 
@@ -868,11 +868,11 @@ export default function NovenasPage() {
                             Oração Própria do {selectedDayNumber}º Dia *
                           </label>
                           <textarea
-                            rows={3}
+                            rows={4}
                             placeholder="Oração específica dirigida a Deus ou ao intercessor..."
                             value={currentDayData.daily_prayer || ''}
                             onChange={e => updateCurrentDayField('daily_prayer', e.target.value)}
-                            className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 leading-relaxed font-serif"
+                            className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-y leading-relaxed font-serif"
                           />
                         </div>
 
@@ -881,12 +881,12 @@ export default function NovenasPage() {
                             <label className="text-xs font-bold uppercase tracking-wider text-slate-600 block">
                               Pergunta / Lembrança de Intenção Particular
                             </label>
-                            <input
-                              type="text"
+                            <textarea
+                              rows={3}
                               placeholder="Ex: Apresente agora a graça que deseja nesta novena..."
                               value={currentDayData.intentions_prompt || ''}
                               onChange={e => updateCurrentDayField('intentions_prompt', e.target.value)}
-                              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:bg-white focus:outline-none"
+                              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-y leading-relaxed"
                             />
                           </div>
 
@@ -894,12 +894,12 @@ export default function NovenasPage() {
                             <label className="text-xs font-bold uppercase tracking-wider text-slate-600 block">
                               Oração de Conclusão / Glória
                             </label>
-                            <input
-                              type="text"
+                            <textarea
+                              rows={3}
                               placeholder="Pai Nosso, Ave Maria e Glória ao Pai..."
                               value={currentDayData.concluding_prayer || ''}
                               onChange={e => updateCurrentDayField('concluding_prayer', e.target.value)}
-                              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:bg-white focus:outline-none"
+                              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-y leading-relaxed font-serif"
                             />
                           </div>
                         </div>

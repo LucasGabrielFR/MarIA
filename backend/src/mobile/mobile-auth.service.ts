@@ -64,19 +64,29 @@ export class MobileAuthService {
       throw new BadRequestException('A senha deve ter no mínimo 6 caracteres.');
     }
 
+    const hasUpperCase = /[A-Z]/.test(dto.password);
+    const hasLowerCase = /[a-z]/.test(dto.password);
+    const hasNumber = /[0-9]/.test(dto.password);
+    const hasSymbol = /[^a-zA-Z0-9\s]/.test(dto.password);
+
+    if (!hasUpperCase || !hasLowerCase || !hasNumber || !hasSymbol) {
+      throw new BadRequestException(
+        'A senha deve conter pelo menos uma letra maiúscula, uma letra minúscula, um número e um símbolo.',
+      );
+    }
+
     const cleanEmail = dto.email.toLowerCase().trim();
     const fullName = `${dto.firstName.trim()} ${dto.lastName ? dto.lastName.trim() : ''}`.trim();
 
-    // 1. Verifica se já existe um usuário com este e-mail em public.users
-    const { data: existingUser } = await supabase
-      .from('users')
-      .select('id, email')
-      .eq('email', cleanEmail)
-      .maybeSingle();
+    // 1. Verifica se já existe um usuário com este e-mail em public.users ou public.admins
+    const [{ data: existingUser }, { data: existingAdmin }] = await Promise.all([
+      supabase.from('users').select('id, email').eq('email', cleanEmail).maybeSingle(),
+      supabase.from('admins').select('id, email').eq('email', cleanEmail).maybeSingle(),
+    ]);
 
-    if (existingUser) {
+    if (existingUser || existingAdmin) {
       throw new BadRequestException(
-        'Este e-mail já está cadastrado. Faça login ou recupere sua senha.',
+        'Este e-mail já está cadastrado na MarIA. Toque em "Entrar" para acessar sua conta.',
       );
     }
 
@@ -95,6 +105,18 @@ export class MobileAuthService {
       });
 
     if (adminCreateError) {
+      const errMsg = adminCreateError.message?.toLowerCase() || '';
+      if (
+        errMsg.includes('already') ||
+        errMsg.includes('registered') ||
+        errMsg.includes('exists') ||
+        adminCreateError.status === 422
+      ) {
+        throw new BadRequestException(
+          'Este e-mail já está cadastrado na MarIA. Toque em "Entrar" para acessar sua conta.',
+        );
+      }
+
       // Fallback para signUp comum caso admin API tenha restrições
       this.logger.warn(
         `[MobileAuth] admin.createUser falhou, tentando auth.signUp: ${adminCreateError.message}`,
@@ -108,11 +130,23 @@ export class MobileAuthService {
           },
         },
       });
-      if (signUpError || !signUpData.user) {
+
+      if (signUpError) {
         throw new BadRequestException(
-          signUpError?.message || 'Falha ao cadastrar usuário.',
+          signUpError.message || 'Falha ao cadastrar usuário.',
         );
       }
+
+      // No Supabase, quando o e-mail já existe e confirmação está ativa, identities vem vazio ([])
+      if (
+        !signUpData.user ||
+        (signUpData.user.identities && signUpData.user.identities.length === 0)
+      ) {
+        throw new BadRequestException(
+          'Este e-mail já está cadastrado na MarIA. Toque em "Entrar" para acessar sua conta.',
+        );
+      }
+
       authUser = signUpData.user;
     } else {
       authUser = adminCreated.user;
@@ -127,7 +161,9 @@ export class MobileAuthService {
 
     if (loginError || !loginData.session) {
       this.logger.error(`[MobileAuth] Erro ao logar pós-cadastro: ${loginError?.message}`);
-      throw new BadRequestException('Usuário criado, mas falhou ao gerar sessão.');
+      throw new BadRequestException(
+        loginError?.message || 'Falha ao inicializar sessão. Tente fazer login diretamente.',
+      );
     }
 
     // 4. Cria registro em public.users

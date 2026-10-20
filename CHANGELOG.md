@@ -5,6 +5,70 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.37.1] - 2026-10-20
+
+### Changed
+
+- **Sincronização de Identidade e Badge Dinâmica de Assinatura ([`settings_page.dart`](mobile/lib/features/settings/presentation/settings_page.dart) & [`user_entity.dart`](mobile/lib/features/auth/domain/entities/user_entity.dart)):**
+  - Adicionado getter inteligente `planDisplayName` em `UserEntity` para mapear e formatar dinamicamente os níveis de assinatura (`basic` -> "Plano Básico", `premium` -> "Plano Premium", `devoto` -> "Plano Devoto", `free` -> "Plano Gratuito").
+  - Atualizada a badge na tela de Perfil/Configurações para exibir o status real da assinatura com destaque em ouro sacro (`• Ativo`) quando assinante, espelhando com precisão o plano contratado.
+  - Exibição dinâmica do nome real do usuário registrado ("Lucas Gabriel") em substituição ao placeholder provisório ("Fiel MarIA").
+- **Padronização de Datas Litúrgicas no Santuário de Novenas ([`novena.dart`](mobile/lib/features/novenas/domain/entities/novena.dart), [`novena_card.dart`](mobile/lib/features/novenas/presentation/widgets/novena_card.dart) & [`novena_detail_page.dart`](mobile/lib/features/novenas/presentation/pages/novena_detail_page.dart)):**
+  - Implementado o getter `formattedFeastDay` para converter e exibir todas as datas de festas litúrgicas no formato padrão brasileiro `dd/mm` (ex: `28/09`, `12/10`, `13/05`), substituindo a notação do banco `mm-dd` nos cards do catálogo e na tela de detalhes.
+
+### Fixed
+
+- **Unificação de Contas e Associação Omnichannel (Supabase `public.users`):**
+  - Realizada a fusão da conta de login mobile com o perfil prévio e ativo do WhatsApp/Asaas do usuário, garantindo a integridade dos dados históricos (mensagens, consumo e status de assinatura) e a sincronização do e-mail com o `auth_user_id`.
+
+## [1.37.0] - 2026-10-19
+
+### Added
+
+- **Sementeira Canônica Integral de Novenas Católicas (25 Novenas / 225 Dias Estruturados):**
+  - **Hierarquia Estrita de Fontes Canônicas:** Priorização sequencial estabelecida pelo usuário: 1. Padre Paulo Ricardo (`padrepauloricardo.org`) → 2. Canção Nova (`cancaonova.com`) → 3. ACI Digital (`acidigital.com`).
+  - **Catálogo Abrangente em 4 Categorias Teológicas:**
+    - *Marianas (7 novenas):* Nossa Senhora Desatadora dos Nós, N. Sra. Aparecida (Padroeira do Brasil), N. Sra. de Fátima, N. Sra. das Graças e Medalha Milagrosa, N. Sra. do Perpétuo Socorro, N. Sra. do Monte Carmelo e Imaculada Conceição de Maria.
+    - *Santos (12 novenas):* São Judas Tadeu (Causas Desesperadas), São José (Patrono da Igreja e Operários), Santo Antônio de Pádua (Doutor Evangélico), São Miguel Arcanjo (Batalha Espiritual), Santa Teresinha do Menino Jesus (Chuva de Rosas), São Pio de Pietrelcina / Padre Pio, São Peregrino Laziosi (Patrono contra Câncer e Tumores), São Francisco de Assis (Paz e Criação), Santa Rita de Cássia (Causas Impossíveis), Beato Carlo Acutis (Eucaristia e Internet), São Bento Abade (Combate Espiritual e Proteção) e São João Paulo II (Famílias e Não Tenhais Medo).
+    - *Senhor Jesus (3 novenas):* Sagrado Coração de Jesus (Reparação e Promessas a Santa Margarida Maria), Divina Misericórdia (Diário de Santa Faustina Kowalska) e Menino Jesus de Praga (Carmelitas / Infância Espiritual).
+    - *Litúrgicas (3 novenas):* Espírito Santo e Seus Sete Dons (Pentecostes e Cenáculo com a Virgem Maria), Novena Tradicional de Natal (Encarnação e Presépio / Santo Afonso de Ligório) e Almas do Purgatório (Comemoração de Finados / Santo Afonso de Ligório).
+  - **Densidade Litúrgica e Espiritual Completa:** Cada dia dos 225 dias contém Oração Inicial, Citação Bíblica completa com capítulo e versículo, Meditação Teológica profunda, Oração Específica do Dia, Proposta de Intenção Pessoal e Orações Conclusivas tradicionais (Pai Nosso, Ave Maria, Glória, jaculatórias e bênção).
+  - **Scraper e Auditor de Novenas ([`scripts/scrape_novenas.py`](scripts/scrape_novenas.py)):** Utilitário em Python com suporte a busca sequencial nas 3 fontes oficiais (`padre_paulo_ricardo`, `cancao_nova`, `aci_digital`), verificação de conectividade (`--check-sources`), listagem do catálogo (`--list`) e exportação em JSON (`--export-json`).
+
+### Changed
+
+- **Substituição e Enriquecimento Profundo das Novenas Anteriores:**
+  - Substituídos os textos genéricos e repetitivos das 5 novenas originais do banco de dados por meditações teológicas autênticas, orações canônicas e referências bíblicas minuciosas para cada um dos 9 dias, agora consolidadas no Supabase.
+  - Desacoplamento da rota de sementeira no NestJS (`POST /panel/novenas/seed`): o método `seedDefaultNovenas()` agora opera diretamente contra o Supabase como fonte única da verdade, sem depender de arrays pesados estáticos em código.
+  - Reconstrução obrigatória e reinicialização conteinerizada do container backend (`maria-backend-1`) via `docker compose up --build -d backend` com validação de saúde do serviço na porta 3002.
+  - **Harmonização Visual do Card de Novenas ([`prayers_page.dart`](mobile/lib/features/prayers/presentation/prayers_page.dart)):** Padronizado o card do Santuário de Novenas para seguir a mesma semiótica e estados visuais do card de Exame de Consciência (opacidade atenuada a 0.6 quando bloqueado para convidados, borda e ícone circulares suaves com cadeado, e tipografia atenuada com badge alinhado).
+  - **Formulários de Edição do Painel Admin ([`novenas.tsx`](frontend/src/pages/novenas.tsx)):** Conversão de todos os campos de orações, intenções, leituras bíblicas e títulos nos formulários do "Editor dos 9 Dias" e "Dados Gerais" de inputs de linha única para áreas de texto multilinhas (`<textarea>`) com suporte a redimensionamento vertical (`resize-y`), tipografia orante (`font-serif`) e quebra de linha visual (`leading-relaxed`), permitindo a edição e leitura confortável de textos e orações completas.
+  - **Padrão Estrito de Segurança de Senha no Cadastro ([`register_page.dart`](mobile/lib/features/auth/presentation/pages/register_page.dart) & [`mobile-auth.service.ts`](backend/src/mobile/mobile-auth.service.ts)):**
+    - Implementação de validação de alta segurança no cadastro por e-mail: mínimo de 6 caracteres, exigindo obrigatoriamente ao menos uma letra maiúscula (`[A-Z]`), uma letra minúscula (`[a-z]`), um número (`[0-9]`) e um caractere especial/símbolo (`[^a-zA-Z0-9\s]`).
+    - Validação de entrada no app Flutter com orientações claras de requisitos (`helperText` descritivo) e validação impeditiva correspondente com `BadRequestException` no serviço de autenticação do NestJS.
+  - **Refinamento Visual da Tela de Login ([`login_page.dart`](mobile/lib/features/auth/presentation/pages/login_page.dart)):** Remoção do subtítulo *"Entre com seu e-mail para sincronizar seu roteiro espiritual"* logo abaixo do cabeçalho "Acessar Conta", tornando o card de login mais limpo, direto e compacto.
+  - **Catálogo e Filtros do Santuário de Novenas ([`novenas_catalog_page.dart`](mobile/lib/features/novenas/presentation/pages/novenas_catalog_page.dart) & [`novenas.service.ts`](backend/src/novenas/novenas.service.ts)):**
+    - Sincronização dos identificadores das categorias (`marianas`, `santos`, `causas_urgentes`, `jesus`, `liturgicas`) com as categorias canônicas do banco de dados, restabelecendo a exibição das novenas ao tocar nos filtros.
+    - Adição de indicador visual intuitivo de rolagem lateral com degradê de fade e ícone sutil de navegação à direita, evidenciando que existem mais categorias disponíveis para deslizar.
+  - **Experiência Visual na Tela dos Dias da Novena ([`novena_prayer_day_page.dart`](mobile/lib/features/novenas/presentation/pages/novena_prayer_day_page.dart) & [`novena_progress_beads.dart`](mobile/lib/features/novenas/presentation/widgets/novena_progress_beads.dart)):**
+    - AppBar reformulada em duas linhas hierárquicas (`1º Dia de Oração` no título sacro e o nome da novena no subtítulo), eliminando o corte de texto.
+    - Correção do overflow horizontal de 55 pixels na régua de progresso das 9 contas orantes com dimensionamento elástico (`Flexible`), garantindo encaixe responsivo e sem faixas de advertência em qualquer largura de tela.
+
+
+### Removed
+
+- **Expurgo Definitivo de Scripts e Arquivos de Sementeira:**
+  - Removidos todos os scripts de sementeira únicos em `backend/scripts/`: `seed_novenas.ts`, `seed_privacy_policy.ts`, `seed_terms_of_use.ts`, `seed_system_prompts.ts`, `seed_rosary_prompt.ts` e `seed_generator_prompts.ts`.
+  - Removidos os arquivos temporários de dados locais e runner em `backend/src/novenas/`: `initial-novenas-data.ts`, `runner.ts` e a pasta `data/` (`marianas.data.ts`, `santos.data.ts`, `santos_part2.data.ts`, `santos_part3.data.ts`, `jesus.data.ts`, `liturgicas.data.ts`), mantendo o repositório leve e ágil já que todas as 25 novenas e 225 dias foram persistidos no Supabase.
+
+### Fixed
+
+- **Compatibilidade de Nomenclatura no App Mobile ([`novena_model.dart`](mobile/lib/features/novenas/data/models/novena_model.dart)):**
+  - Ajustado `NovenaDayModel.fromJson` para suportar tanto a coluna `concluding_prayer` (do banco Supabase e backend NestJS) quanto `closing_prayer` (do modelo legado local), eliminando orações finais em branco na interface móvel.
+- **Tratamento de Contas Existentes no Cadastro Mobile ([`mobile-auth.service.ts`](backend/src/mobile/mobile-auth.service.ts)):**
+  - Corrigido fluxo de cadastro por e-mail quando o endereço já possui conta no sistema (ex: administradores do painel ou fiéis previamente registrados): adicionada checagem paralela em `public.admins` e detecção de códigos 422/already registered do Supabase Auth, substituindo o erro enganoso *"Usuário criado, mas falhou ao gerar sessão"* por uma instrução clara e amigável: *"Este e-mail já está cadastrado na MarIA. Toque em 'Entrar' para acessar sua conta"*.
+
+
 ## [1.36.1] - 2026-10-19
 
 ### Changed

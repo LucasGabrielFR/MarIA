@@ -1,6 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
-import { INITIAL_NOVENAS } from './initial-novenas-data';
 
 export class NovenaDayDto {
   day_number: number;
@@ -73,23 +72,19 @@ export class NovenasService {
   // ================= SEEDING & POPULATION =================
 
   async seedDefaultNovenas() {
-    const results: any[] = [];
-    for (const novenaDto of INITIAL_NOVENAS) {
-      const { data: existing } = await this.supabase
-        .from('novenas')
-        .select('id')
-        .eq('slug', novenaDto.slug)
-        .maybeSingle();
+    const { count, error } = await this.supabase
+      .from('novenas')
+      .select('*', { count: 'exact', head: true });
 
-      if (!existing) {
-        const created = await this.createNovena(novenaDto);
-        results.push({ slug: novenaDto.slug, action: 'created', id: created.id });
-      } else {
-        const updated = await this.updateNovena(existing.id, novenaDto);
-        results.push({ slug: novenaDto.slug, action: 'updated', id: updated.id });
-      }
+    if (error) {
+      throw new BadRequestException(`Erro ao verificar novenas: ${error.message}`);
     }
-    return { success: true, count: results.length, details: results };
+
+    return {
+      success: true,
+      message: `Novenas canônicas já estão persistidas no Supabase. Total de novenas ativas: ${count ?? 0}.`,
+      count: count ?? 0,
+    };
   }
 
   // ================= ADMIN CMS METHODS =================
@@ -273,7 +268,11 @@ export class NovenasService {
       .order('created_at', { ascending: false });
 
     if (category && category !== 'all') {
-      query = query.eq('category', category);
+      if (category === 'liturgica' || category === 'liturgicas') {
+        query = query.in('category', ['liturgica', 'espirito_santo', 'almas', 'liturgicas']);
+      } else {
+        query = query.eq('category', category);
+      }
     }
 
     if (search && search.trim()) {
