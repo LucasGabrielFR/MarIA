@@ -42,7 +42,7 @@ export class CanonicalHoursController {
 
   @Post('sync')
   async triggerSync(@Query('date') date?: string) {
-    return this.canonicalHoursService.syncFromWordPress(date);
+    return this.canonicalHoursService.syncFromOratio(date);
   }
 
   @Post('sync-day')
@@ -52,7 +52,7 @@ export class CanonicalHoursController {
       new Date().toLocaleDateString('sv-SE', {
         timeZone: 'America/Sao_Paulo',
       });
-    return this.canonicalHoursService.syncFromWordPress(targetDate);
+    return this.canonicalHoursService.syncFromOratio(targetDate);
   }
 
   @Post('sync-week')

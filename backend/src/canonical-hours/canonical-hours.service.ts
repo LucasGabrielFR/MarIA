@@ -6,320 +6,241 @@ import {
   LiturgicalColor,
   LiturgicalRank,
 } from './canonical-hours.types';
-import { CanonicalHoursParser } from './canonical-hours-parser';
+import { CanonicalHoursParser, EXPECTED_ORATIO_HOURS, ORATIO_BASE_URL } from './canonical-hours-parser';
 
-interface WordPressPost {
-  id: number;
-  date: string;
-  slug: string;
-  title: { rendered: string };
-  content: { rendered: string };
-  link: string;
+export type SyncStatus = 'complete' | 'partial' | 'failed';
+export interface SyncResult {
+  complete: boolean;
+  status: SyncStatus;
+  expectedCount: number;
+  missingCount: number;
+  failedCount: number;
+  syncedCount: number;
+  dates: string[];
 }
 
 @Injectable()
 export class CanonicalHoursService {
   private readonly logger = new Logger(CanonicalHoursService.name);
-  private readonly wpApiUrl = 'https://liturgiadashoras.online/wp-json/wp/v2/posts';
 
   constructor(private readonly supabaseService: SupabaseService) {}
 
-  /**
-   * Determina a hora canônica recomendada de acordo com o horário de Brasília
-   */
   getRecommendedHourType(): CanonicalHourType {
-    const spDate = new Date(
-      new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }),
-    );
-    const hours = spDate.getHours();
-
-    if (hours >= 6 && hours < 9) return 'lauds';
-    if (hours >= 9 && hours < 12) return 'terce';
-    if (hours >= 12 && hours < 15) return 'sext';
-    if (hours >= 15 && hours < 18) return 'none';
-    if (hours >= 18 && hours < 21) return 'vespers';
-    if (hours >= 21) return 'compline';
-    return 'office_of_readings'; // 00h às 06h
+    const hour = Number(new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Sao_Paulo', hour: '2-digit', hourCycle: 'h23',
+    }).format(new Date()));
+    if (hour >= 6 && hour < 9) return 'lauds';
+    if (hour >= 9 && hour < 12) return 'terce';
+    if (hour >= 12 && hour < 15) return 'sext';
+    if (hour >= 15 && hour < 18) return 'none';
+    if (hour >= 18 && hour < 21) return 'vespers';
+    if (hour >= 21) return 'compline';
+    return 'office_of_readings';
   }
 
-  /**
-   * Obtém todas as horas canônicas de uma determinada data
-   */
   async getDailyHours(date: string): Promise<{
     date: string;
     recommendedHour: CanonicalHourType;
     hours: DailyCanonicalHourRecord[];
   }> {
     const supabase = this.supabaseService.getClient();
-
-    const { data, error } = await supabase
-      .from('daily_canonical_hours')
-      .select('*')
-      .eq('date', date)
+    const { data, error } = await supabase.from('daily_canonical_hours').select('*').eq('date', date)
       .order('created_at', { ascending: true });
-
-    if (error) {
-      this.logger.error(`Erro ao consultar daily_canonical_hours para ${date}: ${error.message}`);
+    if (error) this.logger.error(`Erro ao consultar horas de ${date}: ${error.message}`);
+    let records = (data as DailyCanonicalHourRecord[]) || [];
+    if (!records.length) {
+      await this.syncFromOratio(date);
+      const { data: syncedData } = await supabase.from('daily_canonical_hours').select('*').eq('date', date);
+      records = (syncedData as DailyCanonicalHourRecord[]) || [];
     }
-
-    let records: DailyCanonicalHourRecord[] = (data as DailyCanonicalHourRecord[]) || [];
-
-    // Se ainda não houver horas cadastradas para o dia, dispara sincronização sob demanda
-    if (records.length === 0) {
-      this.logger.log(`Nenhuma hora encontrada para ${date}. Tentando sincronizar...`);
-      try {
-        await this.syncFromWordPress(date);
-        const { data: syncedData } = await supabase
-          .from('daily_canonical_hours')
-          .select('*')
-          .eq('date', date);
-        records = (syncedData as DailyCanonicalHourRecord[]) || [];
-      } catch (syncErr) {
-        this.logger.warn(`Falha na sincronização sob demanda para ${date}: ${syncErr?.message}`);
-      }
-    }
-
-    return {
-      date,
-      recommendedHour: this.getRecommendedHourType(),
-      hours: records,
-    };
+    return { date, recommendedHour: this.getRecommendedHourType(), hours: records };
   }
 
-  /**
-   * Obtém uma hora canônica específica de um dia
-   */
   async getHour(date: string, hourType: CanonicalHourType): Promise<DailyCanonicalHourRecord | null> {
     const supabase = this.supabaseService.getClient();
-
-    const { data, error } = await supabase
-      .from('daily_canonical_hours')
-      .select('*')
-      .eq('date', date)
-      .eq('hour_type', hourType)
-      .maybeSingle();
-
+    const { data, error } = await supabase.from('daily_canonical_hours').select('*').eq('date', date)
+      .eq('hour_type', hourType).maybeSingle();
     if (error) {
-      this.logger.error(`Erro ao consultar hora ${hourType} de ${date}: ${error.message}`);
+      this.logger.error(`Erro ao consultar ${hourType} de ${date}: ${error.message}`);
       return null;
     }
-
-    if (!data) {
-      // Tenta sincronizar se não encontrou
-      await this.syncFromWordPress(date);
-      const { data: retryData } = await supabase
-        .from('daily_canonical_hours')
-        .select('*')
-        .eq('date', date)
-        .eq('hour_type', hourType)
-        .maybeSingle();
-      return (retryData as DailyCanonicalHourRecord) || null;
-    }
-
-    return data as DailyCanonicalHourRecord;
+    if (data) return data as DailyCanonicalHourRecord;
+    await this.syncFromOratio(date);
+    const { data: retryData } = await supabase.from('daily_canonical_hours').select('*').eq('date', date)
+      .eq('hour_type', hourType).maybeSingle();
+    return (retryData as DailyCanonicalHourRecord) || null;
   }
 
-  /**
-   * Sincroniza as horas canônicas a partir do WordPress da Liturgia das Horas Online
-   * @param targetDateStr Data no formato YYYY-MM-DD ou undefined para os posts recentes
-   */
-  async syncFromWordPress(targetDateStr?: string): Promise<{ syncedCount: number }> {
-    this.logger.log(`Iniciando sincronização de Liturgia das Horas (Alvo: ${targetDateStr || 'semana'})...`);
-
-    try {
-      const url = `${this.wpApiUrl}?categories=22&per_page=60`;
-      const res = await fetch(url, { signal: AbortSignal.timeout(20_000) });
-
-      if (!res.ok) {
-        throw new Error(`WordPress API respondeu com status ${res.status}: ${res.statusText}`);
-      }
-
-      const posts: WordPressPost[] = await res.json();
-      if (!Array.isArray(posts) || posts.length === 0) {
-        this.logger.warn('Nenhum post retornado pela API do liturgiadashoras.online');
-        return { syncedCount: 0 };
-      }
-
-      const supabase = this.supabaseService.getClient();
-      let syncedCount = 0;
-
-      for (const post of posts) {
-        const postDate = post.date.substring(0, 10); // YYYY-MM-DD
-        if (targetDateStr && postDate !== targetDateStr) {
-          // Se especificou uma data alvo, filtra por ela
-          continue;
-        }
-
-        const rawTitle = post.title.rendered || '';
-        const rawContent = post.content.rendered || '';
-        const hourType = CanonicalHoursParser.identifyHourType(post.slug, rawTitle);
-
-        if (!hourType) {
-          continue;
-        }
-
-        const cleanHtml = CanonicalHoursParser.sanitizeHtml(rawContent);
-        const parsedContent = CanonicalHoursParser.parseContent(cleanHtml);
-        const liturgicalRank: LiturgicalRank = CanonicalHoursParser.identifyLiturgicalRank(
-          rawTitle,
-          cleanHtml,
-        );
-        const liturgicalColor: LiturgicalColor = CanonicalHoursParser.identifyLiturgicalColor(
-          liturgicalRank,
-          rawTitle,
-        );
-
-        const hasMemorial =
-          liturgicalRank === 'obligatory_memorial' ||
-          liturgicalRank === 'optional_memorial' ||
-          rawTitle.toLowerCase().includes('memória');
-
-        const recordToUpsert: Partial<DailyCanonicalHourRecord> = {
-          date: postDate,
-          hour_type: hourType,
-          liturgical_color: liturgicalColor,
-          liturgical_rank: liturgicalRank,
-          celebration_title: rawTitle,
-          source_url: post.link,
-          has_memorial: hasMemorial,
-          memorial_title: hasMemorial ? rawTitle : undefined,
-          content: parsedContent,
-          updated_at: new Date().toISOString(),
-        };
-
-        const { error } = await supabase
-          .from('daily_canonical_hours')
-          .upsert(recordToUpsert, { onConflict: 'date,hour_type' });
-
-        if (error) {
-          this.logger.error(
-            `Erro ao fazer upsert de ${hourType} em ${postDate}: ${error.message}`,
-          );
-        } else {
-          syncedCount++;
-        }
-      }
-
-      this.logger.log(`Sincronização concluída com sucesso. ${syncedCount} horas processadas.`);
-      return { syncedCount };
-    } catch (err: any) {
-      this.logger.error(`Erro crítico na sincronização de Liturgia das Horas: ${err?.message}`, err);
-      return { syncedCount: 0 };
-    }
+  async syncFromOratio(targetDateStr = this.getTodayInSaoPaulo()): Promise<SyncResult> {
+    return this.syncDates([targetDateStr]);
   }
 
-  /**
-   * Sincroniza um intervalo de datas a partir da data de referência até o sábado da semana correspondente
-   */
-  async syncWeekRange(referenceDateStr: string): Promise<{ syncedCount: number; dates: string[] }> {
-    const [year, month, day] = referenceDateStr.split('-').map(Number);
-    const refDate = new Date(year, month - 1, day);
-    const dayOfWeek = refDate.getDay(); // 0 (Domingo) a 6 (Sábado)
-
-    // Dias até o sábado (6 - dayOfWeek)
-    const daysUntilSaturday = 6 - dayOfWeek;
-    const targetDates: string[] = [];
-
-    for (let i = 0; i <= daysUntilSaturday; i++) {
-      const d = new Date(refDate);
-      d.setDate(refDate.getDate() + i);
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const dt = String(d.getDate()).padStart(2, '0');
-      targetDates.push(`${y}-${m}-${dt}`);
-    }
-
-    this.logger.log(`Sincronizando intervalo até sábado: ${targetDates.join(', ')}`);
-
-    let totalSynced = 0;
-    try {
-      const url = `${this.wpApiUrl}?categories=22&per_page=100`;
-      const res = await fetch(url, { signal: AbortSignal.timeout(25_000) });
-      if (!res.ok) throw new Error(`Status ${res.status}`);
-      const posts: WordPressPost[] = await res.json();
-
-      const supabase = this.supabaseService.getClient();
-
-      for (const post of posts) {
-        const postDate = post.date.substring(0, 10);
-        if (!targetDates.includes(postDate)) continue;
-
-        const rawTitle = post.title.rendered || '';
-        const rawContent = post.content.rendered || '';
-        const hourType = CanonicalHoursParser.identifyHourType(post.slug, rawTitle);
-        if (!hourType) continue;
-
-        const cleanHtml = CanonicalHoursParser.sanitizeHtml(rawContent);
-        const parsedContent = CanonicalHoursParser.parseContent(cleanHtml);
-        const liturgicalRank = CanonicalHoursParser.identifyLiturgicalRank(rawTitle, cleanHtml);
-        const liturgicalColor = CanonicalHoursParser.identifyLiturgicalColor(liturgicalRank, rawTitle);
-        const hasMemorial =
-          liturgicalRank === 'obligatory_memorial' ||
-          liturgicalRank === 'optional_memorial' ||
-          rawTitle.toLowerCase().includes('memória');
-
-        const recordToUpsert: Partial<DailyCanonicalHourRecord> = {
-          date: postDate,
-          hour_type: hourType,
-          liturgical_color: liturgicalColor,
-          liturgical_rank: liturgicalRank,
-          celebration_title: rawTitle,
-          source_url: post.link,
-          has_memorial: hasMemorial,
-          memorial_title: hasMemorial ? rawTitle : undefined,
-          content: parsedContent,
-          updated_at: new Date().toISOString(),
-        };
-
-        const { error } = await supabase
-          .from('daily_canonical_hours')
-          .upsert(recordToUpsert, { onConflict: 'date,hour_type' });
-
-        if (!error) totalSynced++;
-      }
-    } catch (err: any) {
-      this.logger.error(`Erro ao sincronizar intervalo da semana: ${err?.message}`);
-    }
-
-    return { syncedCount: totalSynced, dates: targetDates };
+  async syncWeekRange(referenceDateStr: string): Promise<SyncResult> {
+    const dates = this.getDatesThroughSaturday(referenceDateStr);
+    return this.syncDates(dates);
   }
 
-  /**
-   * Atualiza manualmente o conteúdo de uma hora canônica via painel administrativo
-   */
+  private async syncDates(dates: string[]): Promise<SyncResult> {
+    const expectedCount = dates.length * EXPECTED_ORATIO_HOURS.length;
+    let syncedCount = 0;
+    let failedCount = 0;
+    for (const date of dates) {
+      try {
+        const supabase = this.supabaseService.getClient();
+        const { data: existing, error: existingError } = await supabase.from('daily_canonical_hours')
+          .select('hour_type,liturgical_rank,has_memorial,memorial_title').eq('date', date);
+        if (existingError) throw new Error(`Leitura prévia de ${date} falhou: ${existingError.message}`);
+        const previous = new Map((existing || []).map((row: any) => [row.hour_type, row]));
+        const records = await this.fetchCompleteDay(date, previous);
+        const { data, error } = await supabase.from('daily_canonical_hours')
+          .upsert(records, { onConflict: 'date,hour_type' }).select('date,hour_type');
+        if (error) throw new Error(`Persistência de ${date} falhou: ${error.message}`);
+        if (!data || data.length !== EXPECTED_ORATIO_HOURS.length) {
+          throw new Error(`Persistência de ${date} retornou ${data?.length ?? 0}/7 registros`);
+        }
+        syncedCount += data.length;
+      } catch (error) {
+        failedCount++;
+        this.logger.error(`Sincronização Oratio de ${date} falhou: ${(error as Error).message}`);
+      }
+    }
+    const missingCount = expectedCount - syncedCount;
+    const complete = missingCount === 0 && failedCount === 0;
+    const status: SyncStatus = complete ? 'complete' : syncedCount > 0 ? 'partial' : 'failed';
+    return { complete, status, expectedCount, missingCount, failedCount, syncedCount, dates };
+  }
+
+  private async fetchCompleteDay(
+    date: string,
+    previous: Map<string, any> = new Map(),
+  ): Promise<Partial<DailyCanonicalHourRecord>[]> {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || this.formatDateUtc(this.parseDateUtc(date)) !== date) {
+      throw new Error(`Data inválida: ${date}`);
+    }
+    const indexUrl = `${ORATIO_BASE_URL}/liturgia-das-horas/${date.replaceAll('-', '/')}/`;
+    const indexResponse = await this.fetchOratio(indexUrl);
+    const indexHtml = await indexResponse.text();
+    const day = CanonicalHoursParser.parseDayIndex(indexHtml, date);
+    const rank = this.classifyRank(day.celebration);
+    day.metadata.rankKnown = rank !== 'unknown' || previous.size === EXPECTED_ORATIO_HOURS.length;
+    day.metadata.memorialKnown = /mem[oó]ria/i.test(day.celebration) ||
+      rank !== 'unknown' || previous.size === EXPECTED_ORATIO_HOURS.length;
+    const hours = await Promise.all(day.hours.map(async (hour) => {
+      const response = await this.fetchOratio(hour.url);
+      const parsed = CanonicalHoursParser.parseHour(await response.text(), date, hour.slug);
+      const old = previous.get(hour.type);
+      const hourRank = rank === 'unknown' ? (old?.liturgical_rank || 'unknown') : rank;
+      const hasMemorial = /mem[oó]ria/i.test(day.celebration)
+        ? true
+        : rank !== 'unknown'
+          ? false
+          : (old?.has_memorial ?? false);
+      const color = this.mapLiturgicalColor(day.metadata.color);
+      return {
+        date,
+        hour_type: hour.type,
+        liturgical_color: color,
+        liturgical_rank: hourRank,
+        celebration_title: parsed.title,
+        source_url: hour.url,
+        has_memorial: hasMemorial,
+        memorial_title: hasMemorial ? (old?.memorial_title || day.celebration) : undefined,
+        content: {
+          rawCleanText: parsed.rawCleanText,
+          plainText: parsed.plainText,
+          dayMetadata: day.metadata,
+        },
+        updated_at: new Date().toISOString(),
+      } satisfies Partial<DailyCanonicalHourRecord>;
+    }));
+    if (hours.length !== EXPECTED_ORATIO_HOURS.length || new Set(hours.map((hour) => hour.hour_type)).size !== 7) {
+      throw new Error(`Conjunto de horas incompleto para ${date}`);
+    }
+    return hours;
+  }
+
+  private async fetchOratio(url: string): Promise<Response> {
+    const parsedUrl = new URL(url);
+    if (parsedUrl.origin !== ORATIO_BASE_URL) throw new Error(`Host de origem não permitido: ${parsedUrl.origin}`);
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(20_000),
+      headers: { 'user-agent': 'MarIA-CanonicalHours/1.0' },
+      redirect: 'manual',
+    });
+    const finalUrl = new URL(response.url || url);
+    if (response.redirected || finalUrl.origin !== ORATIO_BASE_URL || finalUrl.pathname !== parsedUrl.pathname) {
+      throw new Error(`Redirecionamento Oratio para rota não autorizada: ${finalUrl.href}`);
+    }
+    if (!response.ok) throw new Error(`Oratio respondeu ${response.status} para ${url}`);
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.toLowerCase().includes('text/html')) throw new Error(`Resposta não HTML para ${url}`);
+    return response;
+  }
+
+  private getDatesThroughSaturday(referenceDate: string): string[] {
+    const date = this.parseDateUtc(referenceDate);
+    if (this.formatDateUtc(date) !== referenceDate) throw new Error(`Data inválida: ${referenceDate}`);
+    const days = 6 - date.getUTCDay();
+    return Array.from({ length: days + 1 }, (_, index) => {
+      const next = new Date(date);
+      next.setUTCDate(date.getUTCDate() + index);
+      return this.formatDateUtc(next);
+    });
+  }
+
+  private parseDateUtc(value: string): Date {
+    const [year, month, day] = value.split('-').map(Number);
+    return new Date(Date.UTC(year, month - 1, day));
+  }
+
+  private formatDateUtc(date: Date): string {
+    return date.toISOString().slice(0, 10);
+  }
+
+  private getTodayInSaoPaulo(): string {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
+    }).formatToParts(new Date());
+    const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    return `${values.year}-${values.month}-${values.day}`;
+  }
+
+  private mapLiturgicalColor(value?: string): LiturgicalColor {
+    const color = value?.toLocaleLowerCase('pt-BR') || '';
+    if (color.includes('branc')) return 'white';
+    if (color.includes('vermelh')) return 'red';
+    if (color.includes('roxo') || color.includes('viol')) return 'purple';
+    if (color.includes('rosa')) return 'rose';
+    return 'green';
+  }
+
+  private classifyRank(celebration: string): LiturgicalRank {
+    const value = celebration.toLocaleLowerCase('pt-BR');
+    if (/solenidade/.test(value)) return 'solemnity';
+    if (/(?:^|\s)festa(?:\s|$)/.test(value)) return 'feast';
+    if (/mem[oó]ria obrigat[oó]ria/.test(value)) return 'obligatory_memorial';
+    if (/mem[oó]ria facultativa/.test(value)) return 'optional_memorial';
+    return 'unknown';
+  }
+
   async updateHour(
     id: string,
     updateData: { celebration_title?: string; rawCleanText?: string; content?: any },
   ) {
     const supabase = this.supabaseService.getClient();
-
-    const { data: existing, error: fetchErr } = await supabase
-      .from('daily_canonical_hours')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    if (fetchErr || !existing) {
-      throw new Error('Hora canônica não encontrada para atualização');
-    }
-
+    const { data: existing, error: fetchErr } = await supabase.from('daily_canonical_hours')
+      .select('*').eq('id', id).single();
+    if (fetchErr || !existing) throw new Error('Hora canônica não encontrada para atualização');
     const newContent = {
       ...(existing.content || {}),
       ...(updateData.content || {}),
       rawCleanText: updateData.rawCleanText ?? existing.content?.rawCleanText,
     };
-
-    const { data, error } = await supabase
-      .from('daily_canonical_hours')
-      .update({
-        celebration_title: updateData.celebration_title ?? existing.celebration_title,
-        content: newContent,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .select()
-      .single();
-
+    const { data, error } = await supabase.from('daily_canonical_hours').update({
+      celebration_title: updateData.celebration_title ?? existing.celebration_title,
+      content: newContent,
+      updated_at: new Date().toISOString(),
+    }).eq('id', id).select().single();
     if (error) throw error;
     return data;
   }

@@ -606,4 +606,82 @@ Este arquivo armazena o histórico contínuo de contexto, decisões de arquitetu
 - Monitorar a recepção das notificações push nativas em aparelhos físicos de usuários finais.
 ---
 
+## Sessão: 2026-10-21 19:47 (UTC-3)
+### 📌 Resumo da Sessão
+- **Separação e Gestão de Fiéis (Mobile vs. WhatsApp Legado) no Dashboard Admin:**
+  - Diagnóstico e resolução do erro de tela branca ao abrir registros de usuários criados pelo aplicativo (ausência de telefone gerava inconsistência no componente de detalhes).
+  - Reestruturação da tela de Fiéis com abas segmentadas para Usuários do Aplicativo (Novo Ecossistema) e Usuários do WhatsApp (Legado), além de suporte à exclusão segura de usuários.
+- **Ajustes de Autenticação e Entrada:**
+  - Correção da URL de callback do Google OAuth em produção para direcionar para `https://maria.acutistech.com.br`.
+  - Simplificação do campo de telefone em formulários: fixação do DDI Brasil (+55), exibição exclusiva da bandeira nacional e máscara telefônica padronizada `(XX) XXXXX-XXXX`.
+- **Santo Terço Guiado Contemplativo (Mistério por Mistério):**
+  - Implementação da nova modalidade do Santo Terço com navegação focada dezena por dezena, eliminando a exigência de toque conta a conta.
+  - Inclusão do botão retrátil *"Ver orações na tela"* para leitura facultativa das orações completas.
+  - Exibição de dois cartões claros na aba de Orações do app: *"Rezar Santo Terço"* (Guiado) e *"Rezar Terço Interativo"* (Conta a Conta), com eliminação de termos técnicos estranhos (*"háptico"*, *"vibração tátil"*).
+- **Liturgia das Horas / Ofício Divino Completo (App Mobile, Backend & Painel Admin):**
+  - Integração das 7 Horas Canônicas (Ofício das Leituras, Laudes, Hora Terça, Hora Sexta, Hora Nona, Vésperas e Completas) ao menu Orações do aplicativo MarIA.
+  - Extração canônica 100% livre de consumo de IA (zero custo de tokens), com sanitização de HTML e persistência relacional no Supabase (`daily_canonical_hours`).
+  - Suporte litúrgico à escolha do fiel entre rezar a Memória do Santo (obrigatória/facultativa) ou o Comum Ferial da semana.
+  - Tela de leitura sacra com rubricas litúrgicas em carmim, versículos responsórios e temas devocionais (Sépia Sacro, Noturno e Claro).
+  - Aba dedicada no painel administrativo (*Conteúdo Diário*) para gerenciamento da Liturgia das Horas com botões exclusivos para *"Buscar dados deste dia"* e *"Buscar dados da semana (até Sábado)"*, além de editor manual para ajustes de textos.
+  - Refinamento do parser canônico com suporte à estrutura Oratio, validação rigorosa de rotas canônicas e extração de metadados litúrgicos.
+
+### 🏗️ Decisões Técnicas e de Arquitetura
+- **Zero-Token Cost para Liturgia das Horas:** Diferente dos conteúdos reflexivos gerados por LLM, a Liturgia das Horas utiliza extração e estruturação canônica direta, preservando a integridade dos textos litúrgicos da Igreja e economizando franquia de IA.
+- **Sincronização Semanal Inteligente:** O endpoint `POST /canonical-hours/sync-week` calcula o intervalo entre a data de referência e o sábado da mesma semana (`6 - dayOfWeek`), garantindo que consultas em meio à semana (ex: quarta-feira) cubram todos os dias até o encerramento do ciclo ferial semanal.
+- **Separação Arquitetural de Fiéis no Painel:** Desacoplamento da listagem de fiéis entre mobile e WhatsApp via flags/origens de autenticação, preparando a base para a transição dos usuários do canal legado para o aplicativo unificado.
+
+### 🛠️ Alterações e Implementações
+- **Banco de Dados (Supabase):**
+  - [`backend/scripts/migration_canonical_hours.sql`](file:///d:/Programming/AcutisTech/MarIA/backend/scripts/migration_canonical_hours.sql): Tabelas `canonical_hours_catalog` e `daily_canonical_hours` com índices por data e hora canônica.
+- **Backend NestJS (`backend/`):**
+  - [`backend/src/canonical-hours/canonical-hours.module.ts`](file:///d:/Programming/AcutisTech/MarIA/backend/src/canonical-hours/canonical-hours.module.ts), [`canonical-hours.controller.ts`](file:///d:/Programming/AcutisTech/MarIA/backend/src/canonical-hours/canonical-hours.controller.ts), [`canonical-hours.service.ts`](file:///d:/Programming/AcutisTech/MarIA/backend/src/canonical-hours/canonical-hours.service.ts), [`canonical-hours-parser.ts`](file:///d:/Programming/AcutisTech/MarIA/backend/src/canonical-hours/canonical-hours-parser.ts) e [`canonical-hours.types.ts`](file:///d:/Programming/AcutisTech/MarIA/backend/src/canonical-hours/canonical-hours.types.ts).
+  - Rotinas automáticas registradas no `CronService` (execução semanal aos domingos às 00:01).
+- **Frontend Admin (`frontend/`):**
+  - [`frontend/src/pages/daily-content.tsx`](file:///d:/Programming/AcutisTech/MarIA/frontend/src/pages/daily-content.tsx): Nova aba de Liturgia das Horas com sincronização diária e semanal, seletor das 7 horas e editor manual de conteúdo.
+- **Mobile (`mobile/`):**
+  - [`mobile/lib/features/prayers/presentation/simple_rosary_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/prayers/presentation/simple_rosary_page.dart): Tela do Santo Terço Guiado passo a passo nos mistérios.
+  - [`mobile/lib/features/prayers/presentation/liturgy_of_hours_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/prayers/presentation/liturgy_of_hours_page.dart) & [`canonical_hour_reader_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/prayers/presentation/canonical_hour_reader_page.dart): Telas da Liturgia das Horas e Leitor Sacro.
+  - [`mobile/lib/features/prayers/presentation/prayers_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/prayers/presentation/prayers_page.dart): Cartões dos dois terços e acesso à Liturgia das Horas.
+- **Infraestrutura Docker:**
+  - Reconstrução e validação dos contêineres `maria-backend-1` e `maria-frontend-1` ativos nas portas 3002 e 8081.
+- **Documentação & Versionamento:**
+  - [`CHANGELOG.md`](file:///d:/Programming/AcutisTech/MarIA/CHANGELOG.md): Entradas das versões `1.44.0` a `1.46.2`.
+  - [`README.md`](file:///d:/Programming/AcutisTech/MarIA/README.md) e [`.gitignore`](file:///d:/Programming/AcutisTech/MarIA/.gitignore) atualizados.
+
+### ⏳ Pendências e Próximos Passos
+- Validar a navegação da Liturgia das Horas no dispositivo físico ou emulador móvel.
+- Monitorar a primeira execução do CRON semanal de domingo para importação antecipada do Ofício Divino.
+- Proceder com o deploy em produção no servidor VPS conforme [`DEPLOY_GUIDELINES.md`](file:///d:/Programming/AcutisTech/MarIA/DEPLOY_GUIDELINES.md).
+---
+
+## Sessão: 2026-10-21 20:13 (UTC-3)
+### 📌 Resumo da Sessão
+- Conclusão com pleno sucesso da migração da fonte canônica da **Liturgia das Horas** para o **Oratio** (`https://oratioapp.com.br`).
+- Rebuild Docker dos serviços realizado com sucesso e validação ao vivo ponta a ponta: 100% das 7 Horas Canônicas dos dias 21/10/2026 e 22/10/2026 sincronizadas sem conteúdos vazios.
+- Atualização documental atômica dos artefatos `CHANGELOG.md` (versão 1.47.0), `README.md` e nota conectada `investigacao-liturgia-das` no canvas do Maestri.
+- Diretriz estrita respeitada: nenhum commit Git realizado.
+
+### 🏗️ Decisões Técnicas e de Arquitetura
+- **Fonte Canônica Oratio:** Substituição da fonte anterior por parsing direto de HTML e payload JSON (`data-liturgy-days-json`) do Oratio via `CanonicalHoursParser`.
+- **Sanitização Seletiva e Segurança:** Remoção segura de scripts, iframes e links de terceiros, preservando a semântica litúrgica e rubricas em carmim para o leitor sacro mobile.
+- **Validação de Conteúdo:** Rejeição mandatória de textos curtos ou vazios (< 50 caracteres), prevenindo persistência indevida de horas em preparação.
+- **Relatório Estruturado de Sincronização (`SyncResult`):** Exposição clara de métricas (`status`, `expectedCount`, `syncedCount`, `failedCount`, `missingCount`) consumíveis pelo Painel Administrativo.
+
+### 🛠️ Alterações e Implementações
+- **Backend:**
+  - `backend/src/canonical-hours/canonical-hours-parser.ts` & `.spec.ts`: Parser do índice e das 7 páginas canônicas individuais do Oratio.
+  - `backend/src/canonical-hours/canonical-hours.service.ts` & `.spec.ts`: Orquestração da sincronização diária e semanal com upsert atômico e métricas de status.
+  - `backend/src/canonical-hours/canonical-hours.controller.ts`: Endpoints `/canonical-hours/sync-day` e `/canonical-hours/sync-week`.
+- **Documentação:**
+  - `CHANGELOG.md`: Registro da versão 1.47.0 (Keep a Changelog).
+  - `README.md`: Atualização das seções de Arquitetura, Funcionalidades e Painel Admin.
+  - Canvas Maestri: Atualização da nota `investigacao-liturgia-das` com status de conclusão e validação funcional.
+
+### ⏳ Pendências e Próximos Passos
+- Acompanhar visualização e leitura das 7 horas sincronizadas pelo app mobile no ambiente de testes.
+- Aguardar instruções do usuário ou Maestro para futuros procedimentos de commit/deploy.
+---
+
+
 

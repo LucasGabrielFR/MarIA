@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.47.0] - 2026-10-21
+
+### Added
+
+- **Migração da Fonte Canônica da Liturgia das Horas para Oratio (`https://oratioapp.com.br`):**
+  - Integração direta no backend NestJS via `CanonicalHoursParser` e `CanonicalHoursService` ([`canonical-hours-parser.ts`](backend/src/canonical-hours/canonical-hours-parser.ts) e [`canonical-hours.service.ts`](backend/src/canonical-hours/canonical-hours.service.ts)).
+  - Varredura e validação ponta a ponta das 7 Horas Canônicas diárias (Ofício das Leituras, Laudes, Hora Terça, Hora Sexta, Hora Nona, Vésperas e Completas) a partir do índice HTML e do payload estruturado `data-liturgy-days-json` do Oratio.
+  - Extração individual das páginas de leitura canônica através do seletor `.liturgy-reading__text[data-reading-text]`, com enriquecimento de metadados litúrgicos (tempo litúrgico, semana, saltério, ciclo, cor e abstinência).
+  - Objeto de retorno estruturado `SyncResult` com métricas completas de sincronização (`status`: `complete` | `partial` | `failed`, `expectedCount`, `syncedCount`, `failedCount`, `missingCount` e `dates`), oferecendo visibilidade em tempo real para o Painel Administrativo.
+
+### Changed
+
+- **Pipeline de Extração e Sanitização de Conteúdo Canônico:**
+  - Substituição da fonte anterior pela arquitetura resiliente baseada no Oratio, eliminando dependência de postagens de blog e inconsistências de fuso horário de publicação (GMT vs. local).
+  - Sanitização seletiva segura: remoção cirúrgica de scripts, iframes, estilos inline, formulários e links externos, preservando estritamente a marcação semântica e rubricas litúrgicas para exibição no leitor sacro mobile.
+  - Mecanismo de persistência não destrutivo: upsert atômico de registros em `daily_canonical_hours` com preservação de edições manuais prévias (`liturgical_rank`, `has_memorial`, `memorial_title`).
+
+### Fixed
+
+- **Correção Definitiva de Textos Canônicos Vazios:**
+  - Eliminação do bug crítico causado por seletores globais `:contains` no parser legado, que causavam a remoção acidental de ancestrais até o `body` e geravam `rawCleanText` com 0 caracteres.
+  - Implementação de validação de corte de conteúdo: rejeição mandatória de textos vazios ou truncados (mínimo de 50 caracteres em texto puro e HTML).
+  - Validação funcional ao vivo em ambiente Docker com 100% de sucesso na sincronização das 7 horas canônicas completas para 21/10/2026 e 22/10/2026.
+
+## [1.46.2] - 2026-10-21
+
+### Fixed
+
+- Adicionada a regra `/.maestri/` ao `.gitignore` do repositório Git independente em `mobile/`; confirmado que nenhum arquivo dessa pasta estava rastreado.
+
 ## [1.46.1] - 2026-10-21
 
 ### Fixed

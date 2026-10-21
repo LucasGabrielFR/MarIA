@@ -13,7 +13,8 @@ export type LiturgicalRank =
   | 'feast'
   | 'obligatory_memorial'
   | 'optional_memorial'
-  | 'ferial';
+  | 'ferial'
+  | 'unknown';
 
 export type LiturgicalColor = 'green' | 'white' | 'red' | 'purple' | 'rose';
 
@@ -95,7 +96,23 @@ export interface CanonicalHourContent {
     text: string;
     latinText?: string;
   };
+  plainText?: string;
+  dayMetadata?: CanonicalDayMetadata;
   rawCleanText?: string;
+}
+
+export interface CanonicalDayMetadata {
+  calendarTitle: string;
+  dateLabel: string;
+  season?: string;
+  week?: string;
+  psalter?: string;
+  cycle?: string;
+  color?: string;
+  celebration?: string;
+  rankKnown: boolean;
+  memorialKnown: boolean;
+  abstinence: boolean;
 }
 
 export interface DailyCanonicalHourRecord {

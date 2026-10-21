@@ -46,6 +46,17 @@ interface CanonicalHour {
   updated_at: string;
 }
 
+interface CanonicalSyncResponse {
+  syncedCount?: number;
+  dates?: string[];
+  status?: 'complete' | 'partial' | 'failed';
+  complete?: boolean;
+  expectedCount?: number;
+  missingCount?: number;
+  failedCount?: number;
+  missingHours?: any;
+}
+
 const HOUR_LABELS: Record<string, string> = {
   office_of_readings: 'Ofício das Leituras',
   lauds: 'Laudes (Manhã)',
@@ -178,8 +189,54 @@ export default function DailyContentPage() {
   const handleSyncCanonicalDay = async () => {
     setSyncingDay(true);
     try {
-      await apiRequest(`/canonical-hours/sync-day?date=${selectedDate}`, { method: 'POST' });
-      toast.success(`Dados da Liturgia das Horas de ${selectedDate} sincronizados!`);
+      const res: CanonicalSyncResponse = await apiRequest(`/canonical-hours/sync-day?date=${selectedDate}`, { method: 'POST' });
+      const syncedCount = res?.syncedCount ?? 0;
+      const expectedCount = res?.expectedCount ?? 7;
+      const missingCount = res?.missingCount ?? (expectedCount !== undefined ? Math.max(0, expectedCount - syncedCount) : 0);
+      const failedCount = res?.failedCount ?? 0;
+
+      // 1. Falha total (priorizada em primeiro lugar)
+      if (res?.status === 'failed' || syncedCount === 0 || (failedCount > 0 && syncedCount === 0)) {
+        toast.error(`Falha ao sincronizar Liturgia das Horas de ${selectedDate}. Nenhuma hora válida atualizada.`);
+      }
+      // 2. Parcial ou Inconsistência (priorizada antes de qualquer sucesso; bloqueia complete contraditório)
+      else if (
+        res?.status === 'partial' ||
+        res?.complete === false ||
+        missingCount > 0 ||
+        failedCount > 0 ||
+        syncedCount < expectedCount ||
+        (res?.complete === true && res?.status !== 'complete') ||
+        (res?.status === 'complete' && res?.complete !== true)
+      ) {
+        const parts: string[] = [];
+        if (expectedCount > 0) {
+          parts.push(`${syncedCount}/${expectedCount} horas sincronizadas`);
+        } else {
+          parts.push(`${syncedCount} hora(s) sincronizada(s)`);
+        }
+        if (missingCount > 0) {
+          parts.push(`${missingCount} ausente(s)`);
+        }
+        const detail = parts.length > 0 ? ` (${parts.join(', ')})` : '';
+        toast.warning(`Sincronização parcial de ${selectedDate}${detail}.`);
+      }
+      // 3. Sucesso completo (exige complete coerente com status e todas as contagens)
+      else if (
+        syncedCount > 0 &&
+        missingCount === 0 &&
+        failedCount === 0 &&
+        syncedCount >= expectedCount &&
+        res?.complete === true &&
+        res?.status === 'complete'
+      ) {
+        toast.success(`Liturgia das Horas de ${selectedDate} sincronizada com sucesso completo (${syncedCount} horas)!`);
+      }
+      // 4. Fallback para respostas legadas sem confirmação explícita de complete
+      else {
+        toast.info(`Sincronização de ${selectedDate} processada: ${syncedCount} hora(s) atualizada(s).`);
+      }
+
       fetchCanonicalHours(selectedDate);
     } catch (err) {
       toast.error("Erro ao buscar dados deste dia da Liturgia das Horas");
@@ -193,9 +250,59 @@ export default function DailyContentPage() {
   const handleSyncCanonicalWeek = async () => {
     setSyncingWeek(true);
     try {
-      const res = await apiRequest(`/canonical-hours/sync-week?date=${selectedDate}`, { method: 'POST' });
-      const count = res.syncedCount ?? 0;
-      toast.success(`Semana sincronizada com sucesso até sábado (${count} horas atualizadas)!`);
+      const res: CanonicalSyncResponse = await apiRequest(`/canonical-hours/sync-week?date=${selectedDate}`, { method: 'POST' });
+      const syncedCount = res?.syncedCount ?? 0;
+      const datesCount = res?.dates?.length;
+      const expectedCount = res?.expectedCount ?? (datesCount ? datesCount * 7 : undefined);
+      const failedCount = res?.failedCount ?? 0; // Contagem de DIAS com falha
+      const missingCount = res?.missingCount ?? (expectedCount !== undefined ? Math.max(0, expectedCount - syncedCount) : 0); // Contagem de HORAS ausentes
+
+      // 1. Falha total (priorizada em primeiro lugar)
+      if (res?.status === 'failed' || syncedCount === 0 || (expectedCount !== undefined && failedCount > 0 && syncedCount === 0)) {
+        toast.error("Falha ao sincronizar a semana da Liturgia das Horas. Nenhuma hora foi atualizada.");
+      }
+      // 2. Parcial ou Inconsistência (priorizada antes de qualquer sucesso; bloqueia complete contraditório)
+      else if (
+        res?.status === 'partial' ||
+        res?.complete === false ||
+        missingCount > 0 ||
+        failedCount > 0 ||
+        (expectedCount !== undefined && syncedCount < expectedCount) ||
+        (res?.complete === true && res?.status !== 'complete') ||
+        (res?.status === 'complete' && res?.complete !== true)
+      ) {
+        // NÃO somar unidades distintas (failedCount são dias, missingCount são horas) e não duplicar pendências
+        const parts: string[] = [];
+        if (expectedCount !== undefined) {
+          parts.push(`${syncedCount}/${expectedCount} horas sincronizadas`);
+        } else {
+          parts.push(`${syncedCount} hora(s) sincronizada(s)`);
+        }
+        if (failedCount > 0) {
+          parts.push(`${failedCount} dia(s) com falha`);
+        } else if (missingCount > 0) {
+          parts.push(`${missingCount} hora(s) ausente(s)`);
+        }
+        const detail = parts.length > 0 ? ` (${parts.join(', ')})` : '';
+        toast.warning(`Sincronização parcial da semana até sábado${detail}.`);
+      }
+      // 3. Sucesso completo (exige complete coerente com status e todas as contagens)
+      else if (
+        syncedCount > 0 &&
+        missingCount === 0 &&
+        failedCount === 0 &&
+        expectedCount !== undefined &&
+        syncedCount >= expectedCount &&
+        res?.complete === true &&
+        res?.status === 'complete'
+      ) {
+        toast.success(`Semana sincronizada com sucesso completo até sábado (${syncedCount} horas atualizadas)!`);
+      }
+      // 4. Fallback para respostas legadas sem confirmação explícita de complete
+      else {
+        toast.info(`Sincronização da semana processada (${syncedCount} horas atualizadas). Verifique as datas.`);
+      }
+
       fetchCanonicalHours(selectedDate);
     } catch (err) {
       toast.error("Erro ao buscar dados da semana da Liturgia das Horas");

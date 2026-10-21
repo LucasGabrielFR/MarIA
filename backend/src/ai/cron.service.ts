@@ -52,7 +52,10 @@ export class CronService {
     // Sincroniza Liturgia das Horas da semana (sem IA)
     try {
       this.logger.log('Sincronizando Liturgia das Horas da semana...');
-      const syncResult = await this.canonicalHoursService.syncFromWordPress();
+      const today = new Date().toLocaleDateString('sv-SE', {
+        timeZone: 'America/Sao_Paulo',
+      });
+      const syncResult = await this.canonicalHoursService.syncWeekRange(today);
       await this.systemLogsService.logInfo(
         'CronService',
         `Sincronização da Liturgia das Horas concluída: ${syncResult.syncedCount} horas processadas.`,
