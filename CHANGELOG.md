@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.43.0] - 2026-10-21
+
+### Added
+
+- **Publicação e Suporte Web do Aplicativo Mobile MarIA (`/mobile`):**
+  - O aplicativo Flutter agora suporta compilação e execução completas na Web (`flutter build web --base-href "/mobile/" --release`), servido sob a rota `/mobile` do domínio `maria.acutistech.com.br`.
+  - **Gateway Nginx Centralizado ([`frontend/nginx.conf`](frontend/nginx.conf)):** Adicionado bloco de roteamento `location /mobile` com diretiva `alias /usr/share/nginx/html/mobile;` e fallback SPA `try_files $uri $uri/ /mobile/index.html;`.
+  - **Empacotamento Docker ([`frontend/Dockerfile`](frontend/Dockerfile)):** Os arquivos estáticos compilados do Flutter Web são copiados automaticamente para a imagem final do Nginx (`COPY mobile/build/web/ /usr/share/nginx/html/mobile/`).
+  - **Resolução Inteligente de API ([`app_config.dart`](mobile/lib/core/config/app_config.dart)):** O app detecta dinamicamente a execução em navegador (`kIsWeb`), roteando chamadas de rede para `${Uri.base.origin}/api` em produção, eliminando problemas de CORS e portas adicionais.
+  - **Moldura Mobile Desktop Elegante ([`main.dart`](mobile/lib/main.dart)):** Ao ser aberto em navegadores desktop ou monitores largos, o app é enquadrado em uma moldura centralizada de 460px com fundo escuro sacro (`#070D1E`) e sombras suaves, preservando a proporção de smartphone, ao mesmo tempo em que se expande para 100% da tela em celulares.
+  - **Guards de Plataforma Web ([`local_notification_service.dart`](mobile/lib/core/services/local_notification_service.dart)):** Adicionado guard `kIsWeb` antes de qualquer verificação de ambiente nativo (`Platform.environment`), prevenindo falhas de runtime no navegador.
+  - **Guia de Deploy Automatizado para IA ([`DEPLOY_GUIDELINES.md`](DEPLOY_GUIDELINES.md)):** Criação de runbook completo e padronizado contendo arquitetura de rotas, passos de build, comandos via container temporário caso a VPS não tenha Flutter SDK, checklist de validação via cURL e procedimentos de rollback.
+  - **Comando de Build no Pacote Raiz ([`package.json`](package.json)):** Adicionados scripts `npm run build:mobile:web` e integração com `npm run build:all`.
+
+### Changed
+
+- Metadados do Flutter Web ([`mobile/web/index.html`](mobile/web/index.html)) atualizados para `"MarIA - Santuário & Devoção"`.
+
 ## [1.42.1] - 2026-10-21
 
 ### Added

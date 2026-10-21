@@ -24,6 +24,9 @@ COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 # Copy built assets
 COPY --from=builder /app/frontend/dist /usr/share/nginx/html/admin
 
+# Copy Flutter Web assets (built with flutter build web --base-href "/mobile/")
+COPY mobile/build/web/ /usr/share/nginx/html/mobile/
+
 EXPOSE 80
 
 CMD ["nginx", "-g", "daemon off;"]

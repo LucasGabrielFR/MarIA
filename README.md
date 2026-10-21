@@ -84,17 +84,26 @@ Na raiz do projeto, você pode usar um dos seguintes comandos:
 Isso iniciará o Vite (Frontend) na porta padrão e o NestJS (Backend) com hot-reload. Para a Landing Page, inicie separadamente acessando a pasta `landing` e rodando `npm run dev`.
 
 ### Execução em Servidor (VPS) via Docker (Recomendado)
-Para realizar o deploy em um servidor VPS de forma isolada, limpa e padronizada, o projeto possui suporte oficial a Docker e Docker Compose.
+Para realizar o deploy em um servidor VPS de forma isolada, limpa e padronizada, o projeto possui suporte oficial a Docker e Docker Compose com o Nginx atuando como API Gateway:
 
-1. Conecte-se via SSH ao seu servidor e clone/puxe o projeto.
-2. Na raiz do projeto, crie e configure os arquivos de ambiente:
-   - `backend/.env`
-   - `landing/.env.local`
+- **`/`**: Landing Page (Next.js)
+- **`/admin`**: Painel Administrativo Web (React + Vite)
+- **`/mobile`**: Aplicativo MarIA Web (Flutter Web PWA)
+- **`/api/`**: Gateway Backend (NestJS)
+- **`/webhook/`**: Webhooks Asaas e Uazapi
+
+> 📖 **Instruções Detalhadas para IA e Operadores:** Consulte o runbook completo e automatizado em [`DEPLOY_GUIDELINES.md`](DEPLOY_GUIDELINES.md).
+
+1. Conecte-se via SSH ao seu servidor e clone/puxe o projeto (`git pull origin main`).
+2. Compile os estáticos do Flutter Web (ou transfira a pasta `mobile/build/web`):
+   ```bash
+   npm run build:mobile:web
+   ```
 3. Suba todos os serviços usando o orquestrador Docker Compose:
    ```bash
-   docker-compose up -d --build
+   docker compose up -d --build
    ```
-O Docker irá gerenciar automaticamente o banco de imagens, dependências, o build otimizado (standalone para a Landing Page e Nginx para o Frontend SPA) e levantar os serviços nas portas 3000 (Landing), 3001 (Backend) e 8080 (Frontend).
+O Docker irá gerenciar automaticamente as imagens, empacotando os estáticos do Admin e do Mobile Web dentro do Nginx (`frontend`), levantando os serviços nas portas 3002 (Backend), 3003 (Landing), 8081 (Frontend Gateway) e 6379 (Redis).
 
 ### Execução em Servidor via PM2 (Legado)
 Para ambientes que não possuem Docker, também fornecemos scripts automatizados baseados no `pm2` para gerenciar os processos.
@@ -111,6 +120,7 @@ Para ambientes que não possuem Docker, também fornecemos scripts automatizados
 Este comando instala dependências, gera a build e reinicia o projeto via **PM2** (`ecosystem.config.js`).
 
 ## 📄 Documentação
+- [Guia de Deploy Automatizado para IA & Servidor](DEPLOY_GUIDELINES.md)
 - [Documentação Geral da Arquitetura](docs/DOCUMENTATION.md)
 - [Guia Magisterium AI](docs/MAGISTERIUM_AI.md)
 - [Fluxo de Mensagens](docs/MESSAGE_FLOW.md)
