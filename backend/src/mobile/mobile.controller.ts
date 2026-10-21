@@ -58,5 +58,25 @@ export class MobileController {
   async updateSpiritualPlan(@Body() dto: UpdateSpiritualPlanDto) {
     return this.mobileService.updateSpiritualPlan(dto);
   }
+
+  @Get('reminders')
+  async getReminders(
+    @Query('phone') phone?: string,
+    @Query('userId') userId?: string,
+  ) {
+    return this.mobileService.getReminders(userId, phone);
+  }
+
+  @Post('reminders/sync')
+  @HttpCode(HttpStatus.OK)
+  async syncReminders(@Body() dto: any) {
+    return this.mobileService.syncReminders(dto);
+  }
+
+  @Get('daily-content')
+  async getDailyContent(@Query('date') date?: string) {
+    return this.mobileService.getDailyContent(date);
+  }
 }
+
 

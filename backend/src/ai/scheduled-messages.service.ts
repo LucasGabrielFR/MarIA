@@ -59,7 +59,7 @@ export class ScheduledMessagesService {
 
     const { data: allUsers, error } = await supabase
       .from('users')
-      .select('id, wa_chatid, subscription_tier, receive_daily_liturgy')
+      .select('id, wa_chatid, subscription_tier, receive_daily_liturgy, receive_daily_exam, receive_daily_saint, whatsapp_bridge_enabled')
       .not('wa_chatid', 'is', null);
 
     if (error) {
@@ -67,25 +67,72 @@ export class ScheduledMessagesService {
       return;
     }
 
-    if (!allUsers) return;
+    if (!allUsers || allUsers.length === 0) return;
 
-    const eligibleUsers = allUsers.filter(u => {
+    // Busca usuários que possuem Plano de Vida configurado no app
+    const { data: spiritualPlans } = await supabase
+      .from('user_spiritual_plans')
+      .select('user_id');
+    const usersWithSpiritualPlan = new Set((spiritualPlans || []).map((p) => p.user_id));
+
+    // Busca lembretes personalizados ativos do app para não duplicar com campanhas gerais
+    const { data: userReminders } = await supabase
+      .from('reminders')
+      .select('user_id, tool_type')
+      .eq('status', 'pending')
+      .eq('send_whatsapp', true);
+
+    const activeUserTools = new Set(
+      (userReminders || []).map((r) => `${r.user_id}_${r.tool_type}`),
+    );
+
+    const eligibleUsers = allUsers.filter((u) => {
+      // 1. Se o usuário desativou a ponte WhatsApp no app, não recebe mensagens
+      if (u.whatsapp_bridge_enabled === false) {
+        return false;
+      }
+
+      // 2. Se o usuário possui Plano de Vida Espiritual no app, todas as suas orações e lembretes
+      // são geridos unificadamente pelo seu plano personalizado (reminders).
+      // Disparos em massa antigos de IA são suprimidos para evitar duplicações e mensagens conflitantes!
+      if (usersWithSpiritualPlan.has(u.id)) {
+        return false;
+      }
+
+      // 2. Filtro de audiência (plano)
       const plan = u.subscription_tier || 'free';
       const audienceMatch = campaign.audience && campaign.audience.includes(plan);
+      if (!audienceMatch) return false;
 
-      let isLiturgyOnly = false;
-      const hasPrompt = campaign.prompt && campaign.prompt.trim().length > 0;
-      
-      if (!hasPrompt && campaign.tools && Array.isArray(campaign.tools)) {
-        isLiturgyOnly = campaign.tools.some((t: any) => t.type === 'liturgy');
+      // 3. Detecção do tipo de ferramenta da campanha
+      const tools = Array.isArray(campaign.tools) ? campaign.tools : [];
+      const campName = (campaign.name || '').toLowerCase();
+
+      const isLiturgy = tools.some((t: any) => t.type === 'liturgy') || campName.includes('liturgia');
+      const isExam = tools.some((t: any) => t.type === 'conscience_exam') || campName.includes('exame');
+      const isSaint = tools.some((t: any) => t.type === 'saint') || campName.includes('santo');
+
+      // Se for Liturgia: respeita toggle do app e prevalece horário próprio se configurado
+      if (isLiturgy) {
+        if (u.receive_daily_liturgy === false) return false;
+        if (activeUserTools.has(`${u.id}_liturgy`)) return false; // Prevalece o horário do usuário
       }
 
-      if (isLiturgyOnly) {
-        return audienceMatch && u.receive_daily_liturgy === true;
+      // Se for Exame: respeita toggle do app e prevalece horário próprio
+      if (isExam) {
+        if (u.receive_daily_exam === false) return false;
+        if (activeUserTools.has(`${u.id}_conscience_exam`)) return false;
       }
 
-      return audienceMatch;
+      // Se for Santo do Dia: respeita toggle do app e prevalece horário próprio
+      if (isSaint) {
+        if (u.receive_daily_saint === false) return false;
+        if (activeUserTools.has(`${u.id}_saint`)) return false;
+      }
+
+      return true;
     });
+
 
     if (eligibleUsers.length === 0) {
       this.logger.log(`Nenhum usuário elegível para a campanha ${campaign.name}.`);

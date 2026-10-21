@@ -35,7 +35,7 @@ export class UazapiService {
           number: chatId,
           text: text,
         }),
-        signal: AbortSignal.timeout(10_000),
+        signal: AbortSignal.timeout(30_000),
       });
 
       if (!response.ok) {
@@ -190,7 +190,7 @@ export class UazapiService {
             token: this.token,
           },
           body: JSON.stringify(payload),
-          signal: AbortSignal.timeout(10_000),
+          signal: AbortSignal.timeout(30_000),
         });
 
         if (response.ok) {
@@ -261,7 +261,7 @@ export class UazapiService {
           token: this.token,
         },
         body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(10_000),
+        signal: AbortSignal.timeout(30_000),
       });
 
       if (response.ok) {

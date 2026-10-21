@@ -1349,6 +1349,40 @@ export class AiService implements OnModuleInit {
       return await this.handleCancelReminder(userId, reminderId);
     }
 
+    // Interceptação de Lembretes de Novenas (Botões do WhatsApp)
+    if (lowerMsg.startsWith('novena_read_')) {
+      const parts = message.trim().replace(/^novena_read_/i, '').split('_');
+      const userNovenaId = parts[0];
+      const dayNum = parseInt(parts[1] || '1', 10);
+      return await this.handleNovenaReadPrayer(userId, userNovenaId, dayNum);
+    }
+
+    if (lowerMsg.startsWith('novena_app_')) {
+      const novenaAppMsg =
+        `Que bênção, ${pushName}! 📱 O aplicativo MarIA está de portas abertas esperando por você. Lá você encontra todo o itinerário litúrgico e as contas da sua novena. Tenha um santo e frutuoso momento com Deus! 🙏✨`;
+      await this.saveMessage(userId, 'assistant', novenaAppMsg, false);
+      return novenaAppMsg;
+    }
+
+    if (lowerMsg.startsWith('novena_check_')) {
+      const parts = message.trim().replace(/^novena_check_/i, '').split('_');
+      const userNovenaId = parts[0];
+      const dayNum = parseInt(parts[1] || '1', 10);
+      return await this.handleNovenaCheckDay(userId, userNovenaId, dayNum);
+    }
+
+    if (lowerMsg.startsWith('novena_cancel_')) {
+      const userNovenaId = message.trim().replace(/^novena_cancel_/i, '').trim();
+      await supabase
+        .from('user_novenas')
+        .update({ notify_whatsapp: false, updated_at: new Date().toISOString() })
+        .eq('id', userNovenaId);
+      const cancelNovenaMsg =
+        'Lembrete da novena desativado no WhatsApp com sucesso! Você pode continuar rezando os dias restantes diretamente pelo aplicativo MarIA quando desejar. Deus te abençoe! 🙏';
+      await this.saveMessage(userId, 'assistant', cancelNovenaMsg, false);
+      return cancelNovenaMsg;
+    }
+
     // --- MÁQUINA DE ESTADOS: LEMBRETES ---
     const userReminderState = user.reminder_state || 'idle';
 
@@ -1605,9 +1639,16 @@ export class AiService implements OnModuleInit {
           const delay = targetSP.getTime() - nowSP.getTime();
           const scheduledTargetDate = new Date(Date.now() + delay);
 
+          const reminderTimeStr = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+          const externalId = `wpp_${Date.now()}`;
+
           const { data: reminder, error: remError } = await supabase.from('reminders').insert({
              user_id: userId,
+             external_id: externalId,
              title: ctx.title,
+             reminder_time: reminderTimeStr,
+             send_whatsapp: true,
+             tool_type: 'custom',
              is_prayer: ctx.type === 'prayer',
              prayer_id: ctx.prayer_id || null,
              status: 'pending',
@@ -1618,6 +1659,46 @@ export class AiService implements OnModuleInit {
           if (remError || !reminder) {
              this.logger.error(`Erro ao salvar lembrete no Supabase para o usuário ${userId}: ${JSON.stringify(remError)}`);
              return 'Houve um erro ao salvar o lembrete. Tente novamente mais tarde.';
+          }
+
+          // Unifica diretamente no Plano de Vida Espiritual do usuário no app
+          try {
+            const { data: userPlan } = await supabase
+              .from('user_spiritual_plans')
+              .select('*')
+              .eq('user_id', userId)
+              .maybeSingle();
+
+            const habits = userPlan?.habits || [];
+            habits.push({
+              id: externalId,
+              title: ctx.title,
+              description: ctx.type === 'prayer' ? 'Oração agendada via WhatsApp' : 'Lembrete pessoal agendado via WhatsApp',
+              period: ctx.period || 'Manhã',
+              defaultTime: reminderTimeStr,
+              reminderEnabled: true,
+              notifyOnDevice: true,
+              notifyOnWhatsApp: true,
+              soundType: 'Sino de Mosteiro',
+              isCustom: true,
+              toolType: 'custom',
+              orderIndex: habits.length,
+            });
+
+            await supabase
+              .from('user_spiritual_plans')
+              .upsert(
+                {
+                  user_id: userId,
+                  habits,
+                  streak_days: userPlan?.streak_days || 0,
+                  updated_at: new Date().toISOString(),
+                },
+                { onConflict: 'user_id' },
+              );
+            this.logger.log(`[AiService] Lembrete do WhatsApp "${ctx.title}" consolidado no Plano de Vida do usuário ${userId}.`);
+          } catch (syncErr: any) {
+            this.logger.warn(`Erro ao consolidar lembrete no user_spiritual_plans: ${syncErr?.message}`);
           }
 
           // Adicionar à fila BullMQ com retry e retenção configurada
@@ -1658,7 +1739,7 @@ export class AiService implements OnModuleInit {
        return `Por favor, responda com ${confirmBtn} ou ${cancelBtn}.`;
     }
 
-    // Gatilhos de Início do Lembrete
+    // Gatilhos de Início do Lembrete (Centralizado no Aplicativo MarIA)
     if (
       lowerMsg === 'start_reminder' ||
       lowerMsg.includes('criar lembrete') ||
@@ -1666,23 +1747,19 @@ export class AiService implements OnModuleInit {
       lowerMsg.includes('me lembre de') ||
       lowerMsg.includes('agendar lembrete')
     ) {
-      if (user.subscription_tier === 'free') {
-        const upgradeMsg = 'Desculpe, meu filho(a). O agendamento de lembretes diários é uma funcionalidade exclusiva para assinantes. Considere escolher um de nossos planos para ter acesso a essa e outras bênçãos! 🙏✨\n\nSelecione a opção de *Assinatura* no menu principal ou digite *Planos* para conhecer.';
-        await this.saveMessage(userId, 'assistant', upgradeMsg, false);
-        return upgradeMsg;
-      }
+      // Reseta qualquer estado residual
+      await supabase
+        .from('users')
+        .update({ reminder_state: 'idle', reminder_context: {}, flow_updated_at: null })
+        .eq('id', userId);
 
-      await supabase.from('users').update({ reminder_state: 'reminder_type', reminder_context: {}, flow_updated_at: new Date().toISOString() }).eq('id', userId);
-      
-      const { data: remFlow } = await supabase.from('automatic_flows').select('steps').eq('key', 'reminder_flow').maybeSingle();
-      const rSteps = remFlow?.steps || {};
-      
-      const responseText = rSteps.reminder_type?.text || '*Agendador de Lembretes* ⏰\n\nQue tipo de lembrete você gostaria de criar?';
-      const buttons = rSteps.reminder_type?.buttons?.length > 0 ? rSteps.reminder_type.buttons : [{ id: '1', text: 'Personalizado' }, { id: '2', text: 'Oração' }];
-      
-      const respMsg = { type: 'interactive', text: responseText, buttons };
-      await this.saveMessage(userId, 'assistant', responseText, false);
-      return respMsg;
+      const appReminderMsg =
+        'Salve Maria! 🙏 Agora toda a configuração e gestão dos seus lembretes e horários de oração é feita diretamente pelo nosso *Aplicativo MarIA* 📱.\n\n' +
+        'No app você tem total liberdade para definir os horários da *Oração da Manhã*, *Liturgia Diária*, *Santo do Dia*, *Ângelus*, *Hora da Misericórdia*, *Santo Terço*, *Oração da Noite* e *Exame de Consciência*, além de criar lembretes personalizados com suas próprias intenções!\n\n' +
+        'Acesse o aplicativo para gerenciar seus momentos diários com Deus com todo carinho e autonomia.';
+
+      await this.saveMessage(userId, 'assistant', appReminderMsg, false);
+      return appReminderMsg;
     }
 
     // --- FLUXO ATIVO ---
@@ -1913,11 +1990,6 @@ export class AiService implements OnModuleInit {
         await this.saveMessage(userId, 'assistant', toggleResponse, false);
         return toggleResponse;
 
-      case 'SAINT_OF_DAY':
-        const fullLiturgy = await this.liturgyService.getDailyLiturgy(targetDate);
-        cachedResponse = fullLiturgy;
-        intentContext = `CONTEÚDO DA LITURGIA COMPLETA (${targetDate}):\n${cachedResponse}`;
-        break;
       case 'SAINT_OF_DAY':
         cachedResponse = await this.getDailyCache('saint', targetDate);
         intentContext = `CONTEÚDO DO SANTO DO DIA (${targetDate}):\n${cachedResponse || 'Informação sobre o santo do dia.'}`;
@@ -3154,4 +3226,123 @@ DIRETRIZES:
       return false;
     }
   }
+
+  private async handleNovenaReadPrayer(userId: string, userNovenaId: string, dayNum: number) {
+    const supabase = this.supabaseService.getClient();
+
+    const { data: userNovena } = await supabase
+      .from('user_novenas')
+      .select('id, novena_id, current_day, personal_intention, novenas (title)')
+      .eq('id', userNovenaId)
+      .maybeSingle();
+
+    if (!userNovena) {
+      const notFound = 'Não encontrei os dados desta novena no momento. Por favor, acesse o aplicativo MarIA para rezar!';
+      await this.saveMessage(userId, 'assistant', notFound, false);
+      return notFound;
+    }
+
+    const { data: dayData } = await supabase
+      .from('novena_days')
+      .select('*')
+      .eq('novena_id', userNovena.novena_id)
+      .eq('day_number', dayNum)
+      .maybeSingle();
+
+    const novenaTitle = (userNovena.novenas as any)?.title || 'Novena';
+
+    let prayerText = `📿 *Novena a ${novenaTitle}*\n`;
+    prayerText += `*Dia ${dayNum} de 9* • Oração Oficial\n\n`;
+
+    if (userNovena.personal_intention) {
+      prayerText += `🎯 *Sua Intenção Consagrada:*\n_"${userNovena.personal_intention}"_\n\n`;
+    }
+
+    if (dayData?.title) {
+      prayerText += `✨ *${dayData.title}*\n\n`;
+    }
+
+    if (dayData?.scripture_reading) {
+      prayerText += `📖 *Palavra de Deus:*\n${dayData.scripture_reading}\n\n`;
+    }
+
+    if (dayData?.meditation) {
+      prayerText += `🕊️ *Meditação:*\n${dayData.meditation}\n\n`;
+    }
+
+    if (dayData?.daily_prayer) {
+      prayerText += `🌹 *Oração do Dia:*\n${dayData.daily_prayer}\n\n`;
+    }
+
+    if (dayData?.concluding_prayer) {
+      prayerText += `✝️ *Oração Conclusiva:*\n${dayData.concluding_prayer}\n\n`;
+    }
+
+    prayerText += `_Ao terminar sua oração, clique no botão abaixo para registrar a conclusão do Dia ${dayNum}:_`;
+
+    const buttons = [
+      { id: `novena_check_${userNovena.id}_${dayNum}`, text: `✅ Concluir Dia ${dayNum}` },
+      { id: `novena_cancel_${userNovena.id}`, text: '🔕 Cancelar Lembretes' },
+    ];
+
+    const resp = {
+      type: 'interactive',
+      text: prayerText,
+      buttons,
+    };
+
+    await this.saveMessage(userId, 'assistant', prayerText, false);
+    return resp;
+  }
+
+  private async handleNovenaCheckDay(userId: string, userNovenaId: string, dayNum: number) {
+    const supabase = this.supabaseService.getClient();
+
+    const { data: userNovena } = await supabase
+      .from('user_novenas')
+      .select('id, current_day, novenas (title)')
+      .eq('id', userNovenaId)
+      .maybeSingle();
+
+    if (!userNovena) {
+      const err = 'Não foi possível encontrar a novena para registrar.';
+      await this.saveMessage(userId, 'assistant', err, false);
+      return err;
+    }
+
+    // Registra log da oração
+    await supabase.from('user_novena_logs').insert({
+      user_novena_id: userNovena.id,
+      day_number: dayNum,
+      channel: 'whatsapp',
+    });
+
+    const isLastDay = dayNum >= 9;
+    const nextDay = isLastDay ? 9 : Math.max(userNovena.current_day, dayNum + 1);
+    const newStatus = isLastDay ? 'completed' : 'in_progress';
+
+    await supabase
+      .from('user_novenas')
+      .update({
+        current_day: nextDay,
+        status: newStatus,
+        last_prayed_at: new Date().toISOString(),
+        completed_at: isLastDay ? new Date().toISOString() : null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', userNovena.id);
+
+    const novenaTitle = (userNovena.novenas as any)?.title || 'Novena';
+
+    let congratMsg = `Deo gratias! 🙏 Que alegria ver sua fidelidade! O *Dia ${dayNum} da Novena a ${novenaTitle}* foi registrado com sucesso!\n\n`;
+    if (isLastDay) {
+      congratMsg += `🌹 *Parabéns por completar os 9 dias de oração!* Que as graças do Céu desçam em abundância sobre sua vida e suas intenções consagradas! Amém! ✨`;
+    } else {
+      congratMsg += `Amanhã nos encontramos para o *Dia ${nextDay}*. Permaneça na graça de Deus e na paz de Nossa Senhora! ✨`;
+    }
+
+    await this.saveMessage(userId, 'assistant', congratMsg, false);
+    return congratMsg;
+  }
 }
+

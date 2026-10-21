@@ -40,6 +40,22 @@ export class LiturgyService {
     }
   }
 
+  async getRawLiturgy(date?: string): Promise<LiturgyData | null> {
+    try {
+      let url = this.apiUrl;
+      if (date) {
+        const [year, month, day] = date.split('-');
+        url = `${this.apiUrl}?dia=${parseInt(day, 10)}&mes=${parseInt(month, 10)}&ano=${year}`;
+      }
+      const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+      if (!response.ok) return null;
+      return (await response.json()) as LiturgyData;
+    } catch (error) {
+      this.logger.warn(`Failed to fetch raw liturgy: ${error?.message || error}`);
+      return null;
+    }
+  }
+
   private formatLiturgy(data: LiturgyData): string {
     if (!data.liturgia) {
       return 'Nenhuma celebração encontrada para hoje.';

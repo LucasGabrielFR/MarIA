@@ -436,4 +436,113 @@ Este arquivo armazena o histórico contínuo de contexto, decisões de arquitetu
 - Implementação futura do Sign in with Apple para iOS quando houver credenciais da conta Apple Developer.
 ---
 
+## Sessão: 2026-10-20 01:08 (UTC-3)
+### 📌 Resumo da Sessão
+- **Sementeira Canônica Integral de Novenas Católicas (25 Novenas / 225 Dias Estruturados):**
+  - Implementação de catálogo aprofundado com 25 novenas tradicionais seguindo a hierarquia de fontes canônicas (Padre Paulo Ricardo, Canção Nova e ACI Digital), cobrindo categorias Marianas, Santos, Senhor Jesus e Litúrgicas.
+  - Eliminação de textos genéricos no Supabase e expurgo total de arquivos/scripts legados de sementeira no backend para manter o repositório leve.
+  - Conversão dos formulários do painel CMS Admin para `<textarea>` multilinhas (`resize-y`, `font-serif`), viabilizando edição confortável de orações completas.
+- **Segurança e Refinamento do Cadastro e Login:**
+  - Aplicação de regras estritas de segurança de senha no app mobile e backend (mínimo de 6 caracteres, maiúscula, minúscula, número e símbolo especial).
+  - Limpeza estética da tela de login com remoção de placeholder redundante.
+  - Ajuste na detecção de e-mails já existentes, fornecendo orientação amigável de acesso.
+- **Santuário de Novenas (Catálogo, Filtros e Telas de Oração):**
+  - Correção na sincronização dos filtros de categoria do catálogo no mobile com o banco de dados e adição de indicador visual sutil de rolagem lateral.
+  - Reformulação da AppBar nos dias de oração para exibição do dia e título da novena em duas linhas, eliminando corte de texto.
+  - Correção do overflow horizontal na régua de progresso das 9 contas (`NovenaProgressBeads`) com dimensionamento elástico.
+  - Padronização de todas as datas litúrgicas no Santuário de Novenas para o formato brasileiro `dd/mm` (ex: `28/09`, `12/10`, `13/05`), substituindo a notação bruta `mm-dd`.
+- **Unificação Omnichannel de Perfil e Badge Dinâmica de Assinatura:**
+  - Unificação de contas em `public.users` no Supabase: fusão da conta mobile com o registro prévio do usuário no WhatsApp/Asaas, associando `auth_user_id` e e-mail à conta real (`Lucas Gabriel`, telefone `5548991424740`).
+  - Atualização do card de perfil em `SettingsPage`: substituição de `"Fiel MarIA"` pelo nome real (`Lucas Gabriel`) e badge dinâmica refletindo o plano ativo contratado (`Plano Básico • Ativo`) em ouro sacro, com suporte a qualquer nível de assinatura via `UserEntity.planDisplayName`.
+
+### 🏗️ Decisões Técnicas e de Arquitetura
+- **Fonte da Verdade Única no Supabase:** As 25 novenas completas residem diretamente nas tabelas `novenas` e `novena_days`, desacoplando o código-fonte de constantes estáticas pesadas.
+- **Segurança de Credenciais:** Validação simétrica de senhas fortes em camada dupla (Regex no Flutter para feedback em tempo real e verificação preventiva com `BadRequestException` no NestJS).
+- **Consistência de Datas Litúrgicas (`formattedFeastDay`):** Conversão flexível no getter de domínio em `Novena`, suportando parsing de múltiplos formatos (`mm-dd`, `dd/mm` ou string textual) e padronizando a renderização sempre como `dd/mm`.
+- **Unificação Omnichannel e Deduplicação:** Eliminação de registros de contas fantasma criadas via login social/e-mail desconectado, preservando consumo de tokens, mensagens anteriores e status de pagamento do Asaas sob o mesmo `auth_user_id`.
+
+### 🛠️ Alterações e Implementações
+- **Banco de Dados (Supabase `hjndyevamsqautjkwlek`):**
+  - População canônica de 25 novenas e 225 dias devocionais.
+  - Fusão da conta do usuário Lucas Gabriel (`593e4a3d-6574-4522-9691-e87ededf6917`) com o `auth_user_id` `553bb070-0f95-44e6-8b0f-4162f54b1758` e deleção da linha duplicada `dcd4635b-4c68-4e3a-8b8d-9fdfeba9a519`.
+- **Backend (`backend/`):**
+  - [`src/novenas/novenas.service.ts`](file:///d:/Programming/AcutisTech/MarIA/backend/src/novenas/novenas.service.ts): Desacoplamento da sementeira estática.
+  - [`src/mobile/mobile-auth.service.ts`](file:///d:/Programming/AcutisTech/MarIA/backend/src/mobile/mobile-auth.service.ts): Validação de senha forte e tratamento de contas existentes.
+  - Expurgo dos scripts legados de sementeira em `scripts/` e `src/novenas/data/`.
+  - Reconstrução da imagem Docker e reinicialização conteinerizada de `maria-backend-1`.
+- **Frontend Web Admin (`frontend/`):**
+  - [`src/pages/novenas.tsx`](file:///d:/Programming/AcutisTech/MarIA/frontend/src/pages/novenas.tsx): Conversão de inputs em `<textarea>` multilinhas com redimensionamento vertical.
+- **Mobile (`mobile/`):**
+  - [`lib/features/auth/domain/entities/user_entity.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/auth/domain/entities/user_entity.dart): Adicionado getter `planDisplayName`.
+  - [`lib/features/settings/presentation/settings_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/settings/presentation/settings_page.dart): Renderização dinâmica do nome do usuário e badge `Plano Básico • Ativo` com acabamento em ouro sacro.
+  - [`lib/features/auth/presentation/pages/register_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/auth/presentation/pages/register_page.dart): Validação de senha forte.
+  - [`lib/features/auth/presentation/pages/login_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/auth/presentation/pages/login_page.dart): Remoção do subtítulo redundante.
+  - [`lib/features/novenas/domain/entities/novena.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/novenas/domain/entities/novena.dart): Adicionado getter `formattedFeastDay` e parser robusto com `/`.
+  - [`lib/features/novenas/presentation/widgets/novena_card.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/novenas/presentation/widgets/novena_card.dart) & [`novena_detail_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/novenas/presentation/pages/novena_detail_page.dart): Exibição de datas no padrão `dd/mm`.
+  - [`lib/features/novenas/presentation/pages/novena_prayer_day_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/novenas/presentation/pages/novena_prayer_day_page.dart) & [`novena_progress_beads.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/novenas/presentation/widgets/novena_progress_beads.dart): Correção de títulos e overflow na barra de contas.
+  - [`lib/features/prayers/presentation/prayers_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/prayers/presentation/prayers_page.dart): Harmonização do card de novenas com o de exame de consciência.
+  - [`test/novenas_test.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/test/novenas_test.dart): Testes unitários atualizados e 100% aprovados.
+- **Documentação:**
+  - [`CHANGELOG.md`](file:///d:/Programming/AcutisTech/MarIA/CHANGELOG.md): Versões `1.37.0` e `1.37.1` registradas.
+
+### ⏳ Pendências e Próximos Passos
+- Conexão do scheduler BullMQ para disparo diário automático das notificações e orações de novenas pelo WhatsApp no horário configurado pelo fiel.
+- Avaliar suporte a áudio guiado com voz serena para os dias de novena e Santo Terço.
+---
+## Sessão: 2026-10-20 12:15 (UTC-3)
+### 📌 Resumo da Sessão
+- **Centralização Completa dos Lembretes Devocionais no Mobile & Descontinuação de Criação Direta no WhatsApp:**
+  - Consolidação do aplicativo móvel como a fonte única da verdade para configuração de rotinas e horários espirituais do fiel.
+  - Mensagens no WhatsApp solicitando criação de lembretes agora são acolhidas pastoralmente e redirecionadas para o app móvel.
+- **Desacoplamento Rigoroso das Ferramentas Canônicas (Fim dos Combos):**
+  - "Oração da Manhã" e "Liturgia Diária" passam a operar como práticas 100% separadas.
+  - "Oração da Noite" e "Exame de Consciência Noturno" operam de forma totalmente independente.
+  - "Santo do Dia & Virtude" mantido como uma única prática coerente.
+  - Catálogo canônico oficial com 8 ferramentas independentes: Oração da Manhã, Liturgia Diária, Santo do Dia & Virtude, Ângelus, Hora da Divina Misericórdia, Santo Terço, Oração da Noite e Exame de Consciência Noturno.
+- **Liberdade Total de Horários (Sem Horários Rígidos/Fixos):**
+  - Todas as 8 práticas canônicas e todos os lembretes pessoais permitem ao fiel selecionar qualquer horário (00:00 a 23:59) via `TimePicker` sacro.
+- **Gestão de Lembretes & Orações Pessoais com Texto Customizado e Exclusão:**
+  - O fiel pode criar lembretes personalizados com título, intenção, mensagem devocional personalizada enviada pela MarIA, toque no celular e envio opcional no WhatsApp, além de exclusão com diálogo de confirmação.
+- **Disparador de Novenas no WhatsApp com Botões Interativos (Opção B):**
+  - Implementação de `NovenasSchedulerService` rodando a cada minuto em timezone `America/Sao_Paulo`, enviando lembretes com botões interativos via Uazapi (`📖 Rezar no WhatsApp`, `📱 Abrir no Aplicativo`, `🔕 Cancelar Lembrete`).
+- **Deduplicação de Campanhas Administrativas:**
+  - Campanhas de broadcast verificam os lembretes pessoais ativos do fiel e não disparam mensagens duplicadas caso o fiel já tenha configurado seu próprio horário para aquela ferramenta no app.
+
+### 🏗️ Decisões Técnicas e de Arquitetura
+- **Persistência Retrocompatível sem Breaking Changes:**
+  - Colunas adicionadas à tabela `public.reminders` (`tool_type`, `reminder_time`, `custom_text`, `send_whatsapp`, `external_id`, `last_sent_at`) e à tabela `public.user_novenas` (`last_whatsapp_sent_at`), preservando a base de dados em produção.
+- **Sincronização Bidirecional via Endpoint Dedicado:**
+  - `POST /mobile/reminders/sync` e `GET /mobile/reminders` no `MobileController` orquestram a persistência relacional e a atualização da fila BullMQ (`reminders-queue`) com auto-reconciliação pós-reboot.
+- **Arquitetura de Scheduler Desacoplada para Novenas:**
+  - `NovenasSchedulerService` com execução Cron por minuto compara `reminder_time` da novena com a hora atual de Brasília e atualiza `last_whatsapp_sent_at` para impedir reenvios no mesmo dia.
+
+### 🛠️ Alterações e Implementações
+- **Banco de Dados (Supabase `hjndyevamsqautjkwlek`):**
+  - Migration [`docs/migrations/20261020000000_enhance_reminders_and_novenas.sql`](file:///d:/Programming/AcutisTech/MarIA/docs/migrations/20261020000000_enhance_reminders_and_novenas.sql) executada via MCP `execute_sql`.
+- **Backend (`backend/`):**
+  - [`src/novenas/novenas-scheduler.service.ts`](file:///d:/Programming/AcutisTech/MarIA/backend/src/novenas/novenas-scheduler.service.ts): Scheduler de novenas com botões interativos e timezone BRT.
+  - [`src/novenas/novenas.module.ts`](file:///d:/Programming/AcutisTech/MarIA/backend/src/novenas/novenas.module.ts): Registro de `NovenasSchedulerService` e injeção de `UazapiModule`.
+  - [`src/reminders/reminders.service.ts`](file:///d:/Programming/AcutisTech/MarIA/backend/src/reminders/reminders.service.ts): Implementação de `syncMobileReminders` e `getUserReminders`.
+  - [`src/reminders/reminders.processor.ts`](file:///d:/Programming/AcutisTech/MarIA/backend/src/reminders/reminders.processor.ts): Suporte aos novos `tool_type` canônicos e mensagens customizadas.
+  - [`src/mobile/mobile.controller.ts`](file:///d:/Programming/AcutisTech/MarIA/backend/src/mobile/mobile.controller.ts) & [`src/mobile/mobile.service.ts`](file:///d:/Programming/AcutisTech/MarIA/backend/src/mobile/mobile.service.ts): Endpoints de lembretes integrados.
+  - [`src/ai/scheduled-messages.service.ts`](file:///d:/Programming/AcutisTech/MarIA/backend/src/ai/scheduled-messages.service.ts): Deduplicação com os lembretes configurados no app.
+  - [`src/ai/ai.service.ts`](file:///d:/Programming/AcutisTech/MarIA/backend/src/ai/ai.service.ts): Redirecionamento da criação de lembretes para o app e callbacks dos botões da novena.
+  - Reconstrução obrigatória Docker: `maria-backend-1` reconstruído com sucesso via `docker compose up --build -d backend` e inicializado com sucesso.
+- **Mobile (`mobile/`):**
+  - [`lib/features/reminders/domain/entities/spiritual_reminder_entity.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/reminders/domain/entities/spiritual_reminder_entity.dart): Campos `toolType`, `customText` e `isCustom`.
+  - [`lib/features/reminders/data/datasources/reminders_local_data_source.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/reminders/data/datasources/reminders_local_data_source.dart): As 8 ferramentas canônicas desacopladas por padrão.
+  - [`lib/features/reminders/data/datasources/reminders_remote_data_source.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/reminders/data/datasources/reminders_remote_data_source.dart): Sincronização remota via API.
+  - [`lib/features/reminders/presentation/controllers/reminders_controller.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/reminders/presentation/controllers/reminders_controller.dart): Ações `addReminder` com texto livre e `deleteReminder`.
+  - [`lib/features/reminders/presentation/reminders_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/reminders/presentation/reminders_page.dart): Redesign em duas seções (Ferramentas Canônicas vs. Minhas Orações Pessoais), TimePicker 100% flexível, seletor de toques de sino e ponte com WhatsApp.
+  - [`test/reminders_spiritual_plan_test.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/test/reminders_spiritual_plan_test.dart): Testes unitários e de widgets 100% aprovados (`All tests passed!`).
+  - `flutter analyze`: 0 erros e 0 warnings.
+- **Documentação:**
+  - [`CHANGELOG.md`](file:///d:/Programming/AcutisTech/MarIA/CHANGELOG.md): Registrada a versão `1.38.0`.
+  - [`README.md`](file:///d:/Programming/AcutisTech/MarIA/README.md): Atualizado com a arquitetura de lembretes e scheduler de novenas.
+
+### ⏳ Pendências e Próximos Passos
+- Conduzir testes em dispositivos físicos (Android / iOS via TestFlight ou APK direto) com a nova tela de lembretes e horários flexíveis.
+- Monitorar a entrega dos botões interativos das novenas no WhatsApp.
+---
+
 

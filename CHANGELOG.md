@@ -5,6 +5,184 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.42.1] - 2026-10-21
+
+### Added
+
+- **Card do Santo do Dia com Frase Maternal para Outros Santos ([`saint_hero_card.dart`](mobile/lib/features/home/presentation/widgets/saint_hero_card.dart)):**
+  - Adicionada caixa de destaque com a frase maternal acolhedora indicando a comunhão de santos adicionais celebrados na mesma data:
+    *“Olha, temos mais dois santos hoje: São Hilarião e Santa Úrsula, por exemplo.”*
+  - Badge no cabeçalho (*"3 santos hoje"*) e botão de chamada convidando o fiel a tocar para ler a história de todos eles em uma única tela.
+- **Tela de Todos os Santos em Página Única Contínua ([`saint_detail_page.dart`](mobile/lib/features/saint_of_day/presentation/saint_detail_page.dart)):**
+  - Refatorada a tela do Santo do Dia para apresentar todos os santos celebrados no dia em uma **única tela contínua e fluida**, sem esconder biografias atrás de abas manuais.
+  - Inclui card-resumo superior com chips de cada santo e divisores litúrgicos com a flor-de-lis (`⚜️`) separando a vida, as virtudes a imitar e a oração de intercessão de cada santo celebrado.
+
+## [1.42.0] - 2026-10-21
+
+### Added
+
+- **Notificações Push Reais no Sistema do Celular ([`local_notification_service.dart`](mobile/lib/core/services/local_notification_service.dart)):**
+  - Implementado canal de notificação nativo de alta prioridade para Android (`maria_devotional_channel`: *"Lembretes Devocionais MarIA"*), configurado com `Importance.max`, `Priority.high`, vibração, som e visibilidade em tela de bloqueio (`NotificationVisibility.public`).
+  - Adicionado suporte a notificações imediatas (`showImmediateNotification`) e agendadas com precisão (`zonedSchedule` com `androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle`).
+  - Botão de validação imediata em **Perfil & Configurações** (`SettingsPage`) permitindo ao usuário testar o recebimento de notificações push nativas com um único toque.
+- **Sincronização Automática com o Sistema Operacional ([`reminders_controller.dart`](mobile/lib/features/reminders/presentation/controllers/reminders_controller.dart)):**
+  - O `RemindersController` agora sincroniza automaticamente todos os hábitos do Plano Espiritual e lembretes com os alarmes nativos do smartphone (`syncWithReminders`) ao carregar, ativar/desativar, alterar horário ou salvar hábitos.
+
+### Fixed
+
+- **Correção da Falha de Inicialização de Timezone:**
+  - Corrigido erro `LateInitializationError: Field '_instance@...' has not been initialized` em `package:timezone/timezone.dart` configurando explicitamente `tz.setLocalLocation(tz.getLocation('America/Sao_Paulo'))` após `tz.initializeTimeZones()`.
+- **Exibição Exclusivamente In-App:**
+  - Corrigido o problema em que as notificações eram exibidas apenas internamente no aplicativo. Agora os disparos acionam a barra de status do Android, cabeçalho suspenso (heads-up banner) e gaveta de notificações do sistema operacional mesmo com o app minimizado.
+
+## [1.41.0] - 2026-10-20
+
+### Added
+
+- **Suporte a Múltiplos Santos no Mesmo Dia ([`mobile.service.ts`](backend/src/mobile/mobile.service.ts)):**
+  - Implementado parser inteligente `parseAllSaints` no backend MarIA que identifica quebras de seções de santos (delimitadas por `⚜️ **` ou cabeçalhos em negrito) no cache canônico `daily_cache`.
+  - Cada santo tem seu nome, título, virtude, citação, biografia e oração extraídos isoladamente, eliminando vazamento de texto entre santos.
+  - A resposta do endpoint `GET /mobile/daily-content` agora retorna tanto `saints: [...]` (lista completa de todos os santos do dia) quanto `saint` (santo principal para retrocompatibilidade).
+- **Interface Sacra Multi-Santos no Mobile ([`saint_hero_card.dart`](mobile/lib/features/home/presentation/widgets/saint_hero_card.dart) & [`saint_detail_page.dart`](mobile/lib/features/saint_of_day/presentation/saint_detail_page.dart)):**
+  - **Hero Card do Santuário:** Exibe badge elegante `X santos hoje` no cabeçalho e resumo de santos secundários (`Também hoje: ...`) quando há mais de uma memória litúrgica no dia.
+  - **Tela de Detalhes (`SaintDetailPage`):** Adicionado seletor horizontal de abas animadas com estilo sacro, permitindo ao fiel alternar instantaneamente entre a biografia, virtude e oração de cada santo celebrado no dia.
+- **Data Dinâmica Baseada no Relógio do Celular ([`saint_data_source.dart`](mobile/lib/features/saint_of_day/data/datasources/saint_data_source.dart) & [`saint_controller.dart`](mobile/lib/features/saint_of_day/presentation/controllers/saint_controller.dart)):**
+  - Eliminado qualquer offset ou fuso horário fixo/chumbado no código. A requisição consome estritamente a data local configurada no próprio dispositivo móvel (`DateTime.now()`), garantindo transição natural de dia de acordo com a localização do usuário.
+
+### Changed
+
+- **Provedores de Estado Riverpod do Santo do Dia ([`saint_controller.dart`](mobile/lib/features/saint_of_day/presentation/controllers/saint_controller.dart)):**
+  - Adicionados `todaySaintsProvider` e `saintsByDateProvider` para gerenciar a lista de santos diários.
+  - O `HomePage` agora assiste a `todaySaintsProvider`, passando a lista completa para `SaintHeroCard` e para a tela de detalhes.
+
+## [1.40.0] - 2026-10-20
+
+### Added
+
+- **Endpoint Unificado de Conteúdo Diário (`GET /mobile/daily-content`) ([`mobile.controller.ts`](backend/src/mobile/mobile.controller.ts) & [`mobile.service.ts`](backend/src/mobile/mobile.service.ts)):**
+  - Implementado endpoint unificado que consulta a tabela canônica `daily_cache` para uma data solicitada (`?date=YYYY-MM-DD`, com padrão para a data de Brasília).
+  - Inclui parser robusto para o Santo do Dia (`parseSaintContent`), extraindo automaticamente nome, título, virtude associada, biografia, oração e citação bíblica/inspiradora, com contingência na tabela `saints` do banco.
+  - Disponibiliza a Liturgia Diária enriquecida com reflexão espiritual, oração e leituras completas integradas ao `LiturgyService` (`getRawLiturgy`), além dos Mistérios do Santo Terço.
+- **Configuração Centralizada de Rede no Mobile ([`AppConfig`](mobile/lib/core/config/app_config.dart)):**
+  - Criada classe singleton de configuração de rede em Flutter que unifica a detecção de ambiente (Emulador Android `10.0.2.2:3002`, Web/Desktop `localhost:3002` e parâmetro de injeção em build `--dart-define=API_URL=https://...`).
+
+### Changed
+
+- **Santo do Dia Dinâmico no Aplicativo ([`saint_data_source.dart`](mobile/lib/features/saint_of_day/data/datasources/saint_data_source.dart)):**
+  - Refatorado para consultar prioritariamente o endpoint `/mobile/daily-content` do backend MarIA, garantindo sincronia total com o Conteúdo Diário gerado por IA e editado no Painel Administrativo.
+  - Mantido fallback local offline para quando o dispositivo estiver sem conexão com a internet.
+- **Liturgia Conectada ao Backend Canônico ([`liturgy_remote_data_source.dart`](mobile/lib/features/liturgy/data/datasources/liturgy_remote_data_source.dart)):**
+  - A liturgia diária agora é consumida do backend da MarIA em primeira instância, mantendo a API externa da Railway apenas como contingência secundária.
+- **Eliminação de Código Duplicado de Rede no Mobile:**
+  - Migradas todas as 6 fontes de dados remotas (`auth`, `chat`, `novenas`, `preferences`, `reminders`, `spiritual_plan`) para utilizar `AppConfig.apiBaseUrl`.
+
+### Fixed
+
+- **Correção da Divergência do Santo do Dia:**
+  - Resolvido o problema em que o painel administrativo exibia *Santa Maria Bertila Boscardin* e o aplicativo exibia *Santos de Deus e Anjos da Guarda*. A raiz do problema era o isolamento do app móvel que usava um mapa local de apenas 7 dias e caía no fallback genérico. Agora ambos os sistemas consomem a mesma base de dados `daily_cache`.
+
+## [1.39.2] - 2026-10-20
+
+### Fixed
+
+- **Eliminação de Disparos Duplicados no WhatsApp ([`reminders.service.ts`](backend/src/reminders/reminders.service.ts) & [`reminders.processor.ts`](backend/src/reminders/reminders.processor.ts)):**
+  - **Correção da Corrida do Cron Watchdog:** O cron de reconciliação de 5 minutos não mais trata agendamentos recentes (`lateMinutes < 2`) como "atrasados", eliminando o conflito com jobs pontuais do BullMQ que disparam no mesmo instante.
+  - **Bloqueio de Idempotência Atômico no Worker:** Inserida checagem estrita de deduplicação no `RemindersProcessor`: caso o lembrete tenha sido disparado nos últimos 10 minutos, o job concorrente é abortado imediatamente (`[DEDUP] Ignorando job duplicado`), e o campo `last_sent_at` é gravado atomicamente no início do processamento.
+  - **Limpeza de Fila no Sync do App:** Ao alterar horários ou desativar práticas no app móvel, jobs antigos em estado `delayed` ou `waiting` no BullMQ são removidos automaticamente via `removeQueuedJobsForReminder`, impedindo o acúmulo de disparos fantasmas.
+- **Entrega Canônica do Conteúdo Diário do Terço, Liturgia e Santo ([`reminders.processor.ts`](backend/src/reminders/reminders.processor.ts) & [`ai.service.ts`](backend/src/ai/ai.service.ts)):**
+  - **Santo Terço Mariano:** Agora busca e envia a meditação diária completa armazenada no banco de dados (`daily_cache` com `type = 'rosary'`), contendo os 5 mistérios do dia com citação bíblica e reflexão contemplativa.
+  - **Envio Unificado em Mensagem Única:** Mensagens longas (> 1000 caracteres) são entregues em uma única mensagem de texto íntegra, evitando a fragmentação em mensagens múltiplas e respeitando os limites da API do WhatsApp.
+  - **Correção do Santo do Dia na IA:** Removido caso duplicado e sombreado de `SAINT_OF_DAY` em `ai.service.ts` que equivocadamente retornava a liturgia completa em vez do conteúdo em cache do santo de hoje.
+- **Unificação Total de Lembretes (App & WhatsApp) ([`mobile.service.ts`](backend/src/mobile/mobile.service.ts) & [`ai.service.ts`](backend/src/ai/ai.service.ts)):**
+  - **Sincronização Bidirecional:** Lembretes criados ou agendados via chat no WhatsApp são automaticamente registrados com `external_id` e consolidados diretamente dentro do array de hábitos do Plano de Vida Espiritual (`user_spiritual_plans`), aparecendo de imediato na interface do aplicativo móvel.
+  - **Recuperação e Fusão em `getSpiritualPlan`:** Ao abrir o aplicativo, o serviço cruza a tabela `reminders` com o plano do usuário, importando automaticamente quaisquer lembretes pendentes criados fora do app e alinhando horários e toggles de WhatsApp.
+  - **Sincronização de Perfil em `updateSpiritualPlan`:** Ao salvar o plano de vida no app, os toggles legados na tabela `users` (`receive_daily_exam`, `receive_daily_liturgy`, `receive_daily_saint`) são atualizados de forma atômica para refletir o estado real de cada hábito (ex: se o WhatsApp do exame noturno foi desligado no app, `receive_daily_exam` é marcado como `false`).
+- **Supressão de Disparos Conflitantes de IA ([`scheduled-messages.service.ts`](backend/src/ai/scheduled-messages.service.ts)):**
+  - **Exclusão de Usuários com Plano de Vida:** Usuários com Plano de Vida Espiritual ativo agora são totalmente ignorados pelas rotinas de disparo em massa legadas (`scheduled_messages` / `BroadcastService`). As mensagens noturnas (Boa noite) e matinais (Bom dia) geradas por IA não são mais enviadas em paralelo, garantindo que o usuário receba apenas e exclusivamente o que configurou em seu plano no app.
+- **Aumento do Timeout da UAZAPI:** Ajustado o tempo limite de requisições de 10s para 30s em `uazapi.service.ts` para acomodar a formatação e simulação de presença de textos devocionais longos sem interrupções por timeout.
+
+## [1.39.1] - 2026-10-20
+
+### Added
+
+- **Aba "Ferramentas da MarIA" no Modal de Adicionar Prática ([`AddHabitBottomSheet`](mobile/lib/features/spiritual_plan/presentation/widgets/add_habit_bottom_sheet.dart)):**
+  - Todas as práticas canônicas pré-definidas agora derivam diretamente das ferramentas prontas da MarIA: **Oferecimento da Manhã**, **Liturgia Diária & Evangelho**, **Santo do Dia & Virtude**, **Oração do Ângelus**, **Terço da Misericórdia**, **Santo Terço Mariano**, **Oração da Noite & Repouso** e **Exame de Consciência Noturno**.
+  - Exibição de badge dinâmico `[ ✓ No Plano ]` com bloqueio para práticas já adicionadas e botão `[ + Adicionar ]` para práticas disponíveis.
+  - **Horário 100% Personalizável na Adição:** Ao tocar em `+ Adicionar`, abre-se um sub-diálogo interativo com seletor `TimePicker` livre (00:00 às 23:59), permitindo ao fiel definir exatamente o horário que preferir para cada ferramenta, além de configurar canais de notificação (Sino no celular e WhatsApp) antes de consagrar ao plano.
+  - **Aba "Criar Meu Hábito":** Permite criar práticas totalmente customizadas, com título, horário livre, canais de lembrete e texto opcional de oração personalizada.
+- **Leitor Devocional e Ação Rápida de Oração ([`PrayerReaderDialog`](mobile/lib/features/spiritual_plan/presentation/widgets/prayer_reader_dialog.dart) & [`HabitCardItem`](mobile/lib/features/spiritual_plan/presentation/widgets/habit_card_item.dart)):**
+  - **Terço da Misericórdia Completo:** Implementado o guia solene passo a passo da oração da Divina Misericórdia (Sinal da Cruz, Pai Nosso, Ave Maria, Credo, Pai Eterno e dezenas da Dolorosa Paixão), com botão de conclusão que marca a prática como cumprida no plano.
+  - **Ação Direta `[ Rezar > ]` nos Cards:** Habilitada para todas as ferramentas canônicas (direcionando para telas dedicadas como Santo do Dia, Liturgia, Rosário e Exame Noturno, ou abrindo o `PrayerReaderDialog` para o Terço da Misericórdia, Angelus, Oferecimento da Manhã e Oração da Noite).
+- **Campos `toolType` e `customText` no Domínio e Sincronização:**
+  - Adicionados os campos `toolType` e `customText` à entidade `SpiritualHabitEntity`, com persistência local e mapeamento transparente para a tabela `reminders` no backend ([`mobile.service.ts`](backend/src/mobile/mobile.service.ts)).
+
+## [1.39.0] - 2026-10-20
+
+### Added
+
+- **Notificações Locais no Celular com Sinos Sacros (`LocalNotificationService`, `flutter_local_notifications` & `timezone`):**
+  - Integração do serviço de agendamento local de alta precisão (`zonedSchedule` com `DateTimeComponents.time`), despertando o celular diariamente mesmo com o app fechado ou após reinicialização do aparelho (`RECEIVE_BOOT_COMPLETED`).
+  - Modal sacro para seleção do som de toque no celular: **Sino de Mosteiro**, **Badalada Suave**, **Angelus Clássico**, **Ave Maria** e **Silencioso**, além da opção de desativar sons.
+  - Habilitado suporte a Java 8 Desugaring (`coreLibraryDesugaringEnabled = true` com `desugar_jdk_libs:2.1.4`) no Android e permissões estritas de alarmes exatos (`SCHEDULE_EXACT_ALARM`, `USE_EXACT_ALARM`, `POST_NOTIFICATIONS`).
+
+### Changed
+
+- **Unificação dos Lembretes e Sinos em "Meu Plano de Vida Espiritual" ([`SpiritualPlanPage`](mobile/lib/features/spiritual_plan/presentation/spiritual_plan_page.dart), [`HabitCardItem`](mobile/lib/features/spiritual_plan/presentation/widgets/habit_card_item.dart) & [`SettingsPage`](mobile/lib/features/settings/presentation/settings_page.dart)):**
+  - **Fonte Única de Verdade:** Extinta a duplicidade entre "Lembretes & Sinos" e "Plano de Vida Espiritual". O Plano de Vida agora é a central única onde o fiel organiza suas práticas, horários, sinos no celular e mensagens devocionais no WhatsApp.
+  - **Layout de Cards com Chips de Ação Rápida (Opção A):** Cada prática diária possui chips diretos e interativos na base do card:
+    - `[ Horário ]`: Toque abre o seletor `TimePicker` para escolha livre de qualquer horário do dia (00:00 às 23:59).
+    - `[ Sino / Celular ]`: Ativa notificações locais no aparelho e abre o seletor de toques sacros.
+    - `[ WhatsApp ]`: Alterna o envio da oração/reflexão pelo WhatsApp da MarIA. Caso o WhatsApp não esteja conectado, abre diretamente o bottom sheet de vinculação OTP.
+    - `[ Rezar > ]`: Atalho para abrir e rezar o texto litúrgico ou devoção no app.
+  - **Centralização da Ponte WhatsApp no Perfil:** O status de vinculação do WhatsApp permanece exclusivamente na tela geral de **Perfil & Configurações**, mantendo a tela do Plano de Vida despoluída e focada na oração.
+  - **Catálogo Padrão Expandido:** Inclusão de "Santo do Dia & Virtude" e "Oração da Noite & Repouso" como sugestões canônicas diretas no Plano de Vida.
+
+### Fixed
+
+- **Atualização do Token de Conexão com UAZAPI (`backend/.env` & `UazapiService`):**
+  - Identificada e corrigida a discrepância no token da instância WhatsApp da MarIA (`UAZAPI_INSTANCE_TOKEN`), restabelecendo a comunicação com a API do Uazapi e permitindo o envio bem-sucedido de mensagens automáticas e botões interativos (`/send/menu`).
+- **Eliminação de Lembretes Invisíveis/Fantasmas ([`mobile.service.ts`](backend/src/mobile/mobile.service.ts) & [`SpiritualPlanController`](mobile/lib/features/spiritual_plan/presentation/controllers/spiritual_plan_controller.dart)):**
+  - Purga automática de chaves legadas locais no dispositivo (`maria_spiritual_reminders_v1`).
+  - No backend, a sincronização do plano de vida agora cancela formalmente (`status = 'cancelled'`) no Supabase e na fila BullMQ todos os registros de `public.reminders` que não estejam ativos com envio de WhatsApp no plano do usuário, garantindo que nenhum lembrete órfão ou invisível continue disparando.
+
+## [1.38.1] - 2026-10-20
+
+### Fixed
+
+- **Sincronização do WhatsApp Vinculado na Tela de Lembretes & Sinos ([`reminders_page.dart`](mobile/lib/features/reminders/presentation/reminders_page.dart) & [`whatsapp_preferences_controller.dart`](mobile/lib/features/reminders/presentation/controllers/whatsapp_preferences_controller.dart)):**
+  - Corrigida a verificação e exibição do telefone na tela de Lembretes: o estado agora herda diretamente o telefone da sessão do usuário autenticado (`authControllerProvider`), além das preferências salvas.
+  - O card "Ponte com WhatsApp" agora exibe corretamente `Vinculado: <número>` em verde com ícone de confirmação quando a conta já possui número vinculado, substituindo a mensagem genérica de "Vincular" pelo botão contextual "Alterar".
+  - O botão "Alterar" foi integrado com o `LinkWhatsAppBottomSheet`, abrindo o fluxo com o número pré-preenchido para fácil atualização.
+
+## [1.38.0] - 2026-10-20
+
+### Added
+
+- **Centralização de Lembretes Devocionais & Sinos no Mobile com Ponte WhatsApp ([`RemindersPage`](mobile/lib/features/reminders/presentation/reminders_page.dart), [`RemindersService`](backend/src/reminders/reminders.service.ts) & [`RemindersProcessor`](backend/src/reminders/reminders.processor.ts)):**
+  - **Desacoplamento Completo das Ferramentas Canônicas:** Fim de agrupamentos e combos (como "bom dia + liturgia" ou "boa noite + exame"). As 8 práticas canônicas passam a operar de modo 100% individual e independente:
+    1. ☀️ **Oração da Manhã** (`toolType: 'morning_prayer'` - Bênção maternal e consagração do novo dia a Deus).
+    2. 📖 **Liturgia Diária** (`toolType: 'liturgy'` - Leituras da Santa Missa, Salmo e Evangelho).
+    3. 🕊️ **Santo do Dia & Virtude** (`toolType: 'saint'` - Memória litúrgica e virtude para o dia).
+    4. 🔔 **Oração do Ângelus** (`toolType: 'angelus'` - O Anjo do Senhor anunciou a Maria).
+    5. ✝️ **Hora da Divina Misericórdia** (`toolType: 'divine_mercy'` - Memória da Paixão do Senhor).
+    6. 📿 **Santo Terço** (`toolType: 'rosary'` - Contemplação dos Santos Mistérios).
+    7. 🌙 **Oração da Noite** (`toolType: 'night_prayer'` - Ação de graças pelo dia e entrega do repouso).
+    8. 🕯️ **Exame de Consciência Noturno** (`toolType: 'conscience_exam'` - Revisão de vida e preparação do coração).
+  - **Liberdade Total de Horários (Sem Horários Fixos):** O fiel possui total autonomia para escolher o horário que desejar (00:00 às 23:59) tanto nas 8 práticas canônicas quanto nos lembretes pessoais, via `TimePicker` sacro com suporte a temas claro/escuro.
+  - **Lembretes & Orações Pessoais com Gestão Completa:** Seção dedicada para criar lembretes personalizados com título, subtítulo/intenção, texto de oração customizado enviado pela MarIA, toque no celular, envio opcional no WhatsApp e botão de exclusão com diálogo de confirmação.
+  - **Disparador de Novenas no WhatsApp com Botões Interativos (Opção B - [`NovenasSchedulerService`](backend/src/novenas/novenas-scheduler.service.ts)):**
+    - Serviço CRON de alta precisão que verifica novenas ativas com notificação via WhatsApp no horário configurado pelo fiel no aplicativo.
+    - Envio de notificação devocional com botões interativos WhatsApp via Uazapi:
+      - `📖 Rezar no WhatsApp` (entrega o dia da novena diretamente no chat).
+      - `📱 Abrir no Aplicativo` (lembrete de abertura no app móvel).
+      - `🔕 Cancelar Lembrete` (desativa notificações futuras daquela novena com confirmação).
+  - **Deduplicação de Disparos:** Os horários e ferramentas personalizadas ativadas pelo fiel no aplicativo têm precedência sobre campanhas administrativas globais, evitando envio de mensagens duplicadas.
+
+### Changed
+
+- **Descontinuação Amigável de Lembretes pelo WhatsApp (`ai.service.ts`):** Mensagens enviadas ao WhatsApp da MarIA solicitando criação direta de lembretes no chat são acolhidas e redirecionadas pastoralmente para o aplicativo móvel MarIA, consolidando o app como a fonte única da verdade para agendamentos.
+- **Sincronização de Lembretes no Backend (`POST /mobile/reminders/sync` & `GET /mobile/reminders`):** Endpoints criados em [`mobile.controller.ts`](backend/src/mobile/mobile.controller.ts) com fila BullMQ e fuso horário `America/Sao_Paulo`, com suporte retrocompatível às tabelas `public.reminders` e `public.user_novenas`.
+
 ## [1.37.1] - 2026-10-20
 
 ### Changed

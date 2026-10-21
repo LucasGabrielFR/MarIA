@@ -6,12 +6,14 @@ import { MobileAuthService } from './mobile-auth.service';
 import { AiModule } from '../ai/ai.module';
 import { SupabaseModule } from '../supabase/supabase.module';
 import { UazapiModule } from '../uazapi/uazapi.module';
+import { RemindersModule } from '../reminders/reminders.module';
 
 @Module({
-  imports: [AiModule, SupabaseModule, UazapiModule],
+  imports: [AiModule, SupabaseModule, UazapiModule, RemindersModule],
   controllers: [MobileController, MobileAuthController],
   providers: [MobileService, MobileAuthService],
   exports: [MobileService, MobileAuthService],
 })
 export class MobileModule {}
+
 
