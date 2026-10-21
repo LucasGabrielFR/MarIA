@@ -144,6 +144,22 @@ export class AdminController {
     return this.adminService.clearUserData(adminId, id);
   }
 
+  @Delete('wa-users/:id')
+  async deleteUser(
+    @Param('id') id: string,
+    @Headers('x-admin-id') adminId: string,
+  ) {
+    return this.adminService.deleteUserPermanently(adminId, id);
+  }
+
+  @Delete('users/:id')
+  async deleteUserAlias(
+    @Param('id') id: string,
+    @Headers('x-admin-id') adminId: string,
+  ) {
+    return this.adminService.deleteUserPermanently(adminId, id);
+  }
+
   @Post('wa-users/:id/subscription')
   async updateSubscription(
     @Param('id') id: string,

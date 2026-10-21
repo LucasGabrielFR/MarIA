@@ -2,6 +2,7 @@ import {
   Injectable,
   BadRequestException,
   UnauthorizedException,
+  NotFoundException,
 } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { ConfigService } from '@nestjs/config';
@@ -792,6 +793,74 @@ export class AdminService {
     );
 
     return { success: true };
+  }
+
+  async deleteUserPermanently(adminId: string, userId: string) {
+    const requester = await this.getRequesterAdmin(adminId);
+    const supabase = this.supabaseService.getClient();
+
+    // 1. Busca usuário alvo para ter dados de auditoria e auth_user_id
+    const { data: targetUser, error: findError } = await supabase
+      .from('users')
+      .select('id, name, phone, email, origin, auth_user_id')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (findError || !targetUser) {
+      throw new NotFoundException('Usuário não encontrado');
+    }
+
+    // 2. Limpar registros vinculados por e-mail (caso existam em tabelas sem FK direta)
+    if (targetUser.email) {
+      await supabase.from('password_resets').delete().eq('email', targetUser.email);
+    }
+
+    // 3. Deletar de public.users (as FKs possuem ON DELETE CASCADE)
+    const { error: deleteError } = await supabase
+      .from('users')
+      .delete()
+      .eq('id', userId);
+
+    if (deleteError) {
+      console.error(`[AdminService] Erro ao deletar usuário do banco: ${deleteError.message}`);
+      throw deleteError;
+    }
+
+    // 4. Se tiver auth_user_id, deletar do Supabase Auth (auth.users)
+    if (targetUser.auth_user_id) {
+      try {
+        const { error: authError } = await supabase.auth.admin.deleteUser(
+          targetUser.auth_user_id,
+        );
+        if (authError) {
+          console.warn(
+            `[AdminService] Falha ao deletar auth_user_id ${targetUser.auth_user_id}: ${authError.message}`,
+          );
+        }
+      } catch (authErr: any) {
+        console.warn(
+          `[AdminService] Exceção ao deletar auth user no Supabase Auth: ${authErr?.message}`,
+        );
+      }
+    }
+
+    // 5. Registrar log de atividade do admin
+    await this.logActivity(
+      requester.id,
+      requester.email,
+      requester.name,
+      'delete_user_permanently',
+      {
+        target_user_id: userId,
+        target_user_name: targetUser.name || 'Desconhecido',
+        target_user_email: targetUser.email || null,
+        target_user_phone: targetUser.phone || null,
+        target_user_origin: targetUser.origin || 'desconhecido',
+        description: `Excluiu definitivamente a conta do usuário ${targetUser.name || 'Desconhecido'} (${targetUser.email || targetUser.phone || 'Sem contato'}).`,
+      },
+    );
+
+    return { success: true, message: 'Usuário excluído definitivamente.' };
   }
 
   async updateUserSubscription(

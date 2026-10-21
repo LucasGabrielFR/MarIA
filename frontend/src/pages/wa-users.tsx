@@ -29,7 +29,14 @@ import {
   Clock,
   Coins,
   Award,
-  ShieldCheck
+  ShieldCheck,
+  Smartphone,
+  MessageCircle,
+  Users,
+  Mail,
+  Phone,
+  RotateCcw,
+  Eye
 } from 'lucide-react'
 import { 
   Dialog, 
@@ -51,11 +58,14 @@ import { cn } from "@/lib/utils"
 interface WaUser {
   id: string
   name: string
-  phone: string
-  wa_chatid: string
+  phone: string | null
+  email?: string | null
+  origin?: string | null
+  auth_user_id?: string | null
+  wa_chatid: string | null
   status: string
   created_at: string
-  credits: number
+  credits?: number
   is_paused?: boolean
   monthly_limit_brl?: number | null
   gender?: string | null
@@ -94,12 +104,15 @@ interface Message {
 const WaUsersPage = () => {
   const location = useLocation()
   const [users, setUsers] = useState<WaUser[]>([])
+  const [activeTab, setActiveTab] = useState<'mobile' | 'whatsapp' | 'all'>('mobile')
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedUser, setSelectedUser] = useState<WaUser | null>(null)
+  const [userToDelete, setUserToDelete] = useState<WaUser | null>(null)
+  const [showPermanentDeleteConfirm, setShowPermanentDeleteConfirm] = useState(false)
+  const [showClearDataConfirm, setShowClearDataConfirm] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [showHistory, setShowHistory] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [subscriptionExpiresAt, setSubscriptionExpiresAt] = useState<string>('')
   const [paymentTier, setPaymentTier] = useState<'basic' | 'premium'>('basic')
@@ -171,18 +184,66 @@ const WaUsersPage = () => {
       
       if (!response.ok) throw new Error('Falha ao apagar dados')
       
-      toast.success('Todos os dados pessoais e conversas foram apagados')
-      setShowDeleteConfirm(false)
+      toast.success('Todos os dados pastorais e conversas foram apagados')
+      setShowClearDataConfirm(false)
       
       // Atualizar a lista e fechar o modal principal ou atualizar o selecionado
       await fetchUsers()
       setSelectedUser(null)
     } catch (error) {
-      toast.error('Erro ao processar solicitação de exclusão')
+      toast.error('Erro ao processar solicitação de limpeza')
     } finally {
       setDeleting(false)
     }
   }
+
+  const handleDeleteUserPermanently = async () => {
+    if (!userToDelete) return
+
+    setDeleting(true)
+    try {
+      const storedUser = localStorage.getItem('maria_user')
+      const adminId = storedUser ? JSON.parse(storedUser)?.id : ''
+
+      const response = await fetch(`${API_URL}/panel/wa-users/${userToDelete.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
+          'x-admin-id': adminId
+        }
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || 'Falha ao excluir usuário')
+      }
+
+      toast.success(`Usuário ${userToDelete.name || userToDelete.email || ''} excluído definitivamente com sucesso!`)
+      setShowPermanentDeleteConfirm(false)
+
+      // Atualiza estado local removendo o usuário
+      setUsers(prev => prev.filter(u => u.id !== userToDelete.id))
+      if (selectedUser?.id === userToDelete.id) {
+        setSelectedUser(null)
+      }
+      setUserToDelete(null)
+    } catch (error: any) {
+      toast.error(error.message || 'Erro ao processar exclusão definitiva')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const isMobileUser = (u: WaUser) => {
+    return u.origin === 'mobile' || !!u.auth_user_id || (!u.wa_chatid && !!u.email)
+  }
+
+  const isWhatsAppUser = (u: WaUser) => {
+    return !isMobileUser(u)
+  }
+
+  const mobileCount = users.filter(isMobileUser).length
+  const whatsappCount = users.filter(isWhatsAppUser).length
 
   const getChartData = () => {
     if (!messages.length) return []
@@ -208,31 +269,38 @@ const WaUsersPage = () => {
   }
 
   const filteredUsers = users.filter(user => {
-    // Busca por termo
-    const matchesSearch = 
-      user.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      user.phone?.includes(searchTerm) ||
-      user.wa_chatid?.includes(searchTerm);
-      
-    if (!matchesSearch) return false;
+    // Separação por aba (Mobile vs WhatsApp vs Todos)
+    if (activeTab === 'mobile' && !isMobileUser(user)) return false
+    if (activeTab === 'whatsapp' && !isWhatsAppUser(user)) return false
+
+    // Busca por termo (nome, email, telefone ou ID)
+    const term = searchTerm.toLowerCase().trim()
+    if (term) {
+      const matchesSearch = 
+        (user.name && user.name.toLowerCase().includes(term)) || 
+        (user.email && user.email.toLowerCase().includes(term)) ||
+        (user.phone && user.phone.includes(term)) ||
+        (user.wa_chatid && user.wa_chatid.toLowerCase().includes(term))
+      if (!matchesSearch) return false
+    }
     
     // Filtro por assinatura
-    if (filterTier !== 'all' && user.subscription_tier !== filterTier) return false;
+    if (filterTier !== 'all' && user.subscription_tier !== filterTier) return false
     
     // Filtro por status
-    if (filterStatus !== 'all' && user.status !== filterStatus) return false;
+    if (filterStatus !== 'all' && user.status !== filterStatus) return false
     
     // Filtro por pausa pastoral
     if (filterPause !== 'all') {
-      const isUserPaused = user.is_paused || false;
-      if (filterPause === 'paused' && !isUserPaused) return false;
-      if (filterPause === 'active' && isUserPaused) return false;
+      const isUserPaused = user.is_paused || false
+      if (filterPause === 'paused' && !isUserPaused) return false
+      if (filterPause === 'active' && isUserPaused) return false
     }
     
     // Filtro por engajamento
-    if (filterEngagement !== 'all' && user.metrics?.engagement !== filterEngagement) return false;
+    if (filterEngagement !== 'all' && user.metrics?.engagement !== filterEngagement) return false
     
-    return true;
+    return true
   })
 
   const handleUserClick = (user: WaUser) => {
@@ -383,15 +451,97 @@ const WaUsersPage = () => {
   return (
     <MainLayout 
       title="Gestão de Fiéis" 
-      subtitle="Monitore as interações, interesses e consumo de tokens dos usuários."
+      subtitle="Gerencie fiéis cadastrados no aplicativo móvel e histórico legado do WhatsApp."
     >
-      <div className="space-y-8">
+      <div className="space-y-6">
+        {/* Segmented Pill Tabs for Mobile vs WhatsApp vs All */}
+        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 bg-white p-2.5 rounded-3xl border border-slate-100 shadow-xs">
+          <div className="flex flex-wrap items-center gap-1.5 p-1 bg-slate-100/70 rounded-2xl border border-slate-200/50">
+            <button
+              type="button"
+              onClick={() => setActiveTab('mobile')}
+              className={cn(
+                "flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-xs transition-all duration-200 cursor-pointer",
+                activeTab === 'mobile'
+                  ? "bg-white text-primary shadow-sm ring-1 ring-slate-200/60"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
+              )}
+            >
+              <Smartphone className="h-4 w-4 text-blue-600" />
+              <span>Aplicativo Móvel</span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-800">
+                {mobileCount}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('whatsapp')}
+              className={cn(
+                "flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-xs transition-all duration-200 cursor-pointer",
+                activeTab === 'whatsapp'
+                  ? "bg-white text-emerald-800 shadow-sm ring-1 ring-slate-200/60"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
+              )}
+            >
+              <MessageCircle className="h-4 w-4 text-emerald-600" />
+              <span>WhatsApp (Legado)</span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800">
+                {whatsappCount}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('all')}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-xs transition-all duration-200 cursor-pointer",
+                activeTab === 'all'
+                  ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/60"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
+              )}
+            >
+              <Users className="h-4 w-4 text-slate-500" />
+              <span>Todos os Fiéis</span>
+              <span className="text-[11px] font-bold text-slate-400">({users.length})</span>
+            </button>
+          </div>
+
+          {/* Info notice pill */}
+          <div className="flex items-center gap-2 px-3 py-1 text-xs text-slate-500 font-medium">
+            {activeTab === 'mobile' && (
+              <>
+                <Sparkles className="h-4 w-4 text-primary shrink-0" />
+                <span>Ecossistema oficial: fiéis com cadastro mobile, e-mail e autenticação.</span>
+              </>
+            )}
+            {activeTab === 'whatsapp' && (
+              <>
+                <Clock className="h-4 w-4 text-emerald-600 shrink-0" />
+                <span>Legado histórico: usuários da fase de triagem direta no WhatsApp.</span>
+              </>
+            )}
+            {activeTab === 'all' && (
+              <>
+                <Users className="h-4 w-4 text-slate-400 shrink-0" />
+                <span>Visão geral unificada de todos os fiéis da base.</span>
+              </>
+            )}
+          </div>
+        </div>
+
         <div className="flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="relative w-full sm:w-96">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <Input 
-                placeholder="Buscar por nome ou telefone..." 
+                placeholder={
+                  activeTab === 'mobile' 
+                    ? "Buscar por nome ou e-mail..." 
+                    : activeTab === 'whatsapp' 
+                    ? "Buscar por nome ou WhatsApp..." 
+                    : "Buscar por nome, e-mail ou telefone..."
+                } 
                 className="pl-10 bg-white border-slate-200 rounded-2xl focus-visible:ring-primary h-12 shadow-sm"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -508,27 +658,28 @@ const WaUsersPage = () => {
               <Table>
                 <TableHeader className="bg-slate-50/50">
                   <TableRow className="hover:bg-transparent border-slate-100">
-                    <TableHead className="font-bold text-slate-800 py-5 pl-8">Usuário</TableHead>
+                    <TableHead className="font-bold text-slate-800 py-5 pl-8">Fiel / Usuário</TableHead>
+                    <TableHead className="font-bold text-slate-800 py-5">Origem</TableHead>
                     <TableHead className="font-bold text-slate-800 py-5">Status</TableHead>
                     <TableHead className="font-bold text-slate-800 py-5">Interesses</TableHead>
                     <TableHead className="font-bold text-slate-800 py-5">Assinatura</TableHead>
                     <TableHead className="font-bold text-slate-800 py-5">Cupom</TableHead>
                     <TableHead className="font-bold text-slate-800 py-5">Tokens Totais</TableHead>
-                    <TableHead className="font-bold text-slate-800 py-5">Última Atividade</TableHead>
+                    <TableHead className="font-bold text-slate-800 py-5">Cadastro / Atividade</TableHead>
                     <TableHead className="text-right font-bold text-slate-800 py-5 pr-8">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-20 text-slate-400 font-medium">
+                      <TableCell colSpan={9} className="text-center py-20 text-slate-400 font-medium">
                         Carregando fiéis...
                       </TableCell>
                     </TableRow>
                   ) : filteredUsers.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-20 text-slate-400 font-medium">
-                        Nenhum usuário encontrado.
+                      <TableCell colSpan={9} className="text-center py-20 text-slate-400 font-medium">
+                        Nenhum usuário encontrado nesta visualização.
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -540,23 +691,61 @@ const WaUsersPage = () => {
                       >
                         <TableCell className="py-5 pl-8">
                           <div className="flex items-center gap-3">
-                            <Avatar className="h-10 w-10 border border-slate-100 shadow-sm">
-                              <AvatarFallback className="bg-blue-50 text-primary text-xs font-bold">
-                                {user.name ? user.name[0] : 'U'}
+                            <Avatar className="h-10 w-10 border border-slate-100 shadow-sm shrink-0">
+                              <AvatarFallback className={cn(
+                                "text-xs font-bold",
+                                isMobileUser(user) ? "bg-blue-50 text-primary" : "bg-emerald-50 text-emerald-700"
+                              )}>
+                                {user.name ? user.name[0] : (user.email ? user.email[0].toUpperCase() : 'U')}
                               </AvatarFallback>
                             </Avatar>
-                            <div>
-                              <p className="font-bold text-slate-800 group-hover:text-primary transition-colors flex items-center gap-1.5">
-                                {user.name || 'Sem nome'}
+                            <div className="min-w-0">
+                              <p className="font-bold text-slate-800 group-hover:text-primary transition-colors flex items-center gap-1.5 truncate">
+                                {user.name || (user.email ? user.email.split('@')[0] : 'Fiel sem nome')}
                                 {user.is_paused && (
                                   <Badge className="px-1.5 py-0.5 border-none bg-amber-100 text-amber-800 text-[8px] font-black tracking-tight scale-90">
                                     PAUSADO
                                   </Badge>
                                 )}
                               </p>
-                              <p className="text-xs text-slate-500 font-medium">{user.phone || user.wa_chatid}</p>
+                              <div className="flex flex-col gap-0.5 text-xs">
+                                {user.email && (
+                                  <span className="text-slate-600 font-medium flex items-center gap-1 truncate">
+                                    <Mail className="h-3 w-3 text-slate-400 shrink-0" />
+                                    {user.email}
+                                  </span>
+                                )}
+                                {user.phone ? (
+                                  <span className="text-slate-400 flex items-center gap-1">
+                                    <Phone className="h-3 w-3 text-slate-400 shrink-0" />
+                                    {user.phone}
+                                  </span>
+                                ) : user.wa_chatid ? (
+                                  <span className="text-slate-400 flex items-center gap-1 truncate">
+                                    <MessageCircle className="h-3 w-3 text-slate-400 shrink-0" />
+                                    {user.wa_chatid.split('@')[0]}
+                                  </span>
+                                ) : (
+                                  <span className="text-amber-600/90 text-[10px] font-bold">
+                                    Sem WhatsApp vinculado
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
+                        </TableCell>
+                        <TableCell>
+                          {isMobileUser(user) ? (
+                            <Badge className="bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200/80 font-bold text-[10px] px-2.5 py-1 flex items-center gap-1 w-fit shadow-xs">
+                              <Smartphone className="h-3 w-3 text-blue-600 shrink-0" />
+                              App Mobile
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200/80 font-bold text-[10px] px-2.5 py-1 flex items-center gap-1 w-fit shadow-xs">
+                              <MessageCircle className="h-3 w-3 text-emerald-600 shrink-0" />
+                              WhatsApp Legado
+                            </Badge>
+                          )}
                         </TableCell>
                         <TableCell>
                           <Badge 
@@ -577,7 +766,7 @@ const WaUsersPage = () => {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <div className="flex flex-wrap gap-1">
+                          <div className="flex flex-wrap gap-1 max-w-[180px]">
                             {user.context?.interests?.map((interest, i) => (
                               <Badge key={i} variant="outline" className="bg-slate-50 text-slate-600 border-slate-200 text-[10px] font-medium">
                                 {interest}
@@ -613,16 +802,38 @@ const WaUsersPage = () => {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <TrendingUp className="h-3.5 w-3.5 text-slate-400" />
-                            <span className="font-bold text-slate-700 text-sm">{user.metrics.total_tokens.toLocaleString()}</span>
+                            <span className="font-bold text-slate-700 text-sm">
+                              {(user.metrics?.total_tokens ?? 0).toLocaleString()}
+                            </span>
                           </div>
                         </TableCell>
                         <TableCell className="text-slate-500 text-sm font-medium">
-                          {new Date(user.created_at).toLocaleDateString('pt-BR')}
+                          {user.created_at ? new Date(user.created_at).toLocaleDateString('pt-BR') : '-'}
                         </TableCell>
-                        <TableCell className="text-right pr-8">
-                          <Button variant="ghost" size="icon" className="text-slate-400 group-hover:text-primary transition-colors">
-                            <MessageSquare className="h-5 w-5" />
-                          </Button>
+                        <TableCell className="text-right pr-6" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              title="Visualizar detalhes do fiel"
+                              onClick={() => handleUserClick(user)}
+                              className="h-9 w-9 text-slate-400 hover:text-primary hover:bg-blue-50 transition-colors rounded-xl"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              title="Excluir fiel definitivamente"
+                              onClick={() => {
+                                setUserToDelete(user)
+                                setShowPermanentDeleteConfirm(true)
+                              }}
+                              className="h-9 w-9 text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors rounded-xl"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
@@ -646,7 +857,7 @@ const WaUsersPage = () => {
                     <div className="relative group">
                       <Avatar className="h-20 w-20 border-4 border-white shadow-xl ring-1 ring-slate-100 transition-transform duration-500 group-hover:scale-105">
                         <AvatarFallback className="bg-gradient-to-br from-primary to-blue-600 text-white text-2xl font-black">
-                          {selectedUser.name ? selectedUser.name[0] : 'U'}
+                          {selectedUser.name ? selectedUser.name[0] : (selectedUser.email ? selectedUser.email[0].toUpperCase() : 'U')}
                         </AvatarFallback>
                       </Avatar>
                       <div className={cn(
@@ -657,7 +868,7 @@ const WaUsersPage = () => {
                     <div className="space-y-1">
                       <div className="flex items-center gap-3">
                         <DialogTitle className="text-3xl font-black text-slate-900 tracking-tight leading-none flex items-center gap-3">
-                          {selectedUser.name || 'Fiel sem nome'}
+                          {selectedUser.name || (selectedUser.email ? selectedUser.email.split('@')[0] : 'Fiel sem nome')}
                           {selectedUser.is_paused && (
                             <Badge className="rounded-full px-2.5 py-0.5 border-none bg-amber-100 text-amber-800 font-black text-[9px] uppercase tracking-tighter shadow-sm animate-pulse flex items-center gap-1">
                               <span className="h-1.5 w-1.5 rounded-full bg-amber-600" />
@@ -675,35 +886,69 @@ const WaUsersPage = () => {
                         )}>
                           {selectedUser.status === 'active' ? 'ATIVO' : selectedUser.status === 'disabled' ? 'DESATIVADO' : 'TRIAGEM'}
                         </Badge>
+                        <Badge variant="outline" className={cn(
+                          "rounded-full px-3 py-1 border-none font-black text-[10px] uppercase tracking-tighter shadow-sm",
+                          isMobileUser(selectedUser) 
+                            ? "bg-blue-100 text-blue-700" 
+                            : "bg-emerald-100 text-emerald-700"
+                        )}>
+                          {isMobileUser(selectedUser) ? '📱 App Mobile' : '💬 WhatsApp Legado'}
+                        </Badge>
                       </div>
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-slate-400 font-bold text-sm">
-                        <span>{selectedUser.phone}</span>
-                        <span>ID: {selectedUser.wa_chatid.split('@')[0]}</span>
-                        <span>Desde {new Date(selectedUser.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
+                        {selectedUser.email && (
+                          <span className="flex items-center gap-1.5 text-slate-700 font-semibold">
+                            <Mail className="h-3.5 w-3.5 text-primary" />
+                            {selectedUser.email}
+                          </span>
+                        )}
+                        {selectedUser.phone && (
+                          <span className="flex items-center gap-1.5">
+                            <Phone className="h-3.5 w-3.5" />
+                            {selectedUser.phone}
+                          </span>
+                        )}
+                        <span>
+                          ID: {selectedUser.wa_chatid ? selectedUser.wa_chatid.split('@')[0] : (selectedUser.id ? selectedUser.id.substring(0, 8) : 'App')}
+                        </span>
+                        <span>
+                          Desde {selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }) : '-'}
+                        </span>
                       </div>
                     </div>
                   </div>
-                    <div className="flex items-center gap-3">
-                      <Button 
-                        variant="outline" 
-                        onClick={() => setShowDeleteConfirm(true)}
-                        className="rounded-xl border-red-100 font-black h-11 px-6 text-xs text-red-500 hover:bg-red-50 hover:text-red-600 shadow-sm transition-all hover:scale-105 active:scale-95"
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Excluir dados
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        onClick={() => setShowSettings(!showSettings)}
-                        className={cn(
-                          "rounded-xl border-slate-200 font-black h-11 px-6 text-xs shadow-sm transition-all hover:scale-105 active:scale-95",
-                          showSettings ? "bg-slate-100 border-slate-300 text-slate-900" : "hover:bg-slate-50 text-slate-600"
-                        )}
-                      >
-                        <Settings className="h-4 w-4 mr-2" />
-                        Configurações
-                      </Button>
-                    </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => {
+                        setUserToDelete(selectedUser)
+                        setShowPermanentDeleteConfirm(true)
+                      }}
+                      className="rounded-xl border-red-200 font-black h-11 px-5 text-xs text-red-600 hover:bg-red-50 hover:border-red-300 shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Excluir Conta
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setShowClearDataConfirm(true)}
+                      className="rounded-xl border-amber-200 font-black h-11 px-5 text-xs text-amber-700 hover:bg-amber-50 shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                    >
+                      <RotateCcw className="h-4 w-4 mr-2" />
+                      Limpar Histórico
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setShowSettings(!showSettings)}
+                      className={cn(
+                        "rounded-xl border-slate-200 font-black h-11 px-6 text-xs shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer",
+                        showSettings ? "bg-slate-100 border-slate-300 text-slate-900" : "hover:bg-slate-50 text-slate-600"
+                      )}
+                    >
+                      <Settings className="h-4 w-4 mr-2" />
+                      Configurações
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Collapsible Settings Panel */}
@@ -920,9 +1165,9 @@ const WaUsersPage = () => {
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-8 px-1">
                   {[
                     { label: 'Assinatura', value: selectedUser.subscription_tier === 'basic' ? 'Básico' : selectedUser.subscription_tier === 'premium' ? 'Premium' : selectedUser.subscription_tier === 'unlimited' ? 'Ilimitado' : 'Gratuito', unit: 'nível', icon: Heart, color: selectedUser.subscription_tier === 'free' ? 'slate' : 'amber' },
-                    { label: 'Consumo Total', value: selectedUser.metrics.total_tokens.toLocaleString(), unit: 'tokens', icon: TrendingUp, color: 'blue' },
-                    { label: 'Custo Total (IA)', value: `$${selectedUser.metrics.total_cost_usd?.toFixed(3)}`, unit: 'USD', icon: TrendingUp, color: 'green' },
-                    { label: 'Total Mensagens', value: selectedUser.metrics.total_messages.toLocaleString(), unit: 'mensagens', icon: MessageSquare, color: 'amber' },
+                    { label: 'Consumo Total', value: (selectedUser.metrics?.total_tokens ?? 0).toLocaleString(), unit: 'tokens', icon: TrendingUp, color: 'blue' },
+                    { label: 'Custo Total (IA)', value: `$${(selectedUser.metrics?.total_cost_usd ?? 0).toFixed(3)}`, unit: 'USD', icon: TrendingUp, color: 'green' },
+                    { label: 'Total Mensagens', value: (selectedUser.metrics?.total_messages ?? 0).toLocaleString(), unit: 'mensagens', icon: MessageSquare, color: 'amber' },
                   ].map((stat, i) => (
                     <div key={i} className="bg-slate-50/80 rounded-2xl p-4 border border-slate-100/50 hover:bg-white hover:shadow-lg hover:border-white transition-all duration-300 group">
                       <div className="flex justify-between items-start mb-2">
@@ -1224,7 +1469,7 @@ const WaUsersPage = () => {
                       <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100">
                         <h3 className="text-lg font-black text-slate-800 mb-6">Consumo por Modelo</h3>
                         <div className="space-y-6">
-                          {selectedUser.metrics.breakdown.map((item: any) => (
+                          {(selectedUser.metrics?.breakdown || []).map((item: any) => (
                             <div key={item.model} className="group/item">
                               <div className="flex justify-between text-[10px] font-black uppercase mb-2">
                                 <div className="flex flex-col">
@@ -1232,7 +1477,7 @@ const WaUsersPage = () => {
                                   <span className="text-slate-400 font-bold">${item.costUsd?.toFixed(4)} USD</span>
                                 </div>
                                 <div className="text-right">
-                                  <span className="text-primary">{item.tokens.toLocaleString()} tokens</span>
+                                  <span className="text-primary">{item.tokens?.toLocaleString()} tokens</span>
                                   <div className="flex gap-2 justify-end text-[8px] text-slate-400 font-bold uppercase mt-0.5">
                                     <span>IN: {item.promptTokens?.toLocaleString()}</span>
                                     <span>OUT: {item.completionTokens?.toLocaleString()}</span>
@@ -1240,7 +1485,7 @@ const WaUsersPage = () => {
                                 </div>
                               </div>
                               <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                                <div className="h-full bg-primary" style={{ width: `${(item.tokens / selectedUser.metrics.total_tokens) * 100}%` }} />
+                                <div className="h-full bg-primary" style={{ width: `${(item.tokens / (selectedUser.metrics?.total_tokens || 1)) * 100}%` }} />
                               </div>
                             </div>
                           ))}
@@ -1276,38 +1521,103 @@ const WaUsersPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Modal */}
-      <Dialog open={showDeleteConfirm} onOpenChange={() => setShowDeleteConfirm(false)}>
-        <DialogContent className="bg-white border-none sm:max-w-[450px] p-8 rounded-[2rem] shadow-2xl">
+      {/* Permanent Account Deletion Modal */}
+      <Dialog open={showPermanentDeleteConfirm} onOpenChange={(open) => {
+        if (!open) {
+          setShowPermanentDeleteConfirm(false)
+          setUserToDelete(null)
+        }
+      }}>
+        <DialogContent className="bg-white border-none sm:max-w-[480px] p-8 rounded-[2.5rem] shadow-2xl">
           <div className="flex flex-col items-center text-center space-y-6">
-            <div className="h-20 w-20 bg-red-50 rounded-3xl flex items-center justify-center">
-              <AlertTriangle className="h-10 w-10 text-red-500" />
+            <div className="h-20 w-20 bg-red-50 rounded-3xl flex items-center justify-center ring-8 ring-red-50/50">
+              <AlertTriangle className="h-10 w-10 text-red-600 animate-pulse" />
+            </div>
+            
+            <div className="space-y-3">
+              <DialogTitle className="text-2xl font-black text-slate-900 tracking-tight">
+                Excluir permanentemente este fiel?
+              </DialogTitle>
+              <p className="text-sm font-semibold text-slate-600 leading-relaxed">
+                Você está prestes a excluir definitivamente o fiel <span className="text-slate-900 font-black">{userToDelete?.name || userToDelete?.email}</span>.
+              </p>
+              <div className="bg-red-50/80 border border-red-100 rounded-2xl p-4 text-left text-xs space-y-2 text-red-900 font-medium">
+                <p className="font-bold flex items-center gap-1.5 text-red-700 uppercase text-[10px] tracking-wider">
+                  <ShieldCheck className="h-4 w-4" /> Ações que serão executadas:
+                </p>
+                <ul className="list-disc pl-4 space-y-1 text-slate-700 text-xs">
+                  <li>Exclusão completa do cadastro da base de dados (Postgres)</li>
+                  <li>Remoção da conta de login no aplicativo (Supabase Auth)</li>
+                  <li>Eliminação em cascata de mensagens, orações, novenas e histórico</li>
+                  <li>Liberação do e-mail para novo cadastro limpo se desejado</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="flex flex-col w-full gap-3 pt-2">
+              <Button 
+                onClick={handleDeleteUserPermanently}
+                disabled={deleting}
+                className="bg-red-600 hover:bg-red-700 text-white rounded-2xl h-14 font-black shadow-lg shadow-red-200/80 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
+              >
+                {deleting ? (
+                  <>
+                    <span className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                    Excluindo definitivamente...
+                  </>
+                ) : (
+                  'Sim, Excluir Definitivamente'
+                )}
+              </Button>
+              <Button 
+                variant="ghost" 
+                onClick={() => {
+                  setShowPermanentDeleteConfirm(false)
+                  setUserToDelete(null)
+                }}
+                disabled={deleting}
+                className="text-slate-400 font-bold hover:bg-slate-50 h-12 rounded-2xl cursor-pointer"
+              >
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Clear Pastoral Data Only Modal */}
+      <Dialog open={showClearDataConfirm} onOpenChange={() => setShowClearDataConfirm(false)}>
+        <DialogContent className="bg-white border-none sm:max-w-[450px] p-8 rounded-[2.5rem] shadow-2xl">
+          <div className="flex flex-col items-center text-center space-y-6">
+            <div className="h-20 w-20 bg-amber-50 rounded-3xl flex items-center justify-center ring-8 ring-amber-50/50">
+              <RotateCcw className="h-10 w-10 text-amber-600" />
             </div>
             
             <div className="space-y-2">
               <DialogTitle className="text-2xl font-black text-slate-900 tracking-tight">
-                Apagar dados de {selectedUser?.name}?
+                Limpar dados pastorais de {selectedUser?.name || 'fiel'}?
               </DialogTitle>
-              <p className="text-sm font-bold text-slate-500 leading-relaxed">
-                Esta ação irá apagar permanentemente todas as mensagens, resumos pastorais, interesses e métricas de consumo. 
-                <span className="block mt-2 text-red-500 uppercase text-[10px] tracking-widest font-black">
-                  Nome e Telefone serão preservados.
+              <p className="text-sm font-semibold text-slate-600 leading-relaxed">
+                Esta ação irá apagar o histórico de mensagens e resumo pastoral da IA. 
+                <span className="block mt-2 text-amber-700 uppercase text-[10px] tracking-widest font-black">
+                  A conta e acesso do usuário permanecerão ativos.
                 </span>
               </p>
             </div>
 
-            <div className="flex flex-col w-full gap-3">
+            <div className="flex flex-col w-full gap-3 pt-2">
               <Button 
                 onClick={handleClearData}
                 disabled={deleting}
-                className="bg-red-500 hover:bg-red-600 text-white rounded-2xl h-14 font-black shadow-lg shadow-red-200/50 transition-all hover:scale-[1.02] active:scale-95"
+                className="bg-amber-500 hover:bg-amber-600 text-white rounded-2xl h-14 font-black shadow-lg shadow-amber-200/50 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
               >
-                {deleting ? 'Apagando...' : 'Sim, Apagar Tudo'}
+                {deleting ? 'Limpando...' : 'Sim, Limpar Dados'}
               </Button>
               <Button 
                 variant="ghost" 
-                onClick={() => setShowDeleteConfirm(false)}
-                className="text-slate-400 font-bold hover:bg-slate-50 h-12 rounded-2xl"
+                onClick={() => setShowClearDataConfirm(false)}
+                disabled={deleting}
+                className="text-slate-400 font-bold hover:bg-slate-50 h-12 rounded-2xl cursor-pointer"
               >
                 Cancelar
               </Button>

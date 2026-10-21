@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.44.1] - 2026-10-21
+
+### Added
+
+- **Segregação Visual e Gestão de Fiéis por Ecossistema ([`wa-users.tsx`](frontend/src/pages/wa-users.tsx)):**
+  - Adicionado seletor de abas em pílulas com contadores e estilo nobre:
+    - `📱 Aplicativo Móvel (Novo Ecossistema)`: Exibe fiéis cadastrados pelo aplicativo mobile (com e-mail, autenticação oficial e status de vínculo com o WhatsApp).
+    - `💬 WhatsApp (Legado)`: Exibe fiéis provenientes do fluxo legado direto via WhatsApp.
+    - `👥 Todos os Fiéis`: Visão unificada com badges explícitos de origem para cada registro.
+  - Colunas e subtítulos adaptados com exibição de e-mail e status de vínculo WhatsApp ("Sem WhatsApp vinculado" ou número formatado).
+  - Busca inteligente combinada (nome, e-mail, telefone e WhatsApp ID).
+
+- **Exclusão Definitiva de Usuário e Limpeza Total ([`admin.controller.ts`](backend/src/admin/admin.controller.ts) & [`admin.service.ts`](backend/src/admin/admin.service.ts)):**
+  - Implementado endpoint `DELETE /panel/wa-users/:id` (com alias `DELETE /panel/users/:id`).
+  - Remoção em cascata no PostgreSQL de todos os dados dependentes (histórico de mensagens, resumos pastorais, logs de IA, planos espirituais, novenas e agendamentos).
+  - Exclusão correspondente da conta de autenticação no Supabase Auth (`supabase.auth.admin.deleteUser`) para liberar e-mail e permitir recadastros limpos.
+  - Registro de auditoria em `activity_logs` (`delete_user_permanently`).
+  - Diálogo de confirmação de exclusão definitiva com alertas detalhados e botão de exclusão rápida em cada linha da tabela.
+
+### Fixed
+
+- **Correção da Tela em Branco ao Clicar em Usuários Mobile ([`wa-users.tsx`](frontend/src/pages/wa-users.tsx)):**
+  - Resolvido o erro fatal `TypeError: Cannot read properties of null (reading 'split')` que ocorria ao abrir registros de usuários criados pelo aplicativo (como Mariana Alves Mendes) que possuem `wa_chatid = null` e `phone = null`.
+  - Adicionados fallbacks defensivos para todas as propriedades de contato, identificadores e métricas de IA.
+
 ## [1.44.0] - 2026-10-21
 
 ### Added
