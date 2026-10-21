@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { UazapiService } from '../uazapi/uazapi.service';
+import { MailService } from '../mail/mail.service';
 
 export class MobileSignUpDto {
   firstName: string;
@@ -42,6 +43,7 @@ export class MobileAuthService {
   constructor(
     private readonly supabaseService: SupabaseService,
     private readonly uazapiService: UazapiService,
+    private readonly mailService: MailService,
   ) {}
 
   /**
@@ -64,14 +66,14 @@ export class MobileAuthService {
       throw new BadRequestException('A senha deve ter no mínimo 6 caracteres.');
     }
 
-    const hasUpperCase = /[A-Z]/.test(dto.password);
-    const hasLowerCase = /[a-z]/.test(dto.password);
+    const hasLetter = /[a-zA-ZÀ-ÿ]/.test(dto.password);
     const hasNumber = /[0-9]/.test(dto.password);
-    const hasSymbol = /[^a-zA-Z0-9\s]/.test(dto.password);
+    const hasSymbol = /[^a-zA-Z0-9À-ÿ\s]/.test(dto.password);
+    const typesCount = [hasLetter, hasNumber, hasSymbol].filter(Boolean).length;
 
-    if (!hasUpperCase || !hasLowerCase || !hasNumber || !hasSymbol) {
+    if (typesCount < 2) {
       throw new BadRequestException(
-        'A senha deve conter pelo menos uma letra maiúscula, uma letra minúscula, um número e um símbolo.',
+        'A senha deve conter pelo menos dois tipos diferentes (ex: letras e números, letras e símbolos).',
       );
     }
 
@@ -373,24 +375,226 @@ export class MobileAuthService {
   }
 
   /**
-   * Solicitação de redefinição de senha por e-mail padrão do Supabase.
+   * Solicitação de redefinição de senha com envio de código OTP de 6 dígitos via e-mail próprio da MarIA.
    */
   async forgotPassword(email: string): Promise<{ message: string }> {
-    if (!email) {
+    if (!email || !email.trim()) {
       throw new BadRequestException('E-mail é obrigatório.');
     }
     const cleanEmail = email.toLowerCase().trim();
     const supabase = this.supabaseService.getClient();
 
-    const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail);
-    if (error) {
-      this.logger.warn(`[MobileAuth] Falha no resetPasswordForEmail: ${error.message}`);
+    // 1. Localiza se o usuário existe em public.users
+    const { data: publicUser } = await supabase
+      .from('users')
+      .select('id, name, email')
+      .eq('email', cleanEmail)
+      .maybeSingle();
+
+    // Gera código numérico de 6 dígitos
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+
+    // Invalida códigos anteriores não utilizados para o mesmo e-mail
+    await supabase
+      .from('password_resets')
+      .update({ used_at: new Date().toISOString() })
+      .eq('email', cleanEmail)
+      .is('used_at', null);
+
+    // Salva o novo código na tabela dedicada
+    const { error: insertError } = await supabase.from('password_resets').insert({
+      email: cleanEmail,
+      code,
+      expires_at: expiresAt,
+    });
+
+    if (insertError) {
+      this.logger.error(`[MobileAuth] Falha ao gravar password_resets: ${insertError.message}`);
+      throw new BadRequestException('Falha ao processar solicitação de recuperação.');
     }
 
-    // Resposta amigável e segura (não confirma existência de conta)
+    // Dispara e-mail com layout sacro oficial da MarIA
+    await this.mailService.sendPasswordResetOtpEmail(
+      cleanEmail,
+      code,
+      publicUser?.name,
+    );
+
     return {
-      message:
-        'Se o e-mail informado estiver cadastrado, você receberá um link para redefinir sua senha.',
+      message: 'Código de verificação de 6 dígitos enviado com sucesso para o seu e-mail.',
+    };
+  }
+
+  /**
+   * Redefinição de senha diretamente no app utilizando o código OTP de 6 dígitos.
+   */
+  async resetPasswordWithOtp(dto: {
+    email: string;
+    code: string;
+    newPassword: string;
+  }): Promise<{ message: string }> {
+    if (!dto.email || !dto.email.trim()) {
+      throw new BadRequestException('E-mail é obrigatório.');
+    }
+    if (!dto.code || !dto.code.trim()) {
+      throw new BadRequestException('Código de verificação de 6 dígitos é obrigatório.');
+    }
+    if (!dto.newPassword || dto.newPassword.length < 6) {
+      throw new BadRequestException('A nova senha deve ter no mínimo 6 caracteres.');
+    }
+
+    // Regra flexibilizada: mínimo 6 caracteres e pelo menos 2 tipos diferentes
+    const hasLetter = /[a-zA-ZÀ-ÿ]/.test(dto.newPassword);
+    const hasNumber = /[0-9]/.test(dto.newPassword);
+    const hasSymbol = /[^a-zA-Z0-9À-ÿ\s]/.test(dto.newPassword);
+    const typesCount = [hasLetter, hasNumber, hasSymbol].filter(Boolean).length;
+
+    if (typesCount < 2) {
+      throw new BadRequestException(
+        'A nova senha deve conter pelo menos dois tipos diferentes (ex: letras e números, letras e símbolos).',
+      );
+    }
+
+    const cleanEmail = dto.email.toLowerCase().trim();
+    const cleanCode = dto.code.trim();
+    const supabase = this.supabaseService.getClient();
+
+    // 1. Valida o código na tabela password_resets
+    const { data: resetRecord, error: resetError } = await supabase
+      .from('password_resets')
+      .select('*')
+      .eq('email', cleanEmail)
+      .eq('code', cleanCode)
+      .is('used_at', null)
+      .gt('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (resetError || !resetRecord) {
+      throw new BadRequestException(
+        'Código de verificação inválido ou expirado. Verifique os números digitados ou solicite um novo código.',
+      );
+    }
+
+    // 2. Marca o código como utilizado imediatamente
+    await supabase
+      .from('password_resets')
+      .update({ used_at: new Date().toISOString() })
+      .eq('id', resetRecord.id);
+
+    // 3. Obtém o auth_user_id do usuário
+    let { data: publicUser } = await supabase
+      .from('users')
+      .select('id, auth_user_id, email')
+      .eq('email', cleanEmail)
+      .maybeSingle();
+
+    let authUserId = publicUser?.auth_user_id;
+
+    if (!authUserId) {
+      const { data: authList } = await supabase.auth.admin.listUsers();
+      const foundAuth = (authList?.users as any[])?.find(
+        (u: any) => (u.email || '').toLowerCase().trim() === cleanEmail,
+      );
+      authUserId = foundAuth?.id;
+    }
+
+    if (!authUserId) {
+      throw new BadRequestException('Usuário não localizado no sistema de autenticação.');
+    }
+
+    // 4. Atualiza a senha no Supabase Auth via Admin API
+    const { error: updateError } = await supabase.auth.admin.updateUserById(
+      authUserId,
+      { password: dto.newPassword },
+    );
+
+    if (updateError) {
+      this.logger.error(`[MobileAuth] Falha no updateUserById: ${updateError.message}`);
+      throw new BadRequestException('Falha ao atualizar a senha no servidor.');
+    }
+
+    this.logger.log(`[MobileAuth] Senha redefinida com sucesso para ${cleanEmail}`);
+
+    return {
+      message: 'Senha redefinida com sucesso! Você já pode entrar com sua nova senha.',
+    };
+  }
+
+  /**
+   * Login no aplicativo a partir de sessão gerada via Supabase Web OAuth (Google).
+   */
+  async loginWithSupabaseSession(dto: { accessToken: string }): Promise<{
+    user: MobileUserResponse;
+    token: string;
+  }> {
+    const supabase = this.supabaseService.getClient();
+    if (!dto.accessToken || !dto.accessToken.trim()) {
+      throw new BadRequestException('Token de sessão é obrigatório.');
+    }
+
+    const { data: authData, error: authError } = await supabase.auth.getUser(
+      dto.accessToken.trim(),
+    );
+
+    if (authError || !authData.user) {
+      this.logger.error(`[MobileAuth] Falha ao obter usuário pelo token: ${authError?.message}`);
+      throw new UnauthorizedException('Token de autenticação inválido ou expirado.');
+    }
+
+    const authUser = authData.user;
+    const cleanEmail = (authUser.email || '').toLowerCase().trim();
+    const fullName =
+      authUser.user_metadata?.full_name ||
+      authUser.user_metadata?.name ||
+      'Fiel MarIA';
+
+    let { data: publicUser } = await supabase
+      .from('users')
+      .select('*')
+      .or(`auth_user_id.eq.${authUser.id},email.eq.${cleanEmail}`)
+      .maybeSingle();
+
+    if (!publicUser) {
+      const { data: createdUser, error: createError } = await supabase
+        .from('users')
+        .insert({
+          auth_user_id: authUser.id,
+          email: cleanEmail,
+          name: fullName,
+          status: 'active',
+          origin: 'mobile',
+          subscription_tier: 'free',
+          receive_daily_liturgy: true,
+          receive_daily_exam: true,
+          receive_daily_saint: false,
+          whatsapp_bridge_enabled: true,
+        })
+        .select()
+        .single();
+
+      if (createError) {
+        throw new BadRequestException('Falha ao inicializar perfil do usuário.');
+      }
+      publicUser = createdUser;
+    } else {
+      const updates: any = {};
+      if (!publicUser.auth_user_id) updates.auth_user_id = authUser.id;
+      if (!publicUser.email && cleanEmail) updates.email = cleanEmail;
+      if ((!publicUser.name || publicUser.name === 'Fiel MarIA') && fullName) {
+        updates.name = fullName;
+      }
+      if (Object.keys(updates).length > 0) {
+        await supabase.from('users').update(updates).eq('id', publicUser.id);
+        publicUser = { ...publicUser, ...updates };
+      }
+    }
+
+    return {
+      user: this.mapUser(publicUser),
+      token: dto.accessToken.trim(),
     };
   }
 

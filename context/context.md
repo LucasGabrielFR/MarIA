@@ -545,4 +545,65 @@ Este arquivo armazena o histórico contínuo de contexto, decisões de arquitetu
 - Monitorar a entrega dos botões interativos das novenas no WhatsApp.
 ---
 
+## Sessão: 2026-10-21 01:15 (UTC-3)
+### 📌 Resumo da Sessão
+- **Diagnóstico e Unificação de Lembretes & Deduplicação de Mensagens:**
+  - Análise da duplicidade de mensagens (concorrência entre ambiente de desenvolvimento local e produção conectados à mesma base/Redis).
+  - Unificação de lembretes entre o WhatsApp e o Plano de Vida Espiritual do app, consolidando o aplicativo como fonte primária da verdade.
+- **Data Litúrgica Dinâmica & Resolução do Santo do Dia:**
+  - Eliminação de qualquer horário chumbado no código: a data é obtida diretamente do relógio do celular (`DateTime.now()`) e enviada na requisição HTTP `GET /mobile/daily-content?date=YYYY-MM-DD`.
+  - Implementação de suporte canônico a múltiplos santos celebrados no mesmo dia (ex: 21/10 com São Gaspar del Búfalo, São Hilarião e Santa Úrsula).
+  - No `SaintHeroCard`, inclusão de frase maternal acolhedora indicando a comunhão dos demais santos: *“Olha, temos mais dois santos hoje: São Hilarião e Santa Úrsula, por exemplo.”*
+  - Na tela `SaintDetailPage`, refatoração para exibir todos os santos celebrados em **uma única página contínua e sequencial** com divisores litúrgicos sacros (`⚜️`), sem abas ocultas.
+- **Notificações Push Reais no Sistema Operacional Android/iOS:**
+  - Implementação do canal nativo de alta prioridade `maria_devotional_channel` via `flutter_local_notifications` com som de sino, vibração, visibilidade em tela de bloqueio e heads-up banner.
+  - Sincronização automática dos hábitos e orações diárias com alarmes exatos do smartphone (`exactAllowWhileIdle`).
+  - Botão de validação imediata em Configurações.
+- **Publicação do Aplicativo na Web (`maria.acutistech.com.br/mobile`):**
+  - Adaptação do Flutter para compilação Web (`flutter build web --base-href "/mobile/" --release`).
+  - Configuração do API Gateway no Nginx (`frontend/nginx.conf`) sob `location /mobile` com fallback para `index.html`.
+  - Resolução dinâmica da API no navegador (`AppConfig.apiBaseUrl`) apontando para `${Uri.base.origin}/api`, eliminando problemas de CORS e portas adicionais.
+  - Enquadramento desktop elegante com moldura mobile centralizada (460px), fundo azul profundo sacro (`#070D1E`) e sombras suaves para navegação em computadores, com responsividade fluida em smartphones.
+  - Guards de plataforma web (`kIsWeb`) em `local_notification_service.dart`.
+- **Criação do Guia de Deploy para IA do Servidor ([`DEPLOY_GUIDELINES.md`](file:///d:/Programming/AcutisTech/MarIA/DEPLOY_GUIDELINES.md)):**
+  - Elaboração de runbook completo e padronizado para execução autônoma por agentes de IA ou engenheiros de infraestrutura no servidor VPS, incluindo comandos Docker, compilação de Flutter Web sem necessidade de Flutter instalado no host (via container temporário), checklist cURL de verificação e procedimentos de rollback.
+
+### 🏗️ Decisões Técnicas e de Arquitetura
+- **Base Href Obrigatório:** Definido `--base-href "/mobile/"` para que o roteador Flutter Web e os assets carreguem perfeitamente sob o subcaminho sem colidir com a Landing Page na raiz `/`.
+- **Nginx Gateway Unificado:** Todas as rotas externas passam pelo mesmo proxy reverso: `/` (Landing), `/admin` (Painel Vite), `/mobile` (Flutter Web), `/api/` (NestJS) e `/webhook/` (Asaas/Uazapi).
+- **Leitura Contínua Devocional:** Rejeição de abas fechadas em favor de uma única tela de rolagem para o Santo do Dia, proporcionando imersão espiritual ininterrupta.
+- **Segurança e Compatibilidade Web:** O uso de `defaultTargetPlatform` e verificações `kIsWeb` antes de bibliotecas de SO (`Platform.environment`) garante que a mesma base de código compile e rode com estabilidade no Android, iOS e Web.
+
+### 🛠️ Alterações e Implementações
+- **Novos Arquivos:**
+  - [`DEPLOY_GUIDELINES.md`](file:///d:/Programming/AcutisTech/MarIA/DEPLOY_GUIDELINES.md): Guia e runbook completo de deploy para agentes de IA e operadores.
+- **Infraestrutura & Web:**
+  - [`frontend/nginx.conf`](file:///d:/Programming/AcutisTech/MarIA/frontend/nginx.conf): Adicionado bloco `location /mobile`.
+  - [`frontend/Dockerfile`](file:///d:/Programming/AcutisTech/MarIA/frontend/Dockerfile): Cópia dos estáticos `mobile/build/web` para a imagem Nginx.
+  - [`package.json`](file:///d:/Programming/AcutisTech/MarIA/package.json): Adicionado comando `build:mobile:web`.
+  - Reconstrução Docker: Containers `maria-frontend-1` e `maria-backend-1` reconstruídos e ativos.
+- **Mobile (`mobile/`):**
+  - [`lib/core/config/app_config.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/core/config/app_config.dart): Resolução web de `${Uri.base.origin}/api` e eliminação de `import 'dart:io'`.
+  - [`lib/core/services/local_notification_service.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/core/services/local_notification_service.dart): Guard `kIsWeb` e canal de alta prioridade Android.
+  - [`lib/main.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/main.dart): Moldura centralizada de 460px no desktop e título devocional.
+  - [`web/index.html`](file:///d:/Programming/AcutisTech/MarIA/mobile/web/index.html): Metadados oficiais e título *"MarIA - Santuário & Devoção"*.
+  - [`lib/features/home/presentation/widgets/saint_hero_card.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/home/presentation/widgets/saint_hero_card.dart): Frase acolhedora para múltiplos santos e badge litúrgico.
+  - [`lib/features/saint_of_day/presentation/saint_detail_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/saint_of_day/presentation/saint_detail_page.dart): Tela contínua com todos os santos do dia.
+  - [`lib/features/reminders/presentation/controllers/reminders_controller.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/reminders/presentation/controllers/reminders_controller.dart): Sincronização automática com alarmes do SO.
+  - [`lib/features/settings/presentation/settings_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/settings/presentation/settings_page.dart): Botão de teste imediato de push notification.
+- **Backend (`backend/`):**
+  - [`src/mobile/mobile.service.ts`](file:///d:/Programming/AcutisTech/MarIA/backend/src/mobile/mobile.service.ts): Parser de múltiplos santos (`parseAllSaints`) do `daily_cache`.
+- **Testes & Validação:**
+  - 46/46 testes aprovados no Flutter (`All tests passed!`).
+  - `flutter analyze` 100% limpo com 0 warnings.
+  - Endpoints HTTP testados com sucesso via cURL: `/mobile/` (200), `/admin/` (200) e `/api/mobile/daily-content` (200).
+- **Documentação:**
+  - [`README.md`](file:///d:/Programming/AcutisTech/MarIA/README.md) e [`CHANGELOG.md`](file:///d:/Programming/AcutisTech/MarIA/CHANGELOG.md) atualizados nas versões `1.41.0`, `1.42.0`, `1.42.1` e `1.43.0`.
+
+### ⏳ Pendências e Próximos Passos
+- Realizar o deploy no servidor de produção seguindo as orientações de [`DEPLOY_GUIDELINES.md`](file:///d:/Programming/AcutisTech/MarIA/DEPLOY_GUIDELINES.md).
+- Testar o acesso externo no navegador em `https://maria.acutistech.com.br/mobile` validando login e consumo da API.
+- Monitorar a recepção das notificações push nativas em aparelhos físicos de usuários finais.
+---
+
 

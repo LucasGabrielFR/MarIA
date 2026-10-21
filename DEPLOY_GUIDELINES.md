@@ -135,6 +135,10 @@ curl -s -o /dev/null -w "%{http_code}" http://localhost:8081/api/mobile/daily-co
    - O Flutter Web detecta automaticamente se está rodando no navegador (`kIsWeb`) e utiliza a URL relativa `${Uri.base.origin}/api`. Isso elimina problemas de CORS, dispensa portas abertas adicionais e funciona em qualquer domínio/SSL.
 4. **Notificações e Biometria no Navegador:**
    - Recursos nativos de sistema como `flutter_local_notifications` e `Platform.environment` possuem guards `if (kIsWeb) return;` no Dart para não disparar exceções de runtime no navegador.
+5. **Autenticação Google no Navegador (Google Cloud Console):**
+   - O Google Sign-In no Web utiliza o Google Identity Services (GSI).
+   - Para que o popup do Google funcione sem erro de `origin_mismatch`, a URL de origem (`https://maria.acutistech.com.br`) deve estar cadastrada nas **"Origens JavaScript autorizadas"** do Client ID OAuth 2.0 Web no Google Cloud Console.
+   - ⚠️ *Atenção:* O Google rejeita caminhos no campo de origem (NÃO coloque `/mobile` ou barra final). Cadastre estritamente `https://maria.acutistech.com.br` (e `http://localhost:8081` para testes locais).
 
 ---
 

@@ -45,6 +45,26 @@ export class MobileAuthController {
     return this.mobileAuthService.forgotPassword(email);
   }
 
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(
+    @Body('email') email: string,
+    @Body('code') code: string,
+    @Body('newPassword') newPassword: string,
+  ) {
+    return this.mobileAuthService.resetPasswordWithOtp({
+      email,
+      code,
+      newPassword,
+    });
+  }
+
+  @Post('supabase-session')
+  @HttpCode(HttpStatus.OK)
+  async loginWithSupabaseSession(@Body('accessToken') accessToken: string) {
+    return this.mobileAuthService.loginWithSupabaseSession({ accessToken });
+  }
+
   @Get('me')
   async getMe(@Headers('authorization') authHeader?: string) {
     return this.mobileAuthService.getMe(authHeader);

@@ -5,6 +5,62 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.44.0] - 2026-10-21
+
+### Added
+
+- **Recuperação de Senha In-App com E-mail Próprio da MarIA & Código OTP de 6 Dígitos:**
+  - Criação da tabela dedicada `public.password_resets` no Supabase com expiração automática em 15 minutos e proteção RLS.
+  - Template de e-mail nobre sacro em [`mail.service.ts`](backend/src/mail/mail.service.ts) (`sendPasswordResetOtpEmail`) com paleta Azul Cobalto Mariano (`#0047AB`), medalhão oficial da MarIA, código em destaque numérico e dicas de segurança.
+  - Endpoints de backend em [`mobile-auth.service.ts`](backend/src/mobile/mobile-auth.service.ts) e [`mobile-auth.controller.ts`](backend/src/mobile/mobile-auth.controller.ts):
+    - `POST /mobile/auth/forgot-password`: Geração de OTP criptograficamente aleatório de 6 dígitos e envio de e-mail.
+    - `POST /mobile/auth/reset-password`: Validação do código OTP, verificação de expiração, aplicação das regras flexíveis de senha e atualização atômica via Supabase Admin API.
+  - Novo modal devocional [`forgot_password_modal.dart`](mobile/lib/features/auth/presentation/widgets/forgot_password_modal.dart) com fluxo em 3 etapas integradas (Solicitar e-mail -> Inserir código de 6 dígitos & nova senha -> Confirmação de sucesso).
+  - Testes automatizados unitários e de widget cobrindo 100% do novo fluxo em [`auth_test.dart`](mobile/test/auth_test.dart).
+
+### Fixed
+
+- **Resolução Definitiva do Google Sign-In no Flutter Web:**
+  - Corrigido o erro fatal `UnimplementedError: authenticate is not supported on the web` disparado pelo SDK móvel no navegador.
+  - Implementado redirecionamento OAuth direto via Supabase Auth (`/auth/v1/authorize?provider=google`) na Web ([`web_redirect.dart`](mobile/lib/core/utils/web_redirect.dart) e [`auth_controller.dart`](mobile/lib/features/auth/presentation/controllers/auth_controller.dart)).
+  - Captura automática do hash de retorno (`#access_token=...`) na inicialização do app no navegador, com limpeza transparente do histórico da URL e login unificado via endpoint `POST /mobile/auth/supabase-session`.
+
+## [1.43.4] - 2026-10-21
+
+### Changed
+
+- **Flexibilização das Regras de Validação de Senha ([`register_page.dart`](mobile/lib/features/auth/presentation/pages/register_page.dart) & [`mobile-auth.service.ts`](backend/src/mobile/mobile-auth.service.ts)):**
+  - Redução das exigências de criação de senha para facilitar o cadastro dos fiéis no app mobile e na API.
+  - Mantido o requisito mínimo de 6 caracteres (compatibilidade com Supabase Auth).
+  - Substituída a obrigatoriedade concomitante de 4 categorias rígidas (maiúscula, minúscula, número e símbolo) pela exigência de **pelo menos dois tipos diferentes** (ex: letras e números, letras e símbolos, ou números e símbolos).
+  - Suporte expandido a caracteres acentuados da língua portuguesa (`[a-zA-ZÀ-ÿ]`) reconhecidos devidamente como letras.
+  - Atualização dos testes unitários em [`auth_test.dart`](mobile/test/auth_test.dart) cobrindo a nova política de validação.
+
+## [1.43.3] - 2026-10-21
+
+### Changed
+
+- **Validação e Suporte Híbrido ao Google Sign-In (Web & Mobile):**
+  - Atualizado teste unitário e de widget [`auth_test.dart`](mobile/test/auth_test.dart) para validar a interface com botão único de login Google e ausência do botão Apple.
+  - Documentado em [`DEPLOY_GUIDELINES.md`](DEPLOY_GUIDELINES.md) o requisito mandatório de configuração das **Origens JavaScript autorizadas** (`https://maria.acutistech.com.br`) no Google Cloud Console para o fluxo Google Identity Services (GSI).
+  - Reconstruído bundle do Flutter Web e imagem Docker de frontend.
+
+## [1.43.2] - 2026-10-21
+
+### Removed
+
+- **Botão de Teste de Notificação ([`settings_page.dart`](mobile/lib/features/settings/presentation/settings_page.dart)):**
+  - Removido o item e botão de disparo de notificação de teste (*"Notificações no Celular • Testar"*) da tela de Perfil & Configurações para preparação da versão final de produção.
+
+## [1.43.1] - 2026-10-21
+
+### Changed
+
+- **Foco Exclusivo no Login com Google no Mobile & Web ([`login_page.dart`](mobile/lib/features/auth/presentation/pages/login_page.dart)):**
+  - Desabilitado temporariamente o botão de autenticação social com a Apple.
+  - O botão *"Continuar com o Google"* foi expandido para largura total com feedback visual de conexão (*"Conectando ao Google..."*).
+  - Adicionada meta tag `google-signin-client_id` em [`mobile/web/index.html`](mobile/web/index.html) para compatibilidade nativa com Google Identity Services (GSI) no Flutter Web.
+
 ## [1.43.0] - 2026-10-21
 
 ### Added
