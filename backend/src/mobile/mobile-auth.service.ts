@@ -624,6 +624,18 @@ export class MobileAuthService {
   }
 
   /**
+   * Normaliza qualquer telefone brasileiro para incluir o DDI 55 caso não tenha sido informado.
+   */
+  private normalizePhone(phone: string): string {
+    const digits = (phone || '').replace(/\D/g, '');
+    if (!digits) return '';
+    if (digits.length === 10 || digits.length === 11) {
+      return `55${digits}`;
+    }
+    return digits;
+  }
+
+  /**
    * Dispara o código OTP de 6 dígitos via Uazapi para o WhatsApp do fiel.
    */
   async sendWhatsAppCode(
@@ -634,8 +646,8 @@ export class MobileAuthService {
       throw new BadRequestException('O número de WhatsApp é obrigatório.');
     }
 
-    const cleanPhone = phone.replace(/\D/g, '');
-    if (cleanPhone.length < 10) {
+    const cleanPhone = this.normalizePhone(phone);
+    if (cleanPhone.length < 12) {
       throw new BadRequestException('Número de telefone inválido com DDD.');
     }
 
@@ -679,6 +691,7 @@ export class MobileAuthService {
     const sent = await this.uazapiService.sendMessage(targetChat, message);
 
     if (!sent) {
+      this.logger.error(`[MobileAuth] Falha no disparo Uazapi para targetChat: ${targetChat}`);
       throw new BadRequestException(
         'Falha ao enviar o código pelo WhatsApp. Verifique se o número informado está correto.',
       );
@@ -703,7 +716,10 @@ export class MobileAuthService {
       throw new BadRequestException('Telefone e código são obrigatórios.');
     }
 
-    const cleanPhone = phone.replace(/\D/g, '');
+    const cleanPhone = this.normalizePhone(phone);
+    const rawDigitsWithoutDdi = cleanPhone.startsWith('55')
+      ? cleanPhone.substring(2)
+      : cleanPhone;
     const supabase = this.supabaseService.getClient();
 
     // 1. Valida o código em magic_links
@@ -746,7 +762,7 @@ export class MobileAuthService {
       .from('users')
       .select('*')
       .or(
-        `phone.eq.${cleanPhone},phone.eq.+${cleanPhone},phone.eq.55${cleanPhone},wa_chatid.ilike.%${cleanPhone}%`,
+        `phone.eq.${cleanPhone},phone.eq.${rawDigitsWithoutDdi},phone.eq.+${cleanPhone},phone.eq.+${rawDigitsWithoutDdi},wa_chatid.ilike.%${rawDigitsWithoutDdi}%`,
       )
       .maybeSingle();
 

@@ -5,7 +5,68 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.45.0] - 2026-10-21
+
+### Added
+
+- **Santo Terço Guiado Mistério por Mistério ([`simple_rosary_page.dart`](mobile/lib/features/prayers/presentation/simple_rosary_page.dart)):**
+  - Nova experiência simplificada e contemplativa do Santo Terço com avanço focado passo a passo nos mistérios (sem necessidade de tocar conta a conta a cada Ave Maria).
+  - Estrutura devocional em passos sequenciais:
+    - **Início & Oferecimento:** Sinal da Cruz, Oferecimento do Terço, orientações do crucifixo e botão retrátil para ler o Credo Apostólico, Pai Nosso, 3 Ave Marias (pela Fé, Esperança e Caridade) e Glória ao Pai por extenso.
+    - **Mistérios 1 a 5:** Cada mistério exibido com indicador de progresso (1/5 a 5/5), título do mistério e o fruto/virtude a meditar, resumo da dezena e botão expansível *"Ver orações da dezena na tela"* para o fiel acompanhar ou ler as orações completas se desejar.
+    - **Encerramento:** Agradecimento filial à Mãe de Deus e oração solene da Salve Rainha por extenso.
+  - Sincronização automática com o **Plano de Vida Espiritual**: ao concluir o terço, o hábito `holy_rosary` é marcado como cumprido no dia.
+  - Diálogo celebrativo de conclusão com mensagem espiritual e citação de São João Paulo II.
+
+- **Fonte Canônica Compartilhada de Dados dos Mistérios ([`rosary_data.dart`](mobile/lib/features/prayers/data/models/rosary_data.dart)):**
+  - Centralização dos dados dos 4 grupos canônicos de mistérios (Gozosos, Dolorosos, Gloriosos e Luminosos), virtudes, dias da semana e textos integrais das orações do terço, eliminando duplicações entre as duas telas.
+
+### Changed
+
+- **Dois Cartões Separados na Aba Orações ([`prayers_page.dart`](mobile/lib/features/prayers/presentation/prayers_page.dart)):**
+  - **Cartão 1 - "Rezar Santo Terço" (Badge "GUIADO"):** Meditação guiada mistério por mistério no próprio ritmo do fiel, com orações na tela sob demanda.
+  - **Cartão 2 - "Rezar Terço Interativo" (Badge "CONTA A CONTA"):** Experiência interativa conta por conta com toque na tela.
+  - Remoção dos termos técnicos confusos *"Háptico"* e *"com vibração tátil"*, adotando terminologia devocional clara e acolhedora.
+  - Atualização dos acessos rápidos na Home ([`quick_actions_grid.dart`](mobile/lib/features/home/presentation/widgets/quick_actions_grid.dart)) e no Plano Espiritual ([`spiritual_plan_page.dart`](mobile/lib/features/spiritual_plan/presentation/spiritual_plan_page.dart)).
+
+- **Conclusão Integrada no Terço Interativo ([`rosary_page.dart`](mobile/lib/features/prayers/presentation/rosary_page.dart)):**
+  - `RosaryPage` convertida em `ConsumerStatefulWidget` para também sincronizar a conclusão do hábito no Plano de Vida Espiritual ao finalizar a oração.
+
+### Testing
+
+- **Bateria de Testes Automatizados ([`rosary_conscience_test.dart`](mobile/test/rosary_conscience_test.dart)):**
+  - Testes de widget cobrindo 100% dos fluxos de `SimpleRosaryPage` (abertura de orações iniciais, avanço pelos 5 mistérios, expansão das orações da dezena, seletor de mistérios e encerramento com Salve Rainha).
+  - Testes de validação dos dois novos cartões em `PrayersPage`.
+  - 8 testes executados e aprovados com 100% de sucesso.
+
+## [1.44.3] - 2026-10-21
+
+### Added
+
+- **Máscara Brasileira de Telefone e Prefixo Fixo 🇧🇷 +55 ([`phone_input_formatter.dart`](mobile/lib/core/utils/phone_input_formatter.dart), [`link_whatsapp_bottom_sheet.dart`](mobile/lib/features/auth/presentation/widgets/link_whatsapp_bottom_sheet.dart) & [`novena_detail_page.dart`](mobile/lib/features/novenas/presentation/pages/novena_detail_page.dart)):**
+  - Implementada a exibição fixa da bandeira do Brasil (`🇧🇷`) com o DDI `+55` pré-definido e divisor visual, sem seletores de país.
+  - Máscara de digitação automática no formato brasileiro canônico: `(62) 99804-0577` (celulares de 11 dígitos com 9 na frente) e `(XX) XXXX-XXXX` (telefones de 10 dígitos).
+  - Tratamento inteligente que previne duplicações de DDI caso o usuário cole números que já iniciem com `55` ou `+55`.
+  - Testes automatizados unitários e de widget cobrindo 100% da formatação em [`auth_test.dart`](mobile/test/auth_test.dart).
+
+### Fixed
+
+- **Resolução da Falha no Envio de Código OTP via WhatsApp ([`mobile-auth.service.ts`](backend/src/mobile/mobile-auth.service.ts) & [`mobile.service.ts`](backend/src/mobile/mobile.service.ts)):**
+  - Corrigido o envio de JID inválido para a API Uazapi quando o usuário informava apenas o DDD e o número (ex: `62998040577`). O backend montava `${cleanPhone}@s.whatsapp.net` sem o DDI `55`, fazendo o WhatsApp rotear para a Indonésia (código de país 62) ou rejeitar o destinatário, disparando o erro *"Falha ao enviar o código pelo WhatsApp. Verifique se o número informado está correto."*.
+  - Implementada a normalização automática (`normalizePhone`) no backend para garantir que qualquer número de 10 ou 11 dígitos receba o prefixo `55` antes de chamar o Uazapi e antes de persistir o telefone e o `wa_chatid` no banco de dados.
+
+## [1.44.2] - 2026-10-21
+
+
+### Fixed
+
+- **Redirecionamento do Google OAuth em Produção & Path URL Strategy ([`auth_controller.dart`](mobile/lib/features/auth/presentation/controllers/auth_controller.dart), [`web_redirect_web.dart`](mobile/lib/core/utils/web_redirect_web.dart) e Supabase Auth):**
+  - **Supabase Auth Config:** Atualizado `site_url` para `https://maria.acutistech.com.br` e adicionada a lista de permissões de redirecionamento (`uri_allow_list`) abrangendo `https://maria.acutistech.com.br/**`, `https://maria.acutistech.com.br/mobile/**`, `https://maria.acutistech.com.br/admin/**` e `http://localhost:*`. Isso elimina o fallback incorreto para `http://localhost:3000` (que gerava o erro `ERR_CONNECTION_REFUSED`).
+  - **HTML5 Path URL Strategy:** Configurado `usePathUrlStrategy()` no Flutter Web via [`main.dart`](mobile/lib/main.dart) e [`web_redirect_web.dart`](mobile/lib/core/utils/web_redirect_web.dart), evitando conflito entre o roteador e o fragmento de hash (`#access_token=...`) retornado pelo Supabase OAuth.
+  - **Reatividade da Tela de Login:** Adicionado listener em [`login_page.dart`](mobile/lib/features/auth/presentation/pages/login_page.dart) para dispensar automaticamente o modal/página assim que a autenticação web for resolvida.
+
 ## [1.44.1] - 2026-10-21
+
 
 ### Added
 

@@ -202,12 +202,17 @@ export class MobileService {
     };
   }
 
-  /**
-   * Atualiza as preferências espirituais do fiel, refletindo diretamente nos disparos do WhatsApp.
-   */
   async updatePreferences(dto: UpdatePreferencesDto): Promise<UserPreferencesResponseDto> {
     const supabase = this.supabaseService.getClient();
-    const cleanPhone = dto.phone ? dto.phone.replace(/\D/g, '') : undefined;
+    const rawDigits = dto.phone ? dto.phone.replace(/\D/g, '') : undefined;
+    const cleanPhone = rawDigits
+      ? rawDigits.length === 10 || rawDigits.length === 11
+        ? `55${rawDigits}`
+        : rawDigits
+      : undefined;
+
+
+
 
     let user: any = null;
 
