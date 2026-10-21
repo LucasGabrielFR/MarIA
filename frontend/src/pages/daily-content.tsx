@@ -7,7 +7,18 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { apiRequest } from '@/lib/api'
 import { toast } from "sonner"
-import { Loader2, Save, RefreshCw, Sparkles, Calendar as CalendarIcon } from 'lucide-react'
+import {
+  Loader2,
+  Save,
+  RefreshCw,
+  Sparkles,
+  Calendar as CalendarIcon,
+  BookOpen,
+  CalendarDays,
+  Download,
+  CheckCircle2,
+  AlertCircle
+} from 'lucide-react'
 
 interface DailyCache {
   id: string;
@@ -17,12 +28,67 @@ interface DailyCache {
   created_at: string;
 }
 
+interface CanonicalHour {
+  id: string;
+  date: string;
+  hour_type: string;
+  liturgical_color: string;
+  liturgical_rank: string;
+  celebration_title: string;
+  has_memorial: boolean;
+  memorial_title?: string;
+  source_url?: string;
+  content: {
+    rawCleanText?: string;
+    [key: string]: any;
+  };
+  created_at: string;
+  updated_at: string;
+}
+
+const HOUR_LABELS: Record<string, string> = {
+  office_of_readings: 'Ofício das Leituras',
+  lauds: 'Laudes (Manhã)',
+  terce: 'Hora Terça (9h)',
+  sext: 'Hora Sexta (12h)',
+  none: 'Hora Nona (15h)',
+  vespers: 'Vésperas (Tarde)',
+  compline: 'Completas (Noite)',
+  invitatory: 'Invitatório',
+};
+
+const COLOR_BADGES: Record<string, { label: string; bg: string; text: string; border: string }> = {
+  green: { label: 'Verde (Tempo Comum)', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
+  white: { label: 'Branco (Luz/Solenidade)', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
+  red: { label: 'Vermelho (Mártires/Paixão)', bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200' },
+  purple: { label: 'Índigo/Roxo (Penitência)', bg: 'bg-slate-100', text: 'text-slate-800', border: 'border-slate-300' },
+  rose: { label: 'Rosa (Alegria)', bg: 'bg-pink-50', text: 'text-pink-700', border: 'border-pink-200' },
+};
+
+const RANK_LABELS: Record<string, string> = {
+  solemnity: 'Solenidade',
+  feast: 'Festa',
+  obligatory_memorial: 'Memória Obrigatória',
+  optional_memorial: 'Memória Facultativa',
+  ferial: 'Tempo Comum / Féria',
+};
+
 export default function DailyContentPage() {
   const [contents, setContents] = useState<DailyCache[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [generating, setGenerating] = useState<string | boolean>(false); // false, true (global), or type string (individual)
   const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString('sv-SE'));
+
+  // Estados específicos para Liturgia das Horas
+  const [canonicalHours, setCanonicalHours] = useState<CanonicalHour[]>([]);
+  const [loadingCanonical, setLoadingCanonical] = useState(false);
+  const [syncingDay, setSyncingDay] = useState(false);
+  const [syncingWeek, setSyncingWeek] = useState(false);
+  const [activeHourType, setActiveHourType] = useState<string>('lauds');
+  const [localTitle, setLocalTitle] = useState('');
+  const [localHourContent, setLocalHourContent] = useState('');
+  const [savingHourId, setSavingHourId] = useState<string | null>(null);
 
   const fetchDailyContent = async (date: string) => {
     setLoading(true);
@@ -37,8 +103,32 @@ export default function DailyContentPage() {
     }
   };
 
+  const fetchCanonicalHours = async (date: string) => {
+    setLoadingCanonical(true);
+    try {
+      const res = await apiRequest(`/canonical-hours/day?date=${date}`);
+      const list: CanonicalHour[] = res.hours || [];
+      setCanonicalHours(list);
+
+      if (list.length > 0) {
+        const currentActive = list.find(h => h.hour_type === activeHourType) || list[0];
+        setActiveHourType(currentActive.hour_type);
+        setLocalTitle(currentActive.celebration_title || '');
+        setLocalHourContent(currentActive.content?.rawCleanText || '');
+      } else {
+        setLocalTitle('');
+        setLocalHourContent('');
+      }
+    } catch (err) {
+      console.error("Erro ao carregar horas canônicas", err);
+    } finally {
+      setLoadingCanonical(false);
+    }
+  };
+
   useEffect(() => {
     fetchDailyContent(selectedDate);
+    fetchCanonicalHours(selectedDate);
   }, [selectedDate]);
 
   const handleUpdate = async (id: string, content: string) => {
@@ -81,6 +171,58 @@ export default function DailyContentPage() {
       console.error(error);
     } finally {
       setGenerating(false);
+    }
+  };
+
+  // Sincroniza dados deste dia (Liturgia das Horas - Sem IA)
+  const handleSyncCanonicalDay = async () => {
+    setSyncingDay(true);
+    try {
+      await apiRequest(`/canonical-hours/sync-day?date=${selectedDate}`, { method: 'POST' });
+      toast.success(`Dados da Liturgia das Horas de ${selectedDate} sincronizados!`);
+      fetchCanonicalHours(selectedDate);
+    } catch (err) {
+      toast.error("Erro ao buscar dados deste dia da Liturgia das Horas");
+      console.error(err);
+    } finally {
+      setSyncingDay(false);
+    }
+  };
+
+  // Sincroniza dados da semana (de hoje até o próximo sábado)
+  const handleSyncCanonicalWeek = async () => {
+    setSyncingWeek(true);
+    try {
+      const res = await apiRequest(`/canonical-hours/sync-week?date=${selectedDate}`, { method: 'POST' });
+      const count = res.syncedCount ?? 0;
+      toast.success(`Semana sincronizada com sucesso até sábado (${count} horas atualizadas)!`);
+      fetchCanonicalHours(selectedDate);
+    } catch (err) {
+      toast.error("Erro ao buscar dados da semana da Liturgia das Horas");
+      console.error(err);
+    } finally {
+      setSyncingWeek(false);
+    }
+  };
+
+  // Salvar alterações de uma hora canônica
+  const handleSaveCanonicalHour = async (hour: CanonicalHour) => {
+    setSavingHourId(hour.id);
+    try {
+      await apiRequest(`/canonical-hours/update/${hour.id}`, {
+        method: 'POST',
+        body: JSON.stringify({
+          celebration_title: localTitle,
+          rawCleanText: localHourContent,
+        }),
+      });
+      toast.success(`${HOUR_LABELS[hour.hour_type] || 'Hora'} atualizada com sucesso!`);
+      fetchCanonicalHours(selectedDate);
+    } catch (err) {
+      toast.error("Erro ao salvar alterações da hora canônica");
+      console.error(err);
+    } finally {
+      setSavingHourId(null);
     }
   };
 
@@ -147,6 +289,8 @@ export default function DailyContentPage() {
     );
   };
 
+  const selectedHour = canonicalHours.find(h => h.hour_type === activeHourType) || canonicalHours[0];
+
   return (
     <MainLayout title="Conteúdo Diário" subtitle="Gerencie e revise os conteúdos gerados automaticamente pela MarIA.">
       <div className="flex justify-between items-center mb-8">
@@ -162,7 +306,10 @@ export default function DailyContentPage() {
         <div className="flex gap-3">
           <Button 
             variant="outline" 
-            onClick={() => fetchDailyContent(selectedDate)}
+            onClick={() => {
+              fetchDailyContent(selectedDate);
+              fetchCanonicalHours(selectedDate);
+            }}
             className="rounded-2xl border-slate-200 font-bold text-slate-600 hover:bg-slate-50 transition-all px-6 py-6 h-auto"
           >
             <RefreshCw className="mr-2 h-5 w-5" />
@@ -174,7 +321,7 @@ export default function DailyContentPage() {
             className="rounded-2xl bg-secondary hover:bg-secondary/90 text-white font-bold px-6 py-6 h-auto shadow-lg shadow-amber-100 transition-all hover:scale-[1.02] active:scale-[0.98]"
           >
             {generating === true ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Sparkles className="mr-2 h-5 w-5" />}
-            Gerar Tudo
+            Gerar Tudo (IA)
           </Button>
         </div>
       </div>
@@ -189,6 +336,10 @@ export default function DailyContentPage() {
             <TabsTrigger value="liturgy" className="rounded-xl px-8 py-3 data-[state=active]:bg-primary data-[state=active]:text-white font-bold transition-all">Liturgia</TabsTrigger>
             <TabsTrigger value="saint" className="rounded-xl px-8 py-3 data-[state=active]:bg-primary data-[state=active]:text-white font-bold transition-all">Santo do Dia</TabsTrigger>
             <TabsTrigger value="rosary" className="rounded-xl px-8 py-3 data-[state=active]:bg-primary data-[state=active]:text-white font-bold transition-all">Terço Diário</TabsTrigger>
+            <TabsTrigger value="canonical_hours" className="rounded-xl px-8 py-3 data-[state=active]:bg-primary data-[state=active]:text-white font-bold transition-all gap-2">
+              <BookOpen className="h-4 w-4" />
+              Liturgia das Horas
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="liturgy">
@@ -215,6 +366,204 @@ export default function DailyContentPage() {
             />
           </TabsContent>
 
+          {/* Nova Aba: Liturgia das Horas (Ofício Divino - Sem IA) */}
+          <TabsContent value="canonical_hours" className="space-y-6">
+            <Card className="border-slate-100 shadow-sm rounded-3xl overflow-hidden">
+              <CardHeader className="bg-slate-50/50 border-b border-slate-100">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-3">
+                      <CardTitle className="text-xl font-bold text-slate-800">Liturgia das Horas (Ofício Divino)</CardTitle>
+                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 font-bold px-2.5 py-0.5">
+                        Sem IA • Extração Canônica
+                      </Badge>
+                    </div>
+                    <CardDescription className="font-medium text-slate-500 mt-1">
+                      Gerencie as 7 Horas Canônicas (Ofício das Leituras, Laudes, Terça, Sexta, Nona, Vésperas e Completas) da Igreja Católica.
+                    </CardDescription>
+                  </div>
+
+                  {/* Botões exclusivos desta aba solicitados pelo usuário */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSyncCanonicalDay}
+                      disabled={syncingDay || syncingWeek || loadingCanonical}
+                      className="rounded-xl border-slate-200 font-bold text-slate-700 hover:bg-slate-100 h-10 px-4 gap-2"
+                    >
+                      {syncingDay ? <Loader2 className="h-4 w-4 animate-spin text-primary" /> : <Download className="h-4 w-4 text-primary" />}
+                      Buscar dados deste dia
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      onClick={handleSyncCanonicalWeek}
+                      disabled={syncingDay || syncingWeek || loadingCanonical}
+                      className="rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold h-10 px-4 gap-2 shadow-sm"
+                    >
+                      {syncingWeek ? <Loader2 className="h-4 w-4 animate-spin text-white" /> : <CalendarDays className="h-4 w-4 text-white" />}
+                      Buscar dados da semana (até Sábado)
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+
+              <CardContent className="p-6">
+                {loadingCanonical ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-3">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="font-medium text-sm">Carregando horas canônicas da data...</p>
+                  </div>
+                ) : canonicalHours.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50 px-6">
+                    <AlertCircle className="h-12 w-12 text-slate-400 mb-3" />
+                    <h4 className="text-lg font-bold text-slate-700 mb-1">Nenhuma hora canônica registrada para esta data</h4>
+                    <p className="text-sm text-slate-500 max-w-md mb-6">
+                      Você pode sincronizar os dados deste dia específico ou antecipar a semana inteira (de hoje até sábado) sem consumir tokens de IA.
+                    </p>
+                    <div className="flex gap-3">
+                      <Button
+                        variant="outline"
+                        onClick={handleSyncCanonicalDay}
+                        disabled={syncingDay || syncingWeek}
+                        className="rounded-xl font-bold"
+                      >
+                        {syncingDay ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                        Buscar dados de {selectedDate}
+                      </Button>
+                      <Button
+                        onClick={handleSyncCanonicalWeek}
+                        disabled={syncingDay || syncingWeek}
+                        className="rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold"
+                      >
+                        {syncingWeek ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CalendarDays className="mr-2 h-4 w-4" />}
+                        Buscar dados da semana (até Sábado)
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {/* Barra de Informações Litúrgicas do Dia */}
+                    <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                        <div>
+                          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Celebração Litúrgica</span>
+                          <p className="text-base font-bold text-slate-800">{canonicalHours[0].celebration_title}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {/* Badge de Cor Litúrgica */}
+                        {(() => {
+                          const col = canonicalHours[0].liturgical_color?.toLowerCase() || 'green';
+                          const cfg = COLOR_BADGES[col] || COLOR_BADGES.green;
+                          return (
+                            <Badge variant="outline" className={`${cfg.bg} ${cfg.text} ${cfg.border} font-bold px-3 py-1`}>
+                              Cor: {cfg.label}
+                            </Badge>
+                          );
+                        })()}
+
+                        {/* Grau Litúrgico */}
+                        <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-300 font-bold px-3 py-1">
+                          {RANK_LABELS[canonicalHours[0].liturgical_rank] || 'Féria'}
+                        </Badge>
+
+                        {canonicalHours[0].has_memorial && (
+                          <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 font-bold px-3 py-1">
+                            Possui Memória de Santo
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Seletor de Hora Canônica */}
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">
+                        Selecione a Hora Canônica ({canonicalHours.length} disponíveis)
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {canonicalHours.map((h) => {
+                          const isSelected = h.hour_type === (selectedHour?.hour_type || activeHourType);
+                          return (
+                            <button
+                              key={h.id}
+                              onClick={() => {
+                                setActiveHourType(h.hour_type);
+                                setLocalTitle(h.celebration_title || '');
+                                setLocalHourContent(h.content?.rawCleanText || '');
+                              }}
+                              className={`px-4 py-2 rounded-xl text-sm font-bold transition-all border ${
+                                isSelected
+                                  ? 'bg-primary text-white border-primary shadow-sm'
+                                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                              }`}
+                            >
+                              {HOUR_LABELS[h.hour_type] || h.hour_type}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Editor da Hora Selecionada */}
+                    {selectedHour && (
+                      <div className="space-y-4 pt-2">
+                        <div>
+                          <label className="text-xs font-bold text-slate-600 block mb-1">
+                            Título da Hora / Celebração
+                          </label>
+                          <input
+                            type="text"
+                            value={localTitle}
+                            onChange={(e) => setLocalTitle(e.target.value)}
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                          />
+                        </div>
+
+                        <div>
+                          <div className="flex justify-between items-center mb-1">
+                            <label className="text-xs font-bold text-slate-600">
+                              Texto Canônico & Rubricas ({HOUR_LABELS[selectedHour.hour_type] || selectedHour.hour_type})
+                            </label>
+                            <span className="text-xs text-slate-400 font-medium">
+                              {localHourContent.length} caracteres
+                            </span>
+                          </div>
+                          <Textarea
+                            value={localHourContent}
+                            onChange={(e) => setLocalHourContent(e.target.value)}
+                            placeholder="Texto da oração..."
+                            className="min-h-[350px] font-mono text-sm leading-relaxed p-4 rounded-2xl border-slate-200 focus:ring-primary/20 focus:border-primary text-slate-700"
+                          />
+                        </div>
+
+                        <div className="flex justify-between items-center pt-2">
+                          <p className="text-xs text-slate-400">
+                            Última atualização: {new Date(selectedHour.updated_at || selectedHour.created_at).toLocaleString()}
+                          </p>
+                          <Button
+                            onClick={() => handleSaveCanonicalHour(selectedHour)}
+                            disabled={savingHourId === selectedHour.id}
+                            className="bg-primary hover:bg-primary/90 text-white font-bold px-8 py-5 rounded-xl shadow-md transition-all gap-2"
+                          >
+                            {savingHourId === selectedHour.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Save className="h-4 w-4" />
+                            )}
+                            Salvar Alterações desta Hora
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       )}
     </MainLayout>

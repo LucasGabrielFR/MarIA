@@ -21,6 +21,8 @@ import { BullModule } from '@nestjs/bullmq';
 import { RemindersModule } from './reminders/reminders.module';
 import { SystemLogsModule } from './system-logs/system-logs.module';
 
+import { CanonicalHoursModule } from './canonical-hours/canonical-hours.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -56,6 +58,7 @@ import { SystemLogsModule } from './system-logs/system-logs.module';
     RemindersModule,
     MobileModule,
     NovenasModule,
+    CanonicalHoursModule,
   ],
   controllers: [],
   providers: [],

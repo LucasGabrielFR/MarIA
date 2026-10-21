@@ -17,6 +17,8 @@ import { PlansModule } from '../plans/plans.module';
 import { AffiliatesModule } from '../affiliates/affiliates.module';
 import { FlowInterpreterService } from './flow-interpreter.service';
 
+import { CanonicalHoursModule } from '../canonical-hours/canonical-hours.module';
+
 @Module({
   imports: [
     ConfigModule,
@@ -24,6 +26,7 @@ import { FlowInterpreterService } from './flow-interpreter.service';
     AdminModule,
     PlansModule,
     AffiliatesModule,
+    CanonicalHoursModule,
     BullModule.registerQueue({ name: 'reminders-queue' }),
   ],
   controllers: [AiController, DailyCacheController],

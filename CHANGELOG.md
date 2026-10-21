@@ -5,6 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.46.0] - 2026-10-21
+
+### Added
+
+- **Liturgia das Horas / Ofício Divino ([`liturgy_of_hours_page.dart`](mobile/lib/features/prayers/presentation/liturgy_of_hours_page.dart)):**
+  - Implementação das 7 Horas Canônicas da Igreja Católica (Ofício das Leituras, Laudes, Hora Terça, Hora Sexta, Hora Nona, Vésperas e Completas) acessíveis pelo menu **Orações** no MarIA Mobile.
+  - Indicador e destaque automático da **Hora Atual Recomendada** (ex: Laudes entre 06h-09h, Vésperas entre 18h-21h, Completas após as 21h).
+  - Resumo litúrgico do dia com data navegável (Ontem, Hoje, Amanhã e Calendário), cor litúrgica, grau da celebração e semana do saltério.
+
+- **Seletor Litúrgico Dinâmico (Memória vs. Comum Ferial):**
+  - Liberdade litúrgica para o fiel: em dias com memórias (obrigatórias ou facultativas), permite alternar instantaneamente entre rezar a **Memória do Santo** ou o **Comum Ferial da Semana**, sem necessidade de recarregar a tela.
+
+- **Leitor Sacro das Horas ([`canonical_hour_reader_page.dart`](mobile/lib/features/prayers/presentation/canonical_hour_reader_page.dart)):**
+  - Tipografia litúrgica com rubricas em carmim (`#991B1B`), versículos (`V.`, `R.`, `*`, `†`) e alternância de estrofes.
+  - Ajuste de tamanho de fonte dinâmico (A- / A+) e temas de leitura devocional (Sépia Sacro, Noturno e Claro).
+  - Ação de conclusão com registro devocional.
+
+- **Pipeline Automatizado no Backend NestJS ([`canonical-hours.service.ts`](backend/src/canonical-hours/canonical-hours.service.ts)):**
+  - Extração e sanitização de dados da Liturgia das Horas sem uso de IA (zero custo de tokens), com remoção completa de anúncios, botões de Pix e banners comerciais.
+  - Persistência estruturada no Supabase em tabelas padronizadas em inglês: `canonical_hours_catalog` e `daily_canonical_hours`.
+  - Sincronização antecipada executada pelo cron semanal (`CronService`) aos domingos às 00:01 e endpoint administrativo manual `/canonical-hours/sync`.
+
+- **Gestão da Liturgia das Horas no Painel Administrativo ([`daily-content.tsx`](frontend/src/pages/daily-content.tsx)):**
+  - Adição da 4ª aba dedicada **"Liturgia das Horas"** na tela de *Conteúdo Diário*, com identificação clara de conteúdo canônico oficial sem consumo de tokens de IA.
+  - Botão **"Buscar dados deste dia"**: executa a sincronização manual das 7 horas canônicas para a data selecionada no seletor de calendário via endpoint `/canonical-hours/sync-day`.
+  - Botão **"Buscar dados da semana (até Sábado)"**: calcula o intervalo entre a data de referência e o sábado daquela semana (ex: de quarta a sábado) e dispara a sincronização em lote de todas as horas canônicas via `/canonical-hours/sync-week`.
+  - Barra de resumo litúrgico do dia com celebração, cor litúrgica, grau da celebração (Solenidade, Festa, Memória, Féria) e badge de memória.
+  - Seletor em abas/pílulas para inspecionar cada uma das 7 horas canônicas do dia (Ofício das Leituras, Laudes, Terça, Sexta, Nona, Vésperas e Completas).
+  - Editor integrado com campo para título da celebração e caixa de texto do conteúdo canônico com botão de *"Salvar Alterações desta Hora"* via endpoint `/canonical-hours/update/:id`.
+  - Painel de estado vazio (empty state) com botões de sincronização rápida caso as horas da data ainda não tenham sido importadas.
+
+- **Endpoints de Sincronização e Edição no Backend ([`canonical-hours.controller.ts`](backend/src/canonical-hours/canonical-hours.controller.ts) & [`canonical-hours.service.ts`](backend/src/canonical-hours/canonical-hours.service.ts)):**
+  - `POST /canonical-hours/sync-day`: sincroniza individualmente as horas canônicas para uma data arbitrária informada.
+  - `POST /canonical-hours/sync-week`: realiza varredura inteligente do dia selecionado até o próximo sábado da mesma semana litúrgica.
+  - `POST /canonical-hours/update/:id`: endpoint administrativo para atualização e ajuste manual de títulos e textos canônicos.
+
+- **Testes Automatizados ([`canonical_hours_test.dart`](mobile/test/canonical_hours_test.dart)):**
+  - Bateria de testes unitários e de widget cobrindo modelos, formatação, alternância de memória e renderização litúrgica.
+
 ## [1.45.0] - 2026-10-21
 
 ### Added

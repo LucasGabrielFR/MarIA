@@ -8,6 +8,7 @@ import { MagisteriumService } from './magisterium.service';
 import { PromptService } from './prompt.service';
 import { SupabaseService } from '../supabase/supabase.service';
 import { SystemLogsService } from '../system-logs/system-logs.service';
+import { CanonicalHoursService } from '../canonical-hours/canonical-hours.service';
 
 @Injectable()
 export class CronService {
@@ -22,6 +23,7 @@ export class CronService {
     private readonly promptService: PromptService,
     private readonly supabaseService: SupabaseService,
     private readonly systemLogsService: SystemLogsService,
+    private readonly canonicalHoursService: CanonicalHoursService,
   ) {}
 
   @Cron('5 0 * * *', { timeZone: 'America/Sao_Paulo' }) // Todo dia 00:05
@@ -46,6 +48,18 @@ export class CronService {
   @Cron('1 0 * * 0', { timeZone: 'America/Sao_Paulo' }) // Todo domingo 00:01
   async handleWeeklyGenerations() {
     this.logger.log('Iniciando gerações semanais...');
+
+    // Sincroniza Liturgia das Horas da semana (sem IA)
+    try {
+      this.logger.log('Sincronizando Liturgia das Horas da semana...');
+      const syncResult = await this.canonicalHoursService.syncFromWordPress();
+      await this.systemLogsService.logInfo(
+        'CronService',
+        `Sincronização da Liturgia das Horas concluída: ${syncResult.syncedCount} horas processadas.`,
+      );
+    } catch (error) {
+      this.logger.error('Erro ao sincronizar Liturgia das Horas', error);
+    }
 
     // Gera para os próximos 7 dias
     for (let i = 0; i < 7; i++) {
