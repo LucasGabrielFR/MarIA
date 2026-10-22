@@ -937,3 +937,30 @@ Este arquivo armazena o histórico contínuo de contexto, decisões de arquitetu
 - O probe real demonstra hit persistido entre dois processos novos, sem repetir busca da página de Completas. Não demonstra full sync de 29/10 nem restart de container/banco; testes de restart automatizados permanecem mockados.
 - Sem commit, pull ou push.
 ---
+
+
+---
+## Sessão: 2026-10-22 01:52 BRT
+### 📌 Resumo da Sessão
+- Inclusão de card/atalho público para Liturgia das Horas em “Devoções & Recursos” da Home, release documental 1.49.0.
+- Referência visual do pedido: screenshot cf8159ce-d3e8-4ed4-a526-4cf8d7ebb916.png.
+- Sem commit, pull ou push.
+
+### 🏗️ Decisões Técnicas e de Arquitetura
+- Usar o grid e a rota existentes: card abre LiturgyOfHoursPage; não criar fluxo novo.
+- Preservar os quatro cards e sua ordem, além do tema/layout/textos do reader e do cache.
+- Registrar separadamente o overflow preexistente da tela de destino a 360 px; o grid novo não tem overflow e a limitação não bloqueia o card.
+
+### 🛠️ Alterações e Implementações
+- Único arquivo de fonte alterado: mobile/lib/features/home/presentation/widgets/quick_actions_grid.dart, 13 linhas (um import e card público Liturgia das Horas/Ofício Divino com ícone bookOpen e cor sacredGold).
+- Senior reportou flutter analyze exit 0, No issues found em 31,5 s. Quatro probes widget temporários passaram em 430/768 px em claro/escuro: card quinto, quatro anteriores preservados, acesso anônimo, navegação para tela existente, tema mantido e retorno Home.
+- Home grid em 360 px sem overflow. LiturgyOfHoursPage tem RenderFlex overflow de 40 px à direita em 360 px; teste direto no baseline confirmou 2/2 antes do card. Nenhuma alteração foi feita na tela destino.
+- Flutter Web: npm run build:mobile:web exit 0 em 195,2 s. Docker somente frontend exit 0; container Frontend 959bd597cac5 running desde 2026-10-22T04:51:31Z; Backend 2124f02f3b98 mantido; quatro containers Up; nginx -t OK.
+- /mobile/ com base /mobile/, bootstrap, main.dart.js, /admin/ HTTP 200. main.dart.js 3.705.308 bytes SHA256 CAF770925F21360DA50877BF9C5AFC61E76DC826A6514862FBBF3955BF20EC18, igual no build local, container e HTTP no-cache. Diff check do mobile limpo.
+- README.md e CHANGELOG.md atualizados para 1.49.0; nota investigacao-liturgia-das atualizada.
+
+### ⏳ Pendências e Próximos Passos
+- Não houve PNG nem homologação visual nova nesta rodada; os probes widget cobriram navegação e temas nas larguras indicadas.
+- Overflow de 40 px da tela destino a 360 px é preexistente e foi reproduzido 2/2 no baseline; permanece fora do escopo desta alteração.
+- Tema, layout do reader, textos e cache não foram alterados. Sem commit, pull ou push.
+---

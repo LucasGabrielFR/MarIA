@@ -140,4 +140,6 @@ O painel da Liturgia das Horas apresenta grau desconhecido como `Desconhecido` e
 
 Na lista e no leitor da Liturgia das Horas, os badges exibem apenas a temporada explícita nos metadados; quando ausente ou inválida, mostram `Tempo não informado`. O Backend pode reutilizar Completas persistidas quando origem, idioma, dia da semana, temporada e variante correspondem. Exceções litúrgicas ou metadados insuficientes continuam buscando a fonte canônica. Cada registro novo recebe os metadados próprios de sua data.
 
+Na Home, “Devoções & Recursos” oferece o card público “Liturgia das Horas”, com subtítulo “Ofício Divino”, apontando para a tela existente `LiturgyOfHoursPage`.
+
 *Projeto em desenvolvimento ativo. Migração arquitetural em andamento para a arquitetura híbrida (Backend/Flows).*

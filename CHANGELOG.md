@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.49.0] - 2026-10-22
+
+### Added
+
+- Card público “Liturgia das Horas”, com subtítulo “Ofício Divino”, na seção “Devoções & Recursos” da Home. O atalho usa a rota/tela `LiturgyOfHoursPage` existente; os quatro cards anteriores e sua ordem foram preservados, sem criar fluxo novo.
+
+### Validation
+
+- `flutter analyze`: exit 0, No issues found em 31,5 s. Quatro probes temporários passaram em 430/768 px nos temas claro/escuro, cobrindo cinco cards, acesso anônimo, navegação para a tela existente, manutenção do tema e retorno à Home.
+- `npm run build:mobile:web`: exit 0 em 195,2 s. `docker compose up --build -d --no-deps frontend`: exit 0; Frontend `959bd597cac5` em execução desde `2026-10-22T04:51:31Z`; Backend `2124f02f3b98` mantido; quatro containers `Up`; `nginx -t` OK.
+- `/mobile/` (base `/mobile/`), bootstrap, `main.dart.js` e `/admin/` responderam HTTP 200. `main.dart.js` (3.705.308 bytes) SHA256 `CAF770925F21360DA50877BF9C5AFC61E76DC826A6514862FBBF3955BF20EC18`, igual no build local, container e HTTP no-cache. Diff check do mobile passou.
+- A tela de destino tem overflow RenderFlex de 40 px a 360 px; reprodução direta no baseline passou 2/2, confirmando que é preexistente e independente do card. O grid da Home não apresentou overflow a 360 px. Não houve PNG nem homologação visual nova.
+
 ## [1.48.0] - 2026-10-22
 
 ### Added
