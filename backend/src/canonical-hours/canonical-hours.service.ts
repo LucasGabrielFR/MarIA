@@ -122,14 +122,23 @@ export class CanonicalHoursService {
     const indexHtml = await indexResponse.text();
     const day = CanonicalHoursParser.parseDayIndex(indexHtml, date);
     const rank = this.classifyRank(day.celebration);
-    day.metadata.rankKnown = rank !== 'unknown' || previous.size === EXPECTED_ORATIO_HOURS.length;
-    day.metadata.memorialKnown = /mem[oó]ria/i.test(day.celebration) ||
-      rank !== 'unknown' || previous.size === EXPECTED_ORATIO_HOURS.length;
+    day.metadata.rankKnown = rank !== 'unknown';
+    day.metadata.memorialKnown = rank !== 'unknown';
     const hours = await Promise.all(day.hours.map(async (hour) => {
-      const response = await this.fetchOratio(hour.url);
-      const parsed = CanonicalHoursParser.parseHour(await response.text(), date, hour.slug);
+      const cachedCompline = hour.type === 'compline'
+        ? await this.findReusableCompline(date, hour, day.metadata, rank)
+        : null;
+      const parsed = cachedCompline
+        ? {
+            title: hour.variantTitle!,
+            rawCleanText: CanonicalHoursParser.rebaseSameHourLinks(
+              cachedCompline.content.rawCleanText!, cachedCompline.date, date, hour.slug,
+            ),
+            plainText: cachedCompline.content.plainText!,
+          }
+        : await this.fetchAndParseHour(date, hour.url, hour.slug);
       const old = previous.get(hour.type);
-      const hourRank = rank === 'unknown' ? (old?.liturgical_rank || 'unknown') : rank;
+      const hourRank = rank;
       const hasMemorial = /mem[oó]ria/i.test(day.celebration)
         ? true
         : rank !== 'unknown'
@@ -157,6 +166,115 @@ export class CanonicalHoursService {
       throw new Error(`Conjunto de horas incompleto para ${date}`);
     }
     return hours;
+  }
+
+  private async fetchAndParseHour(date: string, url: string, slug: string) {
+    const response = await this.fetchOratio(url);
+    return CanonicalHoursParser.parseHour(await response.text(), date, slug);
+  }
+
+  private async findReusableCompline(
+    date: string,
+    hour: { slug: string; type: CanonicalHourType; url: string; variantTitle?: string },
+    metadata: DailyCanonicalHourRecord['content']['dayMetadata'],
+    rank: LiturgicalRank,
+  ): Promise<{ date: string; content: DailyCanonicalHourRecord['content'] } | null> {
+    const targetKey = this.complineVariantKey(date, metadata?.season, hour.variantTitle, metadata?.psalter);
+    const explicitSunday = this.isExplicitOrdinarySunday(date, hour.variantTitle, metadata);
+    if (!targetKey || rank === 'solemnity' || /solenidade/i.test(metadata?.celebration || '') ||
+      (!metadata?.rankKnown && !explicitSunday) || (rank === 'unknown' && !explicitSunday)) return null;
+
+    const supabase = this.supabaseService.getClient();
+    const { data, error } = await supabase.from('daily_canonical_hours')
+      .select('date,hour_type,liturgical_rank,celebration_title,source_url,content')
+      .eq('hour_type', 'compline').order('date', { ascending: false }).limit(1000);
+    if (error) {
+      this.logger.warn(`Consulta de cache Completas falhou: ${error.message}`);
+      return null;
+    }
+
+    for (const row of data || []) {
+      if (!row.date || row.hour_type !== 'compline') continue;
+      const sourceUrl = String(row.source_url || '');
+      const match = sourceUrl.match(/^https:\/\/oratioapp\.com\.br\/liturgia-das-horas\/(\d{4}-\d{2}-\d{2}|\d{4}\/\d{2}\/\d{2})\/completas\/?$/);
+      if (!match) continue;
+      const sourceDate = match[1].replaceAll('/', '-');
+      if (sourceDate !== row.date) continue;
+      try {
+        CanonicalHoursParser.validateHourUrl(sourceUrl, sourceDate, hour.slug);
+      } catch {
+        continue;
+      }
+      const content = row.content || {};
+      const sourceMetadata = content.dayMetadata;
+      const sourceSunday = this.isExplicitOrdinarySunday(
+        sourceDate, row.celebration_title, sourceMetadata,
+      );
+      const allowedSourceRank = ['ferial', 'feast', 'obligatory_memorial', 'optional_memorial']
+        .includes(row.liturgical_rank);
+      if ((!allowedSourceRank && !(row.liturgical_rank === 'unknown' && sourceSunday)) ||
+        (!sourceMetadata?.rankKnown && !sourceSunday) || /solenidade/i.test(sourceMetadata?.celebration || '') ||
+        !content.rawCleanText || content.rawCleanText.length < 50 ||
+        !content.plainText || content.plainText.length < 50) continue;
+      const sourceKey = this.complineVariantKey(
+        sourceDate, sourceMetadata.season, row.celebration_title, sourceMetadata.psalter,
+      );
+      if (sourceKey === targetKey) return { date: sourceDate, content };
+    }
+    return null;
+  }
+
+  private complineVariantKey(date: string, season?: string, variantTitle?: string, psalter?: string): string | null {
+    const normalizedSeason = this.normalizeCachePart(season);
+    const normalizedVariant = this.normalizeCachePart(variantTitle);
+    if (!normalizedSeason || !normalizedVariant) return null;
+    const weekday = this.parseDateUtc(date).getUTCDay();
+    const knownVariants = new Set([
+      'completas de segunda-feira', 'completas de terça-feira', 'completas de quarta-feira',
+      'completas de quinta-feira', 'completas de sexta-feira', 'completas de sábado',
+      'i completas de domingo', 'ii completas de domingo',
+    ]);
+    if (!knownVariants.has(normalizedVariant)) return null;
+    const weekdayForTitle: Record<string, number> = {
+      'completas de segunda-feira': 1,
+      'completas de terça-feira': 2,
+      'completas de quarta-feira': 3,
+      'completas de quinta-feira': 4,
+      'completas de sexta-feira': 5,
+      'completas de sábado': 6,
+      'i completas de domingo': 6,
+      'ii completas de domingo': 0,
+    };
+    if (weekdayForTitle[normalizedVariant] !== weekday) return null;
+    const psalterPart = normalizedVariant === 'ii completas de domingo'
+      ? this.normalizeCachePart(psalter)
+      : '';
+    if (normalizedVariant === 'ii completas de domingo' && !psalterPart) return null;
+    return JSON.stringify([
+      new URL(ORATIO_BASE_URL).host,
+      'pt-BR',
+      weekday,
+      normalizedSeason,
+      normalizedVariant,
+      psalterPart,
+    ]);
+  }
+
+  private normalizeCachePart(value?: string): string {
+    return (value || '').normalize('NFKC').replace(/\s+/g, ' ').trim().toLocaleLowerCase('pt-BR');
+  }
+
+  private isExplicitOrdinarySunday(
+    date: string,
+    variantTitle?: string,
+    metadata?: DailyCanonicalHourRecord['content']['dayMetadata'],
+  ): boolean {
+    return this.parseDateUtc(date).getUTCDay() === 0 &&
+      this.normalizeCachePart(variantTitle) === 'ii completas de domingo' &&
+      this.normalizeCachePart(metadata?.season) === 'tempo comum' &&
+      /^domingo da \d+(?:ª|º|a|o)? semana do tempo comum$/i.test(
+        (metadata?.celebration || '').normalize('NFKC').replace(/\s+/g, ' ').trim(),
+      ) && Boolean(this.normalizeCachePart(metadata?.psalter));
   }
 
   private async fetchOratio(url: string): Promise<Response> {
@@ -220,6 +338,7 @@ export class CanonicalHoursService {
     if (/(?:^|\s)festa(?:\s|$)/.test(value)) return 'feast';
     if (/mem[oó]ria obrigat[oó]ria/.test(value)) return 'obligatory_memorial';
     if (/mem[oó]ria facultativa/.test(value)) return 'optional_memorial';
+    if (/^(?:(?:segunda|ter\u00e7a|quarta|quinta|sexta)-feira|s\u00e1bado) da \d+(?:\u00aa|\u00ba)? semana do tempo comum$/.test(value)) return 'ferial';
     return 'unknown';
   }
 

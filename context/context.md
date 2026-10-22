@@ -859,4 +859,81 @@ Este arquivo armazena o histórico contínuo de contexto, decisões de arquitetu
 ### ⏳ Pendências e Próximos Passos
 - Não foi feita validação visual em navegador; evidências recebidas confirmam testes, build, container e HTTP.
 - Nenhuma outra pendência técnica reportada. Sem commit/pull/push.
+------
+## Sessão: 2026-10-21 23:30 (BRT)
+### 📌 Resumo da Sessão
+- Fechamento documental da correção do tema global da Liturgia das Horas na versão 1.47.6.
+- Usuário aprovou visualmente o layout de hino, salmos, banners e hífens nas capturas anteriores. Não houve PNG final novo para a sincronização global do tema.
+- Sem commit, pull ou push.
+
+### 🏗️ Decisões Técnicas e de Arquitetura
+- O leitor integra com themeModeProvider compartilhado; Configurações persiste a escolha em SharedPreferences e protege contra carregamento tardio com _version, _hasUserChoice e ref.mounted.
+- Documentar separadamente testes automatizados, infraestrutura confirmada, interação manual incompleta e limitação da captura visual. Não inferir que os casos interativos leitor↔Configurações foram aprovados, nem classificar ausência de retorno como falha conhecida do código.
+
+### 🛠️ Alterações e Implementações
+- Mobile reportou settings_page.dart e canonical_hour_reader_page.dart integrados ao estado global; canonical_hour_reader_page.dart é ConsumerStatefulWidget. Nenhum caller de produção usa initialTheme.sepia.
+- Mobile reportou canonical_hours_test.dart: 14/14 aprovados, incluindo cobertura automatizada bidirecional, persistência e concorrência. Senior reportou flutter analyze nos três arquivos com exit 0 e No issues found (75,1 s).
+- Senior confirmou npm run build:mobile:web exit 0 em 192 s após fontes estabilizadas; hashes das três fontes conferidos com a liberação Mobile.
+- Docker frontend recriado com exit 0, container 2e6a56ad726c em execução desde 2026-10-22T02:20:05Z; quatro containers Up; nginx -t OK.
+- HTTP: /mobile/, bootstrap e main.js retornaram 200; base /mobile/. main.dart.js de 3.704.685 bytes com SHA256 07BD0CA99E2D594A48EFF29CE56E41954CB3D3658D80CF0FAB53CE2BDA20C966, idêntico em build local, container e HTTP no-cache e diferente do bundle anterior.
+- README.md e CHANGELOG.md registrados na versão 1.47.6 com evidências e limites da validação.
+
+### ⏳ Pendências e Próximos Passos
+- O Mobile esgotou sua quota individual durante a verificação funcional final (CLI informou quota reached/reset em 47h51m após 29 comandos). Não houve retorno consolidado dos casos manuais leitor↔Configurações; portanto a interação funcional completa no novo bundle permanece não verificada.
+- Screenshot do portal localhost expirou porque a página não renderizou (janela possivelmente minimizada); nenhum PNG final foi obtido. Debug Pipe/CreateFile/HTTP 200 e controles info/snapshot/click/reload/evaluate funcionaram; não foi usado navegador externo.
+- A pendência é de verificação manual/visual, não uma falha conhecida do código. O layout já aprovado permanece preservado. Retomar a verificação após a quota resetar ou quando houver uma sessão funcional disponível.
+- Nenhum commit, pull ou push.
+---
+
+## Sessão: 2026-10-22 00:54 BRT
+### 📌 Resumo da Sessão
+- Encerramento da correção do badge DESCONHECIDO na Liturgia das Horas, release documental 1.47.7.
+- Causa confirmada: classificador não reconhecia “Quinta-feira da 29ª semana do Tempo Comum”, gerava rank unknown; rankKnown/memorialKnown eram inferidos incorretamente pela presença de sete linhas. O painel escondia unknown com fallback Féria, enquanto o Mobile exibia corretamente desconhecido.
+- Sem commit, pull ou push.
+
+### 🏗️ Decisões Técnicas e de Arquitetura
+- Descrições feriais explícitas devem classificar como ferial; unknown genuíno deve permanecer unknown. Flags de conhecimento não dependem da quantidade de linhas e um rank novo unknown não reutiliza old.liturgical_rank.
+- O painel distingue grau/cor desconhecidos e não infere Tempo Comum pela cor verde. Layout e tema Mobile aprovados foram preservados; nenhum arquivo Dart foi editado.
+- Registrar separadamente validação automatizada, dados persistidos/API, rebuild/HTTP, lint/audit e limite de homologação visual. Não declarar validação visual nesta rodada.
+
+### 🛠️ Alterações e Implementações
+- Backend: canonical-hours.service.ts e canonical-hours.service.spec.ts; testes finais serviço 7/7 e parser 7/7 aprovados.
+- Dados: atualização condicional de exatamente 7 registros de 22/10, somente liturgical_rank unknown → ferial. Hashes integrais de content iguais antes/depois; dayMetadata, rankKnown e memorialKnown não alterados na atualização dirigida; flags que já estavam true foram preservadas. Sem segunda atualização.
+- Frontend: daily-content.tsx trata grau unknown/ausente/inválido como Desconhecido, cor inválida como neutra/Desconhecida, exibe somente cor da API e mantém classificação ferial como Féria.
+- Senior confirmou build frontend TypeScript/Vite exit 0, rebuild Backend/Frontend exit 0 e rebuild final somente Backend exit 0 (Nest, 22,9 s). Backend f8f31ba24c7f running desde 03:52:41Z; frontend 9a375a5a9187 mantido desde 03:49:55Z; quatro containers Up; nginx -t OK.
+- HTTP/API: /admin e /mobile HTTP 200; endpoint diário de 22/10 HTTP 200 com 7/7 ferial/green e flags true/true; endpoint Vésperas HTTP 200 ferial/green. Asset admin index-D1WY8SaO.js HTTP 200 contém Desconhecido/Desconhecida e não contém Verde (Tempo Comum). Bundle Mobile SHA256 07BD0CA99E2D594A48EFF29CE56E41954CB3D3658D80CF0FAB53CE2BDA20C966 preservado.
+- README.md e CHANGELOG.md consolidados na versão 1.47.7 com a causa, correção, dados e evidências confirmadas.
+
+### ⏳ Pendências e Próximos Passos
+- Sem homologação visual nesta rodada.
+- Lint do Frontend reporta 7 erros e 1 aviso, idênticos ao baseline HEAD e classificados como preexistentes; npm audit reporta 10 vulnerabilidades (2 low, 1 moderate, 7 high). Nenhuma dependência foi alterada; pendências fora do escopo desta correção.
+- Avisos do Compose sobre atributo version obsoleto e variável ausente não bloquearam o rebuild; conteúdo sensível omitido.
+- Tema/layout seguem aprovados e preservados. Sem commit, pull ou push.
+---
+
+
+---
+## Sessão: 2026-10-22 01:39 BRT
+### 📌 Resumo da Sessão
+- Fechamento da demanda de badges por temporada explícita e reutilização persistente de Completas; versão documental 1.48.0.
+- Tema, layout, textos e estado/rank internos preservados; sem commit, pull ou push.
+
+### 🏗️ Decisões Técnicas e de Arquitetura
+- Badge da lista/leitor exibe exclusivamente content.dayMetadata.season; ausência, vazio, unknown ou valor inválido apresenta “Tempo não informado”. Não inferir season por rank/cor, não exibir Féria. Rank e labels internos Festa/Memória permanecem.
+- Completas é reutilizada de daily_canonical_hours por chave composta Oratio+pt-BR+weekday+season explícita+variantTitle; Completas II de domingo exige identificação explícita de domingo do Tempo Comum e semana do Saltério compatível. Solenidades, metadados/variante não confiáveis e exceções continuam consultando fonte. Novo registro recebe metadados, título e URL da data solicitada, sem copiar os da data reutilizada.
+- Versionamento como 1.48.0 (feature/minor); README/CHANGELOG atualizados somente após os resultados finais.
+
+### 🛠️ Alterações e Implementações
+- Mobile Dart: canonical_hour_model.dart adiciona getter liturgicalSeasonLabel; lista e leitor alteram somente o texto do badge. Novo canonical_hours_season_test.dart e expectativa ajustada em canonical_hours_test.dart. Testes combinados 30/30; flutter analyze em cinco arquivos No issues found em 11 s; build npm run build:mobile:web exit 0 em 210,5 s com base /mobile/.
+- Backend: canonical-hours-parser.ts/.spec.ts e canonical-hours.service.ts/.spec.ts; 2 suítes/19 testes aprovados. Persistência usa tabela existente daily_canonical_hours, sem schema novo. Os testes automatizados de restart/contagem HTTP usam Supabase mockado entre instâncias.
+- Prova real complementar read-only: dois processos Node novos (PIDs 19 e 36) com código Backend 2124f02f3b98; cada processo fez uma chamada HTTP 200 ao índice Oratio de 29/10, parser obteve Quinta-feira/Tempo Comum e classificação ferial, encontrou registro persistido de Completas de 22/10, e não fez nenhuma chamada a página /completas/. O hash do texto raw do candidato e da resposta coincidiu. SELECTs read-only antes/depois mostraram 6 linhas e hash JSON integral da linha alvo idênticos; target de 29/10 não foi criado. O aumento prévio de cinco para seis registros veio de Completas de 23/10 criada por outro fluxo às 01:36:54 BRT, fora deste probe. Não houve upsert, full sync, restart de container nem restart do banco.
+- Docker Backend/Frontend exit 0 (Nest 80,5 s). Containers Backend 2124f02f3b98 e Frontend 3d7f8b9bc928, todos quatro Up; nginx -t OK. /mobile/, /admin/ e APIs verificadas responderam HTTP 200; API 22/10 retornou sete registros com season Tempo Comum; endpoint Completas HTTP 200.
+- Bundle main.dart.js: 3.705.036 bytes, SHA256 8E3EDD9DF6A047E00A5945BEF8B0F8E83BE9DE50EF38EB425EFA5639168A1BC7, igual em local/container/HTTP no-cache.
+- Fonte Oratio: retificação de hashes, 18/10 = 73df738a570dceb3; 25/10 e 15/11 = 1a48dd1498755f02; 18/10 e 15/11 não coincidem. Pesquisa do assistente encontrou referência a IGLH n.º 230, mas abertura do PDF retornou 403; não foi tratada como evidência primária conclusiva.
+- README.md e CHANGELOG.md atualizados para 1.48.0; nota investigacao-liturgia-das atualizada com critérios e resultados.
+
+### ⏳ Pendências e Próximos Passos
+- Não houve PNG nem homologação visual nova nesta rodada; não declarar validação visual.
+- O probe real demonstra hit persistido entre dois processos novos, sem repetir busca da página de Completas. Não demonstra full sync de 29/10 nem restart de container/banco; testes de restart automatizados permanecem mockados.
+- Sem commit, pull ou push.
 ---

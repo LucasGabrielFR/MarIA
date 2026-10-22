@@ -4,9 +4,11 @@ function indexFixture(slugs = EXPECTED_ORATIO_HOURS.map((hour) => hour.slug)): s
   const hours = Object.fromEntries(EXPECTED_ORATIO_HOURS.map(({ slug }) => [
     slug, `/liturgia-das-horas/2026/10/22/${slug}/`,
   ]));
-  const cards = slugs.map((slug) =>
-    `<article data-hour-card data-hour-date="2026-10-22" data-hour-slug="${slug}"><a href="/liturgia-das-horas/2026/10/22/${slug}/">Abrir</a></article>`,
-  ).join('');
+  const cards = slugs.map((slug) => {
+    const hour = EXPECTED_ORATIO_HOURS.find((item) => item.slug === slug)!;
+    const variantTitle = hour.type === 'compline' ? 'Completas de Quinta-feira' : 'Hora';
+    return `<article data-hour-card data-hour-date="2026-10-22" data-hour-slug="${slug}"><a href="/liturgia-das-horas/2026/10/22/${slug}/"><div class="liturgy-hour-card__body"><h3>Completas</h3><p>${variantTitle}</p></div></a></article>`;
+  }).join('');
   const entry = { date: '2026-10-22', label: 'Quinta-feira, 22 de outubro de 2026', celebration: 'Quinta-feira da 29ª semana do Tempo Comum', hours };
   return `<section class="liturgy-summary"><h1>Liturgia</h1><p class="liturgy-summary__date">Quinta-feira, 22 de outubro de 2026</p><dl class="liturgy-facts"><dt>Tempo</dt><dd>Tempo Comum</dd><dt>Saltério</dt><dd>1ª semana</dd></dl></section><script type="application/json" data-liturgy-days-json>${JSON.stringify([entry])}</script><div class="liturgy-invitatory-banner">Invitatório</div>${cards}`;
 }
@@ -18,6 +20,7 @@ describe('CanonicalHoursParser for Oratio', () => {
     expect(parsed.hours).toHaveLength(7);
     expect(parsed.hours.map((hour) => hour.slug)).toEqual(EXPECTED_ORATIO_HOURS.map((hour) => hour.slug));
     expect(parsed.metadata.season).toBe('Tempo Comum');
+    expect(parsed.hours.find((hour) => hour.type === 'compline')?.variantTitle).toBe('Completas de Quinta-feira');
   });
 
   it('rejects a missing hour before persistence can begin', () => {

@@ -5,6 +5,50 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.48.0] - 2026-10-22
+
+### Added
+
+- Reutilização persistente de Completas a partir de `daily_canonical_hours`, sem nova tabela ou cache em memória. A seleção exige correspondência de origem Oratio, idioma, dia da semana, temporada explícita e variante; a Completas II de domingo também exige calendário explícito de domingo do Tempo Comum e semana do Saltério compatível. Solenidades, temporada ausente, variantes não confirmadas e metadados incompatíveis continuam consultando a fonte. A nova data recebe seu próprio título, URL e `dayMetadata`, sem copiar metadados do registro reutilizado.
+
+### Changed
+
+- Badges da lista e do leitor da Liturgia das Horas exibem somente `content.dayMetadata.season`; não exibem Féria nem inferem temporada por rank ou cor. Season ausente, vazia, `unknown` ou inválida aparece como `Tempo não informado`. Rank, labels de Festa/Memória, tema, layout e textos foram preservados.
+
+### Validation
+
+- Mobile: `flutter test test/canonical_hours_test.dart test/canonical_hours_season_test.dart` — 30/30 aprovados; `flutter analyze` nos cinco arquivos — No issues found em 11 s. `npm run build:mobile:web` terminou com exit 0 em 210,5 s usando base `/mobile/`.
+- Backend: 2 suítes/19 testes aprovados. Os testes automatizados de chamadas/restart usam Supabase mockado entre duas instâncias; separadamente, uma prova read-only em dois processos Node novos usou o deploy Backend `2124f02f3b98`. Cada processo consultou o índice Oratio de 29/10 (HTTP 200), selecionou o registro persistido de 22/10 para Completas, confirmou o mesmo hash de texto e não requisitou a página de Completas. Duas consultas read-only confirmaram a linha inalterada (6 registros antes/depois); não foi criado registro para 29/10.
+- Docker: rebuild Backend/Frontend exit 0 (Nest em 80,5 s); quatro containers `Up`; Backend `2124f02f3b98` e Frontend `3d7f8b9bc928`; `nginx -t` OK. `/mobile/`, `/admin/` e endpoints API retornaram HTTP 200; API do dia 22/10 retornou 7 horas com season Tempo Comum e API de Completas respondeu HTTP 200.
+- `main.dart.js` (3.705.036 bytes) SHA256 `8E3EDD9DF6A047E00A5945BEF8B0F8E83BE9DE50EF38EB425EFA5639168A1BC7`, igual no arquivo local, container e HTTP no-cache. Nenhuma homologação visual nova; a prova de cache não executou sincronização completa nem reiniciou container ou banco.
+
+## [1.47.7] - 2026-10-22
+
+### Fixed
+
+- Painel da Liturgia das Horas: grau ausente ou inválido é exibido como `Desconhecido`, sem fallback para Féria. Cor ausente ou inválida usa badge neutro `Desconhecida`; cores conhecidas exibem somente a cor informada pela API, sem inferir tempo litúrgico ou celebração.
+- O Backend reconhece descrições feriais explícitas como “Quinta-feira da 29ª semana do Tempo Comum”, calcula `rankKnown` e `memorialKnown` sem depender da contagem de linhas e preserva `unknown` genuíno sem reutilizar `old.liturgical_rank`. Correção dirigida dos sete registros de 22/10 alterou apenas `liturgical_rank` de `unknown` para `ferial`; hashes integrais de `content`, `dayMetadata` e flags previamente verdadeiras foram preservados.
+- Validação: testes finais do serviço e parser 7/7 cada; build frontend TypeScript/Vite e rebuilds Backend/Frontend exit 0, incluindo rebuild final somente Backend. Todos os quatro containers `Up`, `nginx -t` OK, `/admin/`, `/mobile/` e API HTTP 200; API confirmou 7/7 horas `ferial`/`green`, e Vésperas também `ferial`/`green`. Bundle Mobile SHA256 `07BD0CA99E2D594A48EFF29CE56E41954CB3D3658D80CF0FAB53CE2BDA20C966` preservado; nenhum Dart ou layout/tema foi alterado.
+- Lint do frontend mantém 7 erros e 1 aviso iguais ao baseline `HEAD`; `npm audit` reportou 10 vulnerabilidades (2 low, 1 moderate, 7 high), sem alteração de dependências. Não houve homologação visual nesta rodada.
+
+## [1.47.6] - 2026-10-22
+
+### Changed
+
+- A tela de Configurações sincroniza o tema compartilhado com persistência em `SharedPreferences`; proteções contra carregamento tardio usam `_version`, `_hasUserChoice` e `ref.mounted`.
+
+### Fixed
+
+- **Sincronização global do tema no leitor da Liturgia das Horas:** o leitor usa o `themeModeProvider` compartilhado, e a alteração feita no leitor propaga-se ao restante do app. `canonical_hour_reader_page.dart` tornou-se `ConsumerStatefulWidget` e integra o controle manual ao provider global. Mobile reportou ausência de callers de produção com `initialTheme.sepia`.
+- **Cobertura automatizada:** Mobile reportou `flutter test test/canonical_hours_test.dart`: 14/14 aprovados, cobrindo sincronização bidirecional, persistência e concorrência. `flutter analyze lib/features/settings/presentation/settings_page.dart lib/features/prayers/presentation/canonical_hour_reader_page.dart test/canonical_hours_test.dart` terminou com exit 0 e `No issues found`.
+- `npm run build:mobile:web`: exit 0 após estabilização das fontes, em 192 s; hashes dos três arquivos fonte conferidos pelo Dev Senior com a liberação do Mobile.
+- `docker compose up --build -d --no-deps frontend`: exit 0; frontend recriado e em execução no container `2e6a56ad726c` desde `2026-10-22T02:20:05Z`. Os quatro containers ficaram `Up`; `nginx -t` passou.
+- `http://localhost:8081/mobile/`, `flutter_bootstrap.js` e `main.dart.js` responderam HTTP 200; HTML usa base `/mobile/`. O `main.dart.js` de 3.704.685 bytes tem SHA256 `07BD0CA99E2D594A48EFF29CE56E41954CB3D3658D80CF0FAB53CE2BDA20C966`, igual no build local, container e resposta HTTP com `no-cache`, diferente do bundle anterior.
+- **Verificação funcional interativa incompleta:** Mobile esgotou a quota individual durante a checagem final (CLI informou quota reached/reset em 47h51m), após 29 comandos. Não foi recebido resultado consolidado dos casos leitor↔Configurações. Isto é uma limitação de verificação, não uma falha funcional conhecida do código; os 14 testes automatizados permanecem aprovados, mas não substituem a interação manual.
+- **Limitação da evidência visual:** screenshot do portal Maestri para localhost expirou porque a página não renderizou (possivelmente janela minimizada). Pipe/CreateFile, HTTP 200 e controles info/snapshot/click/reload/evaluate funcionaram; URL `http://localhost:8081/mobile/`, service worker `null` e hash do bundle novo foram confirmados. Nenhum PNG final foi obtido e nenhum navegador externo foi usado.
+- O usuário aprovou anteriormente o layout de hino, salmos, banners e hífens nas capturas existentes; essa aprovação permanece válida. Não há nova captura visual nesta rodada, portanto não inferir dela validação visual do tema global.
+- Avisos do Compose sobre `version` obsoleto e variável ausente não impediram build/rebuild; valor sensível omitido.
+
 ## [1.47.5] - 2026-10-21
 
 ### Added

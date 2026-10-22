@@ -69,11 +69,12 @@ const HOUR_LABELS: Record<string, string> = {
 };
 
 const COLOR_BADGES: Record<string, { label: string; bg: string; text: string; border: string }> = {
-  green: { label: 'Verde (Tempo Comum)', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
-  white: { label: 'Branco (Luz/Solenidade)', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
-  red: { label: 'Vermelho (Mártires/Paixão)', bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200' },
-  purple: { label: 'Índigo/Roxo (Penitência)', bg: 'bg-slate-100', text: 'text-slate-800', border: 'border-slate-300' },
-  rose: { label: 'Rosa (Alegria)', bg: 'bg-pink-50', text: 'text-pink-700', border: 'border-pink-200' },
+  green: { label: 'Verde', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
+  white: { label: 'Branco', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
+  red: { label: 'Vermelho', bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200' },
+  purple: { label: 'Roxo', bg: 'bg-slate-100', text: 'text-slate-800', border: 'border-slate-300' },
+  rose: { label: 'Rosa', bg: 'bg-pink-50', text: 'text-pink-700', border: 'border-pink-200' },
+  unknown: { label: 'Desconhecida', bg: 'bg-slate-100', text: 'text-slate-700', border: 'border-slate-300' },
 };
 
 const RANK_LABELS: Record<string, string> = {
@@ -81,7 +82,8 @@ const RANK_LABELS: Record<string, string> = {
   feast: 'Festa',
   obligatory_memorial: 'Memória Obrigatória',
   optional_memorial: 'Memória Facultativa',
-  ferial: 'Tempo Comum / Féria',
+  ferial: 'Féria',
+  unknown: 'Desconhecido',
 };
 
 export default function DailyContentPage() {
@@ -564,8 +566,8 @@ export default function DailyContentPage() {
                       <div className="flex items-center gap-2">
                         {/* Badge de Cor Litúrgica */}
                         {(() => {
-                          const col = canonicalHours[0].liturgical_color?.toLowerCase() || 'green';
-                          const cfg = COLOR_BADGES[col] || COLOR_BADGES.green;
+                          const col = canonicalHours[0].liturgical_color?.trim().toLowerCase() || 'unknown';
+                          const cfg = Object.hasOwn(COLOR_BADGES, col) ? COLOR_BADGES[col] : COLOR_BADGES.unknown;
                           return (
                             <Badge variant="outline" className={`${cfg.bg} ${cfg.text} ${cfg.border} font-bold px-3 py-1`}>
                               Cor: {cfg.label}
@@ -575,7 +577,9 @@ export default function DailyContentPage() {
 
                         {/* Grau Litúrgico */}
                         <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-300 font-bold px-3 py-1">
-                          {RANK_LABELS[canonicalHours[0].liturgical_rank] || 'Féria'}
+                          {Object.hasOwn(RANK_LABELS, canonicalHours[0].liturgical_rank)
+                            ? RANK_LABELS[canonicalHours[0].liturgical_rank]
+                            : RANK_LABELS.unknown}
                         </Badge>
 
                         {canonicalHours[0].has_memorial && (

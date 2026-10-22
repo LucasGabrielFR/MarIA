@@ -22,6 +22,7 @@ export interface OratioHourLink {
   slug: string;
   type: CanonicalHourType;
   url: string;
+  variantTitle?: string;
 }
 
 export interface ParsedOratioDay {
@@ -89,12 +90,15 @@ export class CanonicalHoursParser {
       if (!expected) return;
       const href = card.find('a[href]').first().attr('href');
       const url = this.validateHourUrl(href || '', expectedDate, slug);
+      const cardBody = card.find('.liturgy-hour-card__body').first();
+      const variantTitle = cardBody.find('h3').first().nextAll('p').first().text().trim() ||
+        (card.find('img').attr('alt') || '').split(',').slice(1).join(',').trim();
       const jsonUrl = calendarEntry.hours?.[slug];
       if (!jsonUrl || this.validateHourUrl(jsonUrl, expectedDate, slug) !== url) {
         throw new Error(`Rota do cartão diverge do índice JSON para ${slug}`);
       }
       if (hours.has(slug)) throw new Error(`Cartão Oratio duplicado para ${slug}`);
-      hours.set(slug, { ...expected, url });
+      hours.set(slug, { ...expected, url, variantTitle: variantTitle || undefined });
     });
     if (hours.size !== EXPECTED_ORATIO_HOURS.length) {
       const missing = EXPECTED_ORATIO_HOURS.filter((hour) => !hours.has(hour.slug)).map((hour) => hour.slug);
@@ -202,5 +206,19 @@ export class CanonicalHoursParser {
       throw new Error(`Rota Oratio inválida para ${slug}: ${href}`);
     }
     return url.href;
+  }
+
+  static rebaseSameHourLinks(rawHtml: string, sourceDate: string, targetDate: string, slug: string): string {
+    const $ = cheerio.load(rawHtml, null, false);
+    $('a[href]').each((_, element) => {
+      const node = $(element);
+      try {
+        this.validateHourUrl(node.attr('href') || '', sourceDate, slug);
+        node.attr('href', `${ORATIO_BASE_URL}/liturgia-das-horas/${targetDate.replaceAll('-', '/')}/${slug}/`);
+      } catch {
+        node.removeAttr('href');
+      }
+    });
+    return $.root().html() || '';
   }
 }
