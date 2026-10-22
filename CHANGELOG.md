@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.49.1] - 2026-10-22
+
+### Changed
+
+- **Foco Exclusivo em Autenticação por E-mail e Senha no Aplicativo (Mobile & Web):**
+  - Removido o botão de login social com Google ("Continuar com o Google") e o divisor "ou continue com" da `LoginPage`.
+  - O fluxo central de autenticação da tela inicial fica 100% focado no preenchimento de E-mail e Senha, recuperação ágil por "Esqueci minha senha" e botão primário dourado "Entrar".
+  - Preservadas as opções de rodapé "Não tem uma conta? Cadastre-se grátis" e o acesso para visitantes ("Acessar sem conta • Modo Visitante").
+  - Fortalecimento da navegação na criação de conta (`RegisterPage`): implementado listener reativo de autenticação e fallback para `AppScaffold` garantindo transição imediata para o app tanto em modal quanto em substituição de rota inicial.
+
+### Validation
+
+- **Testes Unitários e de Widgets (`mobile/test/auth_test.dart`):** 11/11 testes aprovados cobrindo serialização de usuário, renderização do modal devocional, validação de campos obrigatórios vazios em `LoginPage` e `RegisterPage`, regras de validação de senha (mínimo 6 caracteres e ao menos 2 categorias de caracteres), passos do `ForgotPasswordModal` e formatação de telefone.
+- **Suíte Completa Mobile (`flutter test`):** 93/93 testes aprovados sem falhas em todos os módulos devocionais e canônicos.
+- **Análise Estática (`flutter analyze`):** Exit 0, `No issues found! (ran in 10.1s)` em todo o projeto mobile.
+- **Compilação Web (`npm run build:mobile:web`):** Exit 0 em 117,9 s com geração de assets de release otimizados.
+- **Docker Rebuild:** `docker compose up --build -d frontend` executado com recriação dos containers; todos os quatro containers (`maria-backend-1`, `maria-frontend-1`, `maria-landing-1`, `maria-redis-1`) em execução (`Up`); rotas `/mobile/`, `/admin/` e backend API responderam HTTP 200 OK.
+
 ## [1.49.0] - 2026-10-22
 
 ### Added
