@@ -47,4 +47,41 @@ describe('CanonicalHoursParser for Oratio', () => {
     const parsed = CanonicalHoursParser.parseHour(html, '2026-10-22', 'oficio-das-leituras');
     expect(parsed.title).toBe('Ofício das Leituras');
   });
+
+  it('converts style="color:var(--liturgical-red)" on elements to class="liturgical-red" and preserves rubrics, sups, and emphasis tags', () => {
+    const html = `<header class="liturgy-hour-hero"><div class="liturgy-hour-hero__content"><h1>Laudes</h1><p>Quinta-feira, 22 de outubro de 2026</p></div></header><div class="liturgy-reading__text" data-reading-text>
+      <h2 style="color:var(--liturgical-red)">Salmo 62</h2>
+      <p class="rub">(De pé)</p>
+      <p class="liturgy-antiphon">Antífona com <b>negrito</b> e <i>itálico</i> e <em>ênfase</em> e <strong>forte</strong>.</p>
+      <p><span style="color:var(--liturgical-red)">℣.</span> Vinde, ó Deus<sup style="color: var(--liturgical-red)">1</sup></p>
+      <p>Texto litúrgico completo de preenchimento para garantir comprimento suficiente na validação.</p>
+    </div>`;
+    const parsed = CanonicalHoursParser.parseHour(html, '2026-10-22', 'laudes');
+
+    expect(parsed.rawCleanText).toContain('<h2 class="liturgical-red">Salmo 62</h2>');
+    expect(parsed.rawCleanText).toContain('<p class="rub">(De pé)</p>');
+    expect(parsed.rawCleanText).toContain('<span class="liturgical-red">℣.</span>');
+    expect(parsed.rawCleanText).toContain('<sup class="liturgical-red">1</sup>');
+    expect(parsed.rawCleanText).toContain('<b>negrito</b>');
+    expect(parsed.rawCleanText).toContain('<i>itálico</i>');
+    expect(parsed.rawCleanText).toContain('<em>ênfase</em>');
+    expect(parsed.rawCleanText).toContain('<strong>forte</strong>');
+    expect(parsed.rawCleanText).not.toContain('style=');
+  });
+
+  it('ensures plainText separates adjacent block tags without word agglutination', () => {
+    const html = `<header class="liturgy-hour-hero"><div class="liturgy-hour-hero__content"><h1>Completas</h1><p>Quinta-feira, 22 de outubro de 2026</p></div></header><div class="liturgy-reading__text" data-reading-text>
+      <h2>Salmo 4</h2>
+      <p>Amém. Aleluia.</p>
+      <p>Esta introdução se omite quando o Invitatório precede.</p>
+      <p>℣. Texto<br>continua na próxima linha.</p>
+      <p>Texto longo para preenchimento litúrgico para atingir mais de cinquenta caracteres na validação.</p>
+    </div>`;
+    const parsed = CanonicalHoursParser.parseHour(html, '2026-10-22', 'completas');
+
+    expect(parsed.plainText).toContain('Salmo 4 Amém. Aleluia. Esta introdução');
+    expect(parsed.plainText).not.toContain('Salmo 4Amém');
+    expect(parsed.plainText).not.toContain('Aleluia.Esta');
+    expect(parsed.plainText).toContain('Texto continua na próxima linha.');
+  });
 });

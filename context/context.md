@@ -683,5 +683,180 @@ Este arquivo armazena o histórico contínuo de contexto, decisões de arquitetu
 - Aguardar instruções do usuário ou Maestro para futuros procedimentos de commit/deploy.
 ---
 
+## Sessão: 2026-10-21 20:45 (UTC-3)
+### 📌 Resumo da Sessão
+- Conclusão e homologação técnica da **Fase 2 da Liturgia das Horas (Diagramação Litúrgica Nobre)** no ecossistema MarIA (Backend NestJS + Mobile Flutter).
+- Rebuild Docker do backend e re-sincronização no Supabase concluídos e 100% validados.
+- Suíte de testes do mobile e `flutter analyze` executados com 100% de sucesso e 0 erros/warnings.
+- Atualização documental dos artefatos `CHANGELOG.md` (versão 1.47.1), `README.md`, nota do canvas `investigacao-liturgia-das` e histórico de contexto.
+- Diretriz estrita cumprida: nenhum commit ou push realizado no Git.
+
+### 🏗️ Decisões Técnicas e de Arquitetura
+- **Normalização Semântica de Classes no Backend:** Mapeamento de estilos inline `--liturgical-red` para a classe canônica `liturgical-red`, com preservação de classes litúrgicas canônicas (`rub`, `liturgical-rubric`, `liturgy-antiphon`, `liturgical-red`) e tags de formatação semântica (`b`, `strong`, `i`, `em`, `sup`, `br`, `h1`-`h6`).
+- **Eliminação de Fusão Lexical (`plainText`):** Tratamento estruturado de tags `<br>` e elementos de bloco antes da extração de texto plano, inserindo delimitadores de espaço e impedindo aglutinação de palavras entre estrofes.
+- **Renderizador Estruturado AST/TextSpans no Mobile:** Substituição do parser baseado em regex simples por árvore sintática de spans tipográficos, permitindo formatar estrofes poéticas completas sem quebrar tags inline ou perder marcações sacras.
+- **Design System Sacro Aplicado:** Aplicação de títulos com a família *Cinzel*, respiro de 16px entre estrofes, entrelinha lírica de 1.6, e destaque de versículos (`℣.`, `℟.`) e sobrescritos de salmos (`<sup>`) em carmim litúrgico com contraste calibrado para os 3 temas visuais (Sépia Sacro, Noturno e Claro).
+
+### 🛠️ Alterações e Implementações
+- **Backend:**
+  - [`backend/src/canonical-hours/canonical-hours-parser.ts`](file:///d:/Programming/AcutisTech/MarIA/backend/src/canonical-hours/canonical-hours-parser.ts): Normalização de classes litúrgicas e anti-aglutinação em `plainText`.
+  - [`backend/src/canonical-hours/canonical-hours-parser.spec.ts`](file:///d:/Programming/AcutisTech/MarIA/backend/src/canonical-hours/canonical-hours-parser.spec.ts): Testes unitários do parser atualizados com classes semânticas.
+- **Mobile:**
+  - [`mobile/lib/features/prayers/presentation/canonical_hour_reader_page.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/lib/features/prayers/presentation/canonical_hour_reader_page.dart): Renderizador de blocos litúrgicos e spans estilizados.
+  - [`mobile/test/canonical_hours_test.dart`](file:///d:/Programming/AcutisTech/MarIA/mobile/test/canonical_hours_test.dart): Testes unitários e de widget atualizados e aprovados.
+- **Documentação:**
+  - [`CHANGELOG.md`](file:///d:/Programming/AcutisTech/MarIA/CHANGELOG.md): Registro da versão 1.47.1.
+  - [`README.md`](file:///d:/Programming/AcutisTech/MarIA/README.md): Destaque da diagramação nobre no mobile e normalização de classes.
+  - Canvas Maestri: Nota `investigacao-liturgia-das` atualizada com o status final da Fase 2.
+
+### ⏳ Pendências e Próximos Passos
+- Conduzir testes de usabilidade com fiéis e leitura da Liturgia das Horas nas diferentes horas canônicas (especialmente Laudes e Vésperas).
+- Aguardar orientações do usuário/Maestro para consolidação de commits e eventual pipeline de deploy.
+---
 
 
+
+
+---
+## Sessão: 2026-10-21 20:48 (UTC-3)
+### 📌 Resumo da Sessão
+- **Fase 2 da Liturgia das Horas (Diagramação Litúrgica Nobre):** Resolução definitiva dos problemas de aglutinação e perda de diagramação visual identificados nas evidências trazidas pelo usuário (imagens do leitor mobile e do painel administrativo).
+- **Backend:** Normalização semântica do parser Oratio (`canonical-hours-parser.ts`), convertendo estilos inline de cor litúrgica em classes semânticas (`class="liturgical-red"`), preservando rubricas (`class="rub"`), antífonas (`class="liturgy-antiphon"`), negritos/itálicos bíblicos e versículos sobrescritos (`<sup>`), além de garantir espaçamento limpo entre tags de bloco para eliminar aglutinação no texto puro (`plainText`).
+- **Mobile (Flutter):** Substituição do parser rudimentar por um renderizador estruturado semântico baseado em `TextSpan` e widgets de bloco em `canonical_hour_reader_page.dart`, com títulos em Cinzel, respiro vertical de 16px entre estrofes, altura de linha poética de 1.6, versículos (`℣.`, `℟.`) e antífonas destacados em Carmim Litúrgico e harmonia plena com os temas Sépia, Dark e Light.
+- **Docker-First & Re-sincronização:** Rebuild do container `maria-backend-1` concluído com sucesso e re-sincronização das 7 horas canônicas dos dias 21/10/2026 e 22/10/2026 no Supabase, enriquecendo o banco com o novo payload semântico.
+- **Testes & Validação:** 10/10 testes unitários no Backend aprovados; 8/8 testes unitários e de widget no Flutter aprovados; `flutter analyze` 100% limpo com 0 erros e 0 warnings.
+- **Controle de Versão:** Diretriz estrita cumprida — NENHUM commit ou push Git foi realizado pelos agentes.
+
+### 🏗️ Decisões Técnicas e de Arquitetura
+- **Contrato de Interface Preservado (Zero Breaking Changes):** A coluna `rawCleanText` do banco continua como string HTML, eliminando necessidade de migrations. O HTML agora carrega classes semânticas canônicas (`liturgical-red`, `rub`, `liturgy-antiphon`, `verse-num`) padronizadas.
+- **Rejeição de `flutter_html` e Regex em Favor de AST Semântico:** Implementação de visitor estruturado nativo que converte os nós HTML em `_LiturgicalBlockType.heading`, `_LiturgicalBlockType.rubric` e `_LiturgicalBlockType.strophe`, garantindo renderização ultra-rápida, compatibilidade com o Design System Mariano e suporte fluído aos 3 temas sacros.
+- **Tipografia Sacra & Espaçamento Litúrgico:** Estabelecido espaçamento simétrico para pontuação litúrgica nos salmos (` * `, ` † `, ` – `), títulos solenes em *Cinzel* e entrelinha poética ampla (`height: 1.6`).
+
+### 🛠️ Alterações e Implementações
+- **Backend:**
+  - `backend/src/canonical-hours/canonical-hours-parser.ts`: Normalizador semântico de estilos para `class="liturgical-red"`, preservação de tags ricas e correção de separação de blocos no `plainText`.
+  - `backend/src/canonical-hours/canonical-hours-parser.spec.ts`: Testes unitários para classes semânticas, tags ricas e anti-aglutinação.
+  - Rebuild Docker: Contêiner `maria-backend-1` recriado e re-sincronização executada com sucesso.
+- **Mobile (Flutter):**
+  - `mobile/lib/core/theme/app_typography.dart`: Suporte a parâmetro opcional `height` e customizações na tipografia de oração.
+  - `mobile/lib/features/prayers/presentation/canonical_hour_reader_page.dart`: Novo renderizador estruturado com `TextSpan`, blocos de estrofe, rubricas carmim e escala dinâmica de fonte.
+  - `mobile/test/canonical_hours_test.dart`: Testes de widget cobrindo renderização litúrgica, alternância de temas e botões de acessibilidade A-/A+.
+- **Documentação & Versionamento:**
+  - `CHANGELOG.md`: Versão `1.47.1` registrada com detalhes de correções e novidades.
+  - `README.md`: Atualização das seções de Liturgia das Horas e Mobile.
+  - Canvas Maestri: Nota `investigacao-liturgia-das` atualizada com o encerramento da Fase 2.
+
+### ⏳ Pendências e Próximos Passos
+- Usuário testar a leitura das Horas Canônicas no aplicativo mobile ou mobile web (`/mobile`).
+- Realizar os commits e pushes manuais no repositório quando o usuário julgar oportuno.
+---
+
+## Sessão: 2026-10-21 21:26 (UTC-3)
+### 📌 Resumo da Sessão
+- **Fase 3 da Liturgia das Horas (Fidelidade Visual Estrita conforme Oratio / Livro Litúrgico):** Homologação e conclusão técnica da experiência de leitura sacra no aplicativo móvel MarIA baseada na análise comparativa de 5 capturas do usuário.
+- **Mobile (Flutter):**
+  - Implementação de cards devocionais de antífonas (`_LiturgicalBlockType.antiphon`) com borda lateral esquerda de 3.5px carmim e fundo suave nos três temas devocionais (Sépia, Dark e Light).
+  - Adição de divisores sacros (`Divider`) antes de seções maiores (Hino, Salmodia, Leitura breve, Responsório, Cântico evangélico, Preces, Oração final).
+  - Criação do seletor bilíngue em abas `[ Português | Latim ]` para o Cântico Evangélico (ex: *Benedictus*, *Magnificat*, *Nunc Dimittis*).
+  - Tipografia de títulos de seções (`h2`) e salmos (`h3`) padronizados em *Title Case* nobre com *Cinzel*, acompanhados de subtítulo em negrito e citação em itálico.
+  - Eliminação definitiva de aglutinações de títulos e textos via pré-processamento semântico `_sanitizeAndDeagglutinate`.
+  - 100% dos testes aprovados (62/62) e `flutter analyze` com 0 erros.
+- **Infraestrutura & Rebuild:** Build do Flutter Web e rebuild Docker dos contêineres executados pelo Dev Sênior.
+- **Documentação:** Atualização do `CHANGELOG.md` para a versão `1.47.2` (Patch), `README.md` atualizado com as diretrizes da diagramação litúrgica e nota `investigacao-liturgia-das` no canvas do Maestri concluída.
+- **Diretriz Estrita:** Nenhum commit ou push Git realizado.
+
+### 🏗️ Decisões Técnicas e de Arquitetura
+- **Fidelidade Visual Canônica ao Livro Litúrgico:** Adoção de elementos visuais nobres (divisores de respiro entre ritos, cards de antífona com realce lateral carmim) alinhados aos livros impressos da Liturgia das Horas e à apresentação visual do portal Oratio.
+- **Alternância Bilíngue no Cântico Evangélico:** Inclusão de tabs no próprio fluxo de leitura para permitir ao fiel a devoção tanto no idioma vernáculo quanto no latim tradicional da Igreja.
+- **Desaglutinação Semântica no Leitor (`_sanitizeAndDeagglutinate`):** Separação de limites entre elementos semânticos antes da montagem da árvore de blocos, garantindo pontuação e palavras preservadas sem fusão tipográfica.
+
+### 🛠️ Alterações e Implementações
+- **Mobile (Flutter):**
+  - `mobile/lib/features/prayers/presentation/canonical_hour_reader_page.dart`: Cards de antífonas, divisores sacros, seletor de Cântico [ Português | Latim ], títulos em Title Case Cinzel, pré-processador `_sanitizeAndDeagglutinate`.
+  - `mobile/test/canonical_hours_test.dart`: Bateria completa de testes (62 testes) validando blocos, temas, antífonas e seletor bilíngue.
+- **Documentação & Versionamento:**
+  - `CHANGELOG.md`: Versão `1.47.2` adicionada na raiz.
+  - `README.md`: Atualização das seções de Funcionalidades Mobile e Arquitetura Litúrgica.
+  - Canvas Maestri: Nota `investigacao-liturgia-das` atualizada para 100% concluída.
+
+### ⏳ Pendências e Próximos Passos
+- Verificação visual pelo usuário no mobile e painel web após término do rebuild Docker.
+- Consolidação dos commits e pushes manuais sob aprovação do usuário.
+---
+
+## Sessão: 2026-10-21 21:52 (UTC-3)
+### 📌 Resumo da Sessão
+- **Versão 1.47.3 (Patch):** Investigação e correção do corte de seções intermediárias (Hino, Salmodia, Salmos, Leitura breve e Responsório) no leitor sacro do Mobile.
+- **Versão 1.47.4 (Patch):** Implementação de Badges Litúrgicos Carmim em algarismos romanos (`I`, `II`, `III`) para partes de salmos divididos e ampliação do espaçamento vertical entre estrofes para **28px de respiro**, facilitando a recitação alternada de coros no Ofício Divino.
+- Atualização documental dos artefatos `CHANGELOG.md`, `README.md` e da nota `investigacao-liturgia-das` no canvas do Maestri.
+- Diretriz estrita cumprida: zero commits ou push.
+
+### 🏗️ Decisões Técnicas e de Arquitetura
+- **Respiro Coral Monástico (28px):** Ajuste fino de entrelinha e margem inferior de estrofes no leitor sacro para reproduzir a experiência de oração comunitária em dois coros, evitando poluição visual e garantindo ritmo calmo de salmodia.
+- **Badges Litúrgicos Romanos:** Inclusão de indicadores discretos e nobres para salmos divididos em seções menores (ex: salmos longos com divisões I, II e III), mantendo clareza litúrgica.
+
+### 🛠️ Alterações e Implementações
+- **Documentação:**
+  - `CHANGELOG.md`: Registro formal das versões `1.47.3` e `1.47.4`.
+  - `README.md`: Atualização dos destaques de espaçamento coral (28px) e badges romanos no módulo mobile.
+  - Canvas Maestri: Nota `investigacao-liturgia-das` sincronizada com as melhorias.
+
+### ⏳ Pendências e Próximos Passos
+- Acompanhar homologação visual e validação dos coros no aplicativo mobile.
+- Aguardar autorização do usuário para consolidação final de commits e pushes.
+---
+
+## Sessão: 2026-10-21 22:38 (UTC-3)
+### 📌 Resumo da Sessão
+- **Fase 3.2 & Versão 1.47.5 (Patch) - Engatilhamento & Refinamento da Liturgia das Horas:**
+  - Início dos trabalhos da nova fase de refinamento visual e tipográfico do leitor sacro da Liturgia das Horas (Vésperas e Salmodia).
+  - Implementação de banner solene para as divisões dos Salmos em partes (`I`, `II`, `III`) no leitor mobile, enriquecendo a hierarquia sacra.
+  - Calibração fina da entrelinha: diferenciação estrita entre espaçamento simples de versos contínuos dentro da mesma estrofe vs. respiro amplo e pausado entre estrofes completas.
+  - Preservação integral e inegociável de todos os hifens e traços do texto litúrgico original da fonte canônica, atendendo à solicitação direta do usuário.
+- Atualização em tempo real da nota `investigacao-liturgia-das` no canvas do Maestri.
+- Engatilhamento da documentação no `CHANGELOG.md` e `README.md` para a versão `1.47.5`.
+- Diretriz estrita cumprida: zero commits ou pushes no Git.
+
+### 🏗️ Decisões Técnicas e de Arquitetura
+- **Hierarquia Visual de Salmos com Banner Solene:** Destacar partes de salmos longos com banner nobre de identificação litúrgica para conduzir a oração com solenidade visual.
+- **Preservação Canônica de Hífen/Traço:** Garantir que nenhuma etapa de limpeza, sanitização ou formatação de texto elimine os hifens e traços originais do texto sagrado.
+- **Diferenciação Estrofe vs. Verso:** Evitar quebras com margens infladas entre linhas do mesmo verso; aplicar margem expandida estritamente entre estrofes.
+
+### 🛠️ Alterações e Implementações
+- **Documentação:**
+  - `CHANGELOG.md`: Versão `1.47.5` engatilhada e consolidada.
+  - `README.md`: Atualização das especificações do leitor mobile com banner solene de salmos e espaçamento refinado.
+  - `investigacao-liturgia-das` (Canvas): Nova seção da Fase 3.2 adicionada detalhando o progresso em tempo real.
+  - `context/context.md`: Histórico de contexto e decisões registrado.
+
+### ⏳ Pendências e Próximos Passos
+- Conclusão das alterações no código do leitor mobile pelo Maestro e equipe técnica.
+- Testes automatizados do Flutter e validação do layout no leitor.
+- Rebuild dos contêineres Docker e homologação com o usuário.
+- Manutenção da diretriz de não realizar commits ou pushes no Git.
+---
+
+---
+## Sessão: 2026-10-21 22:41 (BRT)
+### 📌 Resumo da Sessão
+- Corrigido o tema inicial incorreto do leitor da Liturgia das Horas: a tela abria em Sépia mesmo quando o aplicativo estava em Dark.
+- Validação final de infraestrutura recebida do Dev Senior em 21/10/2026 às 22:40 BRT. Nenhum commit, pull ou push realizado.
+
+### 🏗️ Decisões Técnicas e de Arquitetura
+- Causa raiz: ReaderTheme.sepia fixo no leitor.
+- O leitor resolve o tema efetivo Dark/Light do app uma vez em didChangeDependencies, mantendo a escolha manual superior direita e a preferência durante mudanças/rebuilds.
+- Versão documental adotada: 1.47.5 (patch).
+
+### 🛠️ Alterações e Implementações
+- Mobile: mobile/lib/features/prayers/presentation/canonical_hour_reader_page.dart e mobile/test/canonical_hours_test.dart.
+- Testes reportados pelo Mobile: flutter test test/canonical_hours_test.dart — 12 passed, 0 failed; casos de entrada Dark/Light, ciclo manual Dark-Light-Sepia-Dark e estabilidade em rebuilds.
+- Build Flutter Web: npm run build:mobile:web executou flutter build web --base-href /mobile/ --release, exit 0, build/web produzido em 227,3 s.
+- Docker: frontend recriado/iniciado com docker compose up --build -d --no-deps frontend, exit 0. Container anterior 74c6131f3b77, novo c3078b2d2ff0, running desde 2026-10-22T01:40:02Z. Frontend/backend/landing/redis em estado Up; somente frontend recriado. nginx -t retornou sintaxe válida.
+- HTTP localhost:8081: /mobile/, /mobile/flutter_bootstrap.js, /mobile/main.dart.js e /admin/ retornaram 200; base href /mobile/. SHA256 local e no container de main.dart.js coincidente: 7a5825ba3cb09ab67105185b266f868e1feb473f227ae5543bde337893d5c034.
+- Documentação: README.md e CHANGELOG.md atualizados no patch 1.47.5, preservando as alterações locais existentes. Nota investigacao-liturgia-das atualizada com investigação, testes e validação final.
+- O Compose reportou atributo version obsoleto e variável de ambiente ausente; avisos não impediram build/start e o conteúdo sensível foi omitido.
+
+### ⏳ Pendências e Próximos Passos
+- Não foi feita validação visual em navegador; evidências recebidas confirmam testes, build, container e HTTP.
+- Nenhuma outra pendência técnica reportada. Sem commit/pull/push.
+---

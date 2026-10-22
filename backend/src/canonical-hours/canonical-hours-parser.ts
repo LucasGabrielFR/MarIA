@@ -140,6 +140,22 @@ export class CanonicalHoursParser {
     reading.find('script, style, iframe, object, embed, form, input, button, svg, audio, video').remove();
     reading.add(reading.find('*')).each((_, element) => {
       const node = $(element);
+      const style = node.attr('style') || '';
+      const isLiturgicalRed = /--liturgical-red/i.test(style);
+
+      const existingClasses = (node.attr('class') || '').split(/\s+/).filter(Boolean);
+      const preservedClasses: string[] = [];
+      for (const cls of existingClasses) {
+        if (['rub', 'liturgical-rubric', 'liturgy-antiphon', 'liturgical-red'].includes(cls)) {
+          if (!preservedClasses.includes(cls)) {
+            preservedClasses.push(cls);
+          }
+        }
+      }
+      if (isLiturgicalRed && !preservedClasses.includes('liturgical-red')) {
+        preservedClasses.push('liturgical-red');
+      }
+
       for (const name of Object.keys((element as any).attribs || {})) {
         const value = node.attr(name) || '';
         if (/^on/i.test(name) || name === 'srcdoc' || name === 'style' || name === 'src' || name === 'srcset') {
@@ -156,9 +172,22 @@ export class CanonicalHoursParser {
           }
         }
       }
+
+      if (preservedClasses.length > 0) {
+        node.attr('class', preservedClasses.join(' '));
+      } else {
+        node.removeAttr('class');
+      }
     });
+
     const rawCleanText = reading.html()?.trim() || '';
-    const plainText = reading.text().replace(/\s+/g, ' ').trim();
+
+    const textClone = reading.clone();
+    textClone.find('br').replaceWith(' ');
+    textClone.find('p, h1, h2, h3, h4, h5, h6, li, div, blockquote, tr').each((_, el) => {
+      $(el).append(' ');
+    });
+    const plainText = textClone.text().replace(/\s+/g, ' ').trim();
     if (plainText.length < 50 || rawCleanText.length < 50) {
       throw new Error(`Conteúdo Oratio vazio ou curto para ${expectedSlug}`);
     }
