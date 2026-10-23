@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.49.2] - 2026-10-23
+
+### Added
+
+- Telemetria híbrida para o aplicativo mobile: endpoint autenticado, migration com RLS e coleta de sessões, visualizações/tempo de tela, versões e falhas sem registrar conteúdo sensível.
+- Métricas mobile no dashboard administrativo: usuários novos, DAU/MAU, sessões, permanência média, telas mais acessadas, versões e erros.
+- Notificação por e-mail para `lucasgabriel@acutistech.com.br` após cada criação de perfil mobile, configurável via `NEW_USER_NOTIFICATION_EMAIL`.
+
+### Changed
+
+- Dashboard principal prioriza os cadastros mais recentes em ordem decrescente e indicadores de produto mobile; as análises de IA existentes foram preservadas abaixo.
+
+## [1.49.3] - 2026-10-23
+
+### Changed
+
+- Dashboard organizado em abas Total, Mobile e Chat/WhatsApp; a aba Total preserva os indicadores gerais e conversas recentes existentes.
+- Separação de usuários por origem: Mobile considera somente `origin = mobile` e Chat/WhatsApp somente `origin = wpp`; a visão geral continua consolidando todas as origens.
+
+## [1.49.4] - 2026-10-23
+
+### Changed
+
+- Padronizados cartões, tabelas, avatares, badges e estados visuais nas abas Total e Chat/WhatsApp para seguir o layout da aba Mobile.
+- Restaurado o painel de Saúde do Sistema com cartões separados para persona, banco de dados e estado geral.
+
+## [1.49.5] - 2026-10-23
+
+### Fixed
+
+- Melhorados foco visível e acionamento por teclado nas abas e linhas interativas das tabelas do dashboard.
+
 ## [1.49.1] - 2026-10-22
 
 ### Changed

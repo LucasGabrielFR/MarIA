@@ -22,6 +22,7 @@ import { RemindersModule } from './reminders/reminders.module';
 import { SystemLogsModule } from './system-logs/system-logs.module';
 
 import { CanonicalHoursModule } from './canonical-hours/canonical-hours.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { CanonicalHoursModule } from './canonical-hours/canonical-hours.module';
     MobileModule,
     NovenasModule,
     CanonicalHoursModule,
+    AnalyticsModule,
   ],
   controllers: [],
   providers: [],

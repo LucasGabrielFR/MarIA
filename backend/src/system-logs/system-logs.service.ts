@@ -46,12 +46,15 @@ export class SystemLogsService {
     error?: any,
     metadata?: Record<string, any>,
   ): Promise<void> {
-    const stack = error?.stack || (error instanceof Error ? error.stack : undefined);
-    const errorDetails = error ? {
-      name: error?.name,
-      message: error?.message || String(error),
-      ...(typeof error === 'object' ? error : {}),
-    } : undefined;
+    const stack =
+      error?.stack || (error instanceof Error ? error.stack : undefined);
+    const errorDetails = error
+      ? {
+          name: error?.name,
+          message: error?.message || String(error),
+          ...(typeof error === 'object' ? error : {}),
+        }
+      : undefined;
 
     this.consoleLogger.error(`[${source}] ${message}`, stack);
 
@@ -60,7 +63,10 @@ export class SystemLogsService {
       source,
       message,
       stack_trace: stack,
-      metadata: { ...metadata, ...(errorDetails ? { error: errorDetails } : {}) },
+      metadata: {
+        ...metadata,
+        ...(errorDetails ? { error: errorDetails } : {}),
+      },
     });
   }
 
@@ -70,7 +76,8 @@ export class SystemLogsService {
     error?: any,
     metadata?: Record<string, any>,
   ): Promise<void> {
-    const stack = error?.stack || (error instanceof Error ? error.stack : undefined);
+    const stack =
+      error?.stack || (error instanceof Error ? error.stack : undefined);
     this.consoleLogger.error(`[CRITICAL][${source}] ${message}`, stack);
 
     await this.log({
@@ -78,7 +85,10 @@ export class SystemLogsService {
       source,
       message,
       stack_trace: stack,
-      metadata: { ...metadata, ...(error ? { error: error?.message || error } : {}) },
+      metadata: {
+        ...metadata,
+        ...(error ? { error: error?.message || error } : {}),
+      },
     });
   }
 

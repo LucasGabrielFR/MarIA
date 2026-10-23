@@ -24,13 +24,18 @@ export class NovenasSchedulerService {
     try {
       const now = new Date();
       const currentTime = formatInTimeZone(now, 'America/Sao_Paulo', 'HH:mm');
-      const todayDateStr = formatInTimeZone(now, 'America/Sao_Paulo', 'yyyy-MM-dd');
+      const todayDateStr = formatInTimeZone(
+        now,
+        'America/Sao_Paulo',
+        'yyyy-MM-dd',
+      );
       const supabase = this.supabaseService.getClient();
 
       // Busca novenas ativas com lembrete no WhatsApp configurado para este minuto
       const { data: novenasToRemind, error } = await supabase
         .from('user_novenas')
-        .select(`
+        .select(
+          `
           id,
           user_id,
           novena_id,
@@ -52,13 +57,16 @@ export class NovenasSchedulerService {
             title,
             subtitle
           )
-        `)
+        `,
+        )
         .eq('status', 'in_progress')
         .eq('notify_whatsapp', true)
         .eq('reminder_time', currentTime);
 
       if (error) {
-        this.logger.error(`[NovenasScheduler] Erro ao buscar novenas ativas: ${error.message}`);
+        this.logger.error(
+          `[NovenasScheduler] Erro ao buscar novenas ativas: ${error.message}`,
+        );
         return;
       }
 
@@ -85,7 +93,9 @@ export class NovenasSchedulerService {
 
         const waChatId =
           user.wa_chatid ||
-          (user.phone ? `${user.phone.replace(/\D/g, '')}@s.whatsapp.net` : null);
+          (user.phone
+            ? `${user.phone.replace(/\D/g, '')}@s.whatsapp.net`
+            : null);
 
         if (!waChatId) continue;
 
@@ -105,7 +115,10 @@ export class NovenasSchedulerService {
         messageText += `Como você deseja rezar neste momento?`;
 
         const buttons = [
-          { id: `novena_read_${item.id}_${currentDay}`, text: '📖 Rezar no WhatsApp' },
+          {
+            id: `novena_read_${item.id}_${currentDay}`,
+            text: '📖 Rezar no WhatsApp',
+          },
           { id: `novena_app_${item.id}`, text: '📱 Abrir no Aplicativo' },
           { id: `novena_cancel_${item.id}`, text: '🔕 Cancelar Lembrete' },
         ];
@@ -143,7 +156,10 @@ export class NovenasSchedulerService {
         }
       }
     } catch (err: any) {
-      this.logger.error(`[NovenasScheduler] Exceção no cron de novenas: ${err.message}`, err.stack);
+      this.logger.error(
+        `[NovenasScheduler] Exceção no cron de novenas: ${err.message}`,
+        err.stack,
+      );
     } finally {
       this.isProcessing = false;
     }

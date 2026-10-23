@@ -34,19 +34,23 @@ export class PlansService implements OnModuleInit {
       this.logger.error('Erro ao buscar planos do Supabase:', error.message);
       // Se falhar e o cache estiver vazio, inicializa com valores hardcoded (fallback de segurança)
       if (this.plansCache.length === 0) {
-        this.logger.warn('Usando valores hardcoded de fallback para os planos.');
+        this.logger.warn(
+          'Usando valores hardcoded de fallback para os planos.',
+        );
         this.plansCache = this.getFallbackPlans();
       }
       return this.plansCache;
     }
 
     if (data && data.length > 0) {
-      this.plansCache = data.map(p => ({
+      this.plansCache = data.map((p) => ({
         ...p,
-        price: Number(p.price)
+        price: Number(p.price),
       }));
       this.lastFetch = Date.now();
-      this.logger.log(`Planos recarregados: ${this.plansCache.length} encontrados.`);
+      this.logger.log(
+        `Planos recarregados: ${this.plansCache.length} encontrados.`,
+      );
     }
 
     return this.plansCache;
@@ -78,11 +82,16 @@ export class PlansService implements OnModuleInit {
     };
   }
 
-  async updatePlan(id: string, updates: Partial<PlanConfig>): Promise<PlanConfig | null> {
+  async updatePlan(
+    id: string,
+    updates: Partial<PlanConfig>,
+  ): Promise<PlanConfig | null> {
     const supabase = this.supabaseService.getClient();
-    
-    this.logger.log(`updatePlan chamado para id: ${id} com updates: ${JSON.stringify(updates)}`);
-    
+
+    this.logger.log(
+      `updatePlan chamado para id: ${id} com updates: ${JSON.stringify(updates)}`,
+    );
+
     // Filtra apenas campos válidos
     const allowedUpdates = {
       name: updates.name,
@@ -91,11 +100,15 @@ export class PlansService implements OnModuleInit {
       messages_limit: updates.messages_limit,
       magisterium_limit: updates.magisterium_limit,
       is_active: updates.is_active,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     };
-    
+
     // Remove undefined
-    Object.keys(allowedUpdates).forEach(key => allowedUpdates[key as keyof typeof allowedUpdates] === undefined && delete allowedUpdates[key as keyof typeof allowedUpdates]);
+    Object.keys(allowedUpdates).forEach(
+      (key) =>
+        allowedUpdates[key as keyof typeof allowedUpdates] === undefined &&
+        delete allowedUpdates[key as keyof typeof allowedUpdates],
+    );
 
     const { data, error } = await supabase
       .from('plans')
@@ -115,9 +128,9 @@ export class PlansService implements OnModuleInit {
 
   async createPlan(data: Partial<PlanConfig>): Promise<PlanConfig | null> {
     const supabase = this.supabaseService.getClient();
-    
+
     this.logger.log(`createPlan chamado com dados: ${JSON.stringify(data)}`);
-    
+
     const newPlan = {
       tier: data.tier,
       cycle: data.cycle,
@@ -125,7 +138,7 @@ export class PlansService implements OnModuleInit {
       price: data.price,
       description: data.description,
       messages_limit: data.messages_limit,
-      is_active: data.is_active !== undefined ? data.is_active : true
+      is_active: data.is_active !== undefined ? data.is_active : true,
     };
 
     const { data: insertedData, error } = await supabase
@@ -154,7 +167,7 @@ export class PlansService implements OnModuleInit {
         messages_limit: 100,
         magisterium_limit: 10,
         description: 'Plano Básico Mensal - MarIA',
-        is_active: true
+        is_active: true,
       },
       {
         id: 'fallback-basic-annual',
@@ -165,7 +178,7 @@ export class PlansService implements OnModuleInit {
         messages_limit: 100,
         magisterium_limit: 10,
         description: 'Plano Básico Anual - MarIA',
-        is_active: true
+        is_active: true,
       },
       {
         id: 'fallback-premium-monthly',
@@ -176,7 +189,7 @@ export class PlansService implements OnModuleInit {
         messages_limit: 300,
         magisterium_limit: 50,
         description: 'Plano Premium Mensal - MarIA',
-        is_active: true
+        is_active: true,
       },
       {
         id: 'fallback-premium-annual',
@@ -187,7 +200,7 @@ export class PlansService implements OnModuleInit {
         messages_limit: 300,
         magisterium_limit: 50,
         description: 'Plano Premium Anual - MarIA',
-        is_active: true
+        is_active: true,
       },
     ];
   }

@@ -147,7 +147,8 @@ export class UazapiService {
     // Determina o tipo interativo: 'list' (se > 3 botões ou explicitamente 'list') ou 'button' (até 3 botões)
     const isListRequested = options?.type === 'list';
     const isButtonRequested = options?.type === 'button';
-    const shouldUseList = isListRequested || (!isButtonRequested && buttons.length > 3);
+    const shouldUseList =
+      isListRequested || (!isButtonRequested && buttons.length > 3);
 
     if (shouldUseList) {
       const sectionTitle = options?.sectionTitle || 'Opções Disponíveis';
@@ -198,7 +199,12 @@ export class UazapiService {
           await this.systemLogsService.logInfo(
             'UazapiService',
             `Menu de lista interativo enviado com sucesso para ${chatId}`,
-            { chatId, type: 'list', itemsCount: visibleButtons.length, preview: text.substring(0, 100) },
+            {
+              chatId,
+              type: 'list',
+              itemsCount: visibleButtons.length,
+              preview: text.substring(0, 100),
+            },
           );
           return true;
         }
@@ -221,7 +227,18 @@ export class UazapiService {
       }
 
       // Fallback para texto caso o menu de lista falhe na API
-      const numbered = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
+      const numbered = [
+        '1️⃣',
+        '2️⃣',
+        '3️⃣',
+        '4️⃣',
+        '5️⃣',
+        '6️⃣',
+        '7️⃣',
+        '8️⃣',
+        '9️⃣',
+        '🔟',
+      ];
       const fallbackText =
         text +
         '\n\n' +
@@ -269,7 +286,12 @@ export class UazapiService {
         await this.systemLogsService.logInfo(
           'UazapiService',
           `Botões interativos enviados com sucesso para ${chatId}`,
-          { chatId, type: 'button', buttonsCount: choices.length, preview: text.substring(0, 100) },
+          {
+            chatId,
+            type: 'button',
+            buttonsCount: choices.length,
+            preview: text.substring(0, 100),
+          },
         );
         return true;
       }

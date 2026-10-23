@@ -19,4 +19,3 @@ import { AiModule } from '../ai/ai.module';
   exports: [BullModule, RemindersService],
 })
 export class RemindersModule {}
-

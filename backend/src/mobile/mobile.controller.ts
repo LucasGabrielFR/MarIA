@@ -1,4 +1,13 @@
-import { Controller, Post, Body, Get, Put, Query, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  Put,
+  Query,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
 import {
   MobileService,
   MobileChatRequestDto,
@@ -78,5 +87,3 @@ export class MobileController {
     return this.mobileService.getDailyContent(date);
   }
 }
-
-

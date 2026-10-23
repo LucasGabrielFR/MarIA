@@ -57,7 +57,9 @@ export class RemindersService implements OnApplicationBootstrap {
 
       const { data: reminders, error } = await supabase
         .from('reminders')
-        .select('id, user_id, title, scheduled_time, status, scheduled_period, last_sent_at, reminder_time')
+        .select(
+          'id, user_id, title, scheduled_time, status, scheduled_period, last_sent_at, reminder_time',
+        )
         .eq('status', 'pending');
 
       if (error) {
@@ -107,7 +109,10 @@ export class RemindersService implements OnApplicationBootstrap {
             await this.systemLogsService.logInfo(
               'RemindersService',
               `Re-enfileirado lembrete futuro "${reminder.title}" pós-reinicialização.`,
-              { reminderId: reminder.id, scheduled_time: reminder.scheduled_time },
+              {
+                reminderId: reminder.id,
+                scheduled_time: reminder.scheduled_time,
+              },
             );
           }
         } else {
@@ -117,13 +122,19 @@ export class RemindersService implements OnApplicationBootstrap {
           // 1. Se já foi enviado nas últimas 12 horas (ex: hoje mesmo), já foi cumprido! Avança para o próximo dia.
           const wasSentRecently =
             reminder.last_sent_at &&
-            now.getTime() - new Date(reminder.last_sent_at).getTime() < 12 * 60 * 60 * 1000;
+            now.getTime() - new Date(reminder.last_sent_at).getTime() <
+              12 * 60 * 60 * 1000;
 
           if (wasSentRecently) {
             this.logger.log(
               `Lembrete "${reminder.title}" já foi disparado hoje. Atualizando próximo ciclo diário.`,
             );
-            await this.advanceToNextCycle(reminder, scheduledTime, supabase, now);
+            await this.advanceToNextCycle(
+              reminder,
+              scheduledTime,
+              supabase,
+              now,
+            );
             continue;
           }
 
@@ -151,14 +162,27 @@ export class RemindersService implements OnApplicationBootstrap {
             await this.systemLogsService.logWarn(
               'RemindersService',
               `Lembrete "${reminder.title}" recuperado pós-queda (${Math.round(lateMinutes)} min atrasado). Disparando via fila.`,
-              { reminderId: reminder.id, scheduled_time: reminder.scheduled_time },
+              {
+                reminderId: reminder.id,
+                scheduled_time: reminder.scheduled_time,
+              },
             );
 
             // Já atualiza no banco para o próximo dia para evitar re-enfileiramento na próxima checagem do watchdog
-            await this.advanceToNextCycle(reminder, scheduledTime, supabase, now);
+            await this.advanceToNextCycle(
+              reminder,
+              scheduledTime,
+              supabase,
+              now,
+            );
           } else {
             // Atraso de mais de 1 hora: avança silenciosamente para o próximo ciclo
-            await this.advanceToNextCycle(reminder, scheduledTime, supabase, now);
+            await this.advanceToNextCycle(
+              reminder,
+              scheduledTime,
+              supabase,
+              now,
+            );
           }
         }
       }
@@ -181,7 +205,11 @@ export class RemindersService implements OnApplicationBootstrap {
     const hour = parseInt(hStr || '7', 10);
     const minute = parseInt(mStr || '0', 10);
 
-    const todayDateSp = formatInTimeZone(now, 'America/Sao_Paulo', 'yyyy-MM-dd');
+    const todayDateSp = formatInTimeZone(
+      now,
+      'America/Sao_Paulo',
+      'yyyy-MM-dd',
+    );
     let nextScheduled = new Date(
       `${todayDateSp}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00-03:00`,
     );
@@ -231,11 +259,15 @@ export class RemindersService implements OnApplicationBootstrap {
       for (const job of jobs) {
         if (job?.data?.reminderId === reminderId) {
           await job.remove();
-          this.logger.log(`[RemindersQueue] Job pendente ${job.id} removido para reminder ${reminderId}`);
+          this.logger.log(
+            `[RemindersQueue] Job pendente ${job.id} removido para reminder ${reminderId}`,
+          );
         }
       }
     } catch (err: any) {
-      this.logger.warn(`Erro ao limpar jobs da fila para reminder ${reminderId}: ${err?.message}`);
+      this.logger.warn(
+        `Erro ao limpar jobs da fila para reminder ${reminderId}: ${err?.message}`,
+      );
     }
   }
 
@@ -260,7 +292,9 @@ export class RemindersService implements OnApplicationBootstrap {
       const { data } = await supabase
         .from('users')
         .select('id, phone, wa_chatid, name')
-        .or(`phone.eq.${cleanPhone},phone.eq.+${cleanPhone},phone.eq.55${cleanPhone},wa_chatid.ilike.%${cleanPhone}%`)
+        .or(
+          `phone.eq.${cleanPhone},phone.eq.+${cleanPhone},phone.eq.55${cleanPhone},wa_chatid.ilike.%${cleanPhone}%`,
+        )
         .limit(1)
         .maybeSingle();
       user = data;
@@ -286,7 +320,11 @@ export class RemindersService implements OnApplicationBootstrap {
         .update({ status: 'cancelled', updated_at: nowUtc.toISOString() })
         .eq('user_id', user.id)
         .eq('status', 'pending')
-        .not('external_id', 'in', `(${activeExternalIds.map((id) => `"${id}"`).join(',')})`);
+        .not(
+          'external_id',
+          'in',
+          `(${activeExternalIds.map((id) => `"${id}"`).join(',')})`,
+        );
     } else {
       await supabase
         .from('reminders')
@@ -326,7 +364,11 @@ export class RemindersService implements OnApplicationBootstrap {
       const hour = parseInt(hStr || '7', 10);
       const minute = parseInt(mStr || '0', 10);
 
-      const todayDateSp = formatInTimeZone(nowUtc, 'America/Sao_Paulo', 'yyyy-MM-dd');
+      const todayDateSp = formatInTimeZone(
+        nowUtc,
+        'America/Sao_Paulo',
+        'yyyy-MM-dd',
+      );
       let targetSp = new Date(
         `${todayDateSp}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00-03:00`,
       );
@@ -375,7 +417,9 @@ export class RemindersService implements OnApplicationBootstrap {
           .select('id')
           .single();
         if (insErr || !inserted) {
-          this.logger.error(`Erro ao inserir lembrete ${rem.id}: ${insErr?.message}`);
+          this.logger.error(
+            `Erro ao inserir lembrete ${rem.id}: ${insErr?.message}`,
+          );
           continue;
         }
         reminderId = inserted.id;
@@ -397,7 +441,9 @@ export class RemindersService implements OnApplicationBootstrap {
           },
         );
       } catch (queueErr: any) {
-        this.logger.error(`Erro ao enfileirar lembrete ${reminderId}: ${queueErr.message}`);
+        this.logger.error(
+          `Erro ao enfileirar lembrete ${reminderId}: ${queueErr.message}`,
+        );
       }
     }
 
@@ -423,7 +469,9 @@ export class RemindersService implements OnApplicationBootstrap {
       const { data: user } = await supabase
         .from('users')
         .select('id')
-        .or(`phone.eq.${cleanPhone},phone.eq.+${cleanPhone},phone.eq.55${cleanPhone},wa_chatid.ilike.%${cleanPhone}%`)
+        .or(
+          `phone.eq.${cleanPhone},phone.eq.+${cleanPhone},phone.eq.55${cleanPhone},wa_chatid.ilike.%${cleanPhone}%`,
+        )
         .limit(1)
         .maybeSingle();
       effectiveUserId = user?.id;
@@ -441,7 +489,9 @@ export class RemindersService implements OnApplicationBootstrap {
       .order('reminder_time', { ascending: true });
 
     if (error) {
-      this.logger.error(`Erro ao buscar lembretes do usuário: ${error.message}`);
+      this.logger.error(
+        `Erro ao buscar lembretes do usuário: ${error.message}`,
+      );
       return [];
     }
 
@@ -455,4 +505,3 @@ export class RemindersService implements OnApplicationBootstrap {
     return 'Noite';
   }
 }
-

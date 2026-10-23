@@ -262,6 +262,45 @@ export class MailService {
     }
   }
 
+  async sendNewUserNotification(user: {
+    name?: string | null;
+    email?: string | null;
+    origin?: string | null;
+    created_at?: string | null;
+  }): Promise<boolean> {
+    const to =
+      this.configService.get<string>('NEW_USER_NOTIFICATION_EMAIL') ||
+      'lucasgabriel@acutistech.com.br';
+    const from =
+      this.configService.get<string>('SMTP_FROM') ||
+      '"MarIA" <no-reply@maria.acutistech.com.br>';
+    const createdAt = user.created_at
+      ? new Date(user.created_at).toLocaleString('pt-BR')
+      : new Date().toLocaleString('pt-BR');
+    const text = `Novo usuário criado na MarIA\n\nNome: ${user.name || 'Não informado'}\nE-mail: ${user.email || 'Não informado'}\nOrigem: ${user.origin || 'mobile'}\nCriado em: ${createdAt}`;
+
+    if (!this.transporter) {
+      this.logger.warn(
+        `[MOCK-EMAIL] Notificação de novo usuário para ${to}: ${user.email || user.name || 'sem identificação'}`,
+      );
+      return true;
+    }
+
+    try {
+      await this.transporter.sendMail({
+        from,
+        to,
+        subject: 'Novo usuário criado na MarIA',
+        text,
+        html: `<h2>Novo usuário criado na MarIA</h2><p><strong>Nome:</strong> ${user.name || 'Não informado'}</p><p><strong>E-mail:</strong> ${user.email || 'Não informado'}</p><p><strong>Origem:</strong> ${user.origin || 'mobile'}</p><p><strong>Criado em:</strong> ${createdAt}</p>`,
+      });
+      return true;
+    } catch (error) {
+      this.logger.error(`Falha ao notificar novo usuário: ${error.message}`);
+      return false;
+    }
+  }
+
   /**
    * Envia e-mail oficial da MarIA com código OTP de 6 dígitos para recuperação de senha.
    */
@@ -428,7 +467,9 @@ export class MailService {
     }
 
     try {
-      this.logger.log(`Disparando e-mail de recuperação de senha para ${to}...`);
+      this.logger.log(
+        `Disparando e-mail de recuperação de senha para ${to}...`,
+      );
       await this.transporter.sendMail({
         from,
         to,

@@ -314,14 +314,14 @@ export class FinanceService {
     }
 
     let value = 0;
-    let cycleAsaas = cycle === 'annual' ? 'YEARLY' : 'MONTHLY';
+    const cycleAsaas = cycle === 'annual' ? 'YEARLY' : 'MONTHLY';
     let description = '';
 
     const plan = await this.plansService.getPlan(tier, cycle);
     if (!plan) {
       throw new Error('Plano ou ciclo inválido');
     }
-    
+
     value = plan.price;
     description = `${plan.name} - Atualizado`;
 

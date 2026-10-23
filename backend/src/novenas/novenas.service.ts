@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 
 export class NovenaDayDto {
@@ -77,7 +82,9 @@ export class NovenasService {
       .select('*', { count: 'exact', head: true });
 
     if (error) {
-      throw new BadRequestException(`Erro ao verificar novenas: ${error.message}`);
+      throw new BadRequestException(
+        `Erro ao verificar novenas: ${error.message}`,
+      );
     }
 
     return {
@@ -111,7 +118,8 @@ export class NovenasService {
     }
 
     const { data, error } = await query;
-    if (error) throw new BadRequestException(`Erro ao listar novenas: ${error.message}`);
+    if (error)
+      throw new BadRequestException(`Erro ao listar novenas: ${error.message}`);
 
     return (data || []).map((novena: any) => ({
       ...novena,
@@ -136,7 +144,10 @@ export class NovenasService {
       .eq('novena_id', id)
       .order('day_number', { ascending: true });
 
-    if (daysErr) throw new BadRequestException(`Erro ao carregar dias: ${daysErr.message}`);
+    if (daysErr)
+      throw new BadRequestException(
+        `Erro ao carregar dias: ${daysErr.message}`,
+      );
 
     return {
       ...novena,
@@ -178,11 +189,14 @@ export class NovenasService {
       .select()
       .single();
 
-    if (novenaErr) throw new BadRequestException(`Erro ao criar novena: ${novenaErr.message}`);
+    if (novenaErr)
+      throw new BadRequestException(
+        `Erro ao criar novena: ${novenaErr.message}`,
+      );
 
     // Inserir dias se fornecidos
     if (dto.days && dto.days.length > 0) {
-      const daysToInsert = dto.days.map(d => ({
+      const daysToInsert = dto.days.map((d) => ({
         novena_id: novena.id,
         day_number: d.day_number,
         title: d.title,
@@ -194,8 +208,13 @@ export class NovenasService {
         concluding_prayer: d.concluding_prayer,
       }));
 
-      const { error: daysErr } = await this.supabase.from('novena_days').insert(daysToInsert);
-      if (daysErr) throw new BadRequestException(`Erro ao salvar dias da novena: ${daysErr.message}`);
+      const { error: daysErr } = await this.supabase
+        .from('novena_days')
+        .insert(daysToInsert);
+      if (daysErr)
+        throw new BadRequestException(
+          `Erro ao salvar dias da novena: ${daysErr.message}`,
+        );
     }
 
     return this.getNovenaById(novena.id);
@@ -208,24 +227,34 @@ export class NovenasService {
 
     if (dto.title !== undefined) updatePayload.title = dto.title.trim();
     if (dto.slug !== undefined) updatePayload.slug = dto.slug.trim();
-    if (dto.subtitle !== undefined) updatePayload.subtitle = dto.subtitle?.trim();
-    if (dto.description !== undefined) updatePayload.description = dto.description?.trim();
+    if (dto.subtitle !== undefined)
+      updatePayload.subtitle = dto.subtitle?.trim();
+    if (dto.description !== undefined)
+      updatePayload.description = dto.description?.trim();
     if (dto.category !== undefined) updatePayload.category = dto.category;
     if (dto.tags !== undefined) updatePayload.tags = dto.tags;
     if (dto.feast_date !== undefined) updatePayload.feast_date = dto.feast_date;
-    if (dto.ideal_start_date !== undefined) updatePayload.ideal_start_date = dto.ideal_start_date;
+    if (dto.ideal_start_date !== undefined)
+      updatePayload.ideal_start_date = dto.ideal_start_date;
     if (dto.image_url !== undefined) updatePayload.image_url = dto.image_url;
-    if (dto.banner_color !== undefined) updatePayload.banner_color = dto.banner_color;
-    if (dto.is_published !== undefined) updatePayload.is_published = dto.is_published;
-    if (dto.is_featured !== undefined) updatePayload.is_featured = dto.is_featured;
-    if (dto.display_order !== undefined) updatePayload.display_order = dto.display_order;
+    if (dto.banner_color !== undefined)
+      updatePayload.banner_color = dto.banner_color;
+    if (dto.is_published !== undefined)
+      updatePayload.is_published = dto.is_published;
+    if (dto.is_featured !== undefined)
+      updatePayload.is_featured = dto.is_featured;
+    if (dto.display_order !== undefined)
+      updatePayload.display_order = dto.display_order;
 
     const { error: novenaErr } = await this.supabase
       .from('novenas')
       .update(updatePayload)
       .eq('id', id);
 
-    if (novenaErr) throw new BadRequestException(`Erro ao atualizar novena: ${novenaErr.message}`);
+    if (novenaErr)
+      throw new BadRequestException(
+        `Erro ao atualizar novena: ${novenaErr.message}`,
+      );
 
     // Atualizar / Upsert dias caso fornecidos
     if (dto.days && dto.days.length > 0) {
@@ -252,7 +281,8 @@ export class NovenasService {
 
   async deleteNovena(id: string) {
     const { error } = await this.supabase.from('novenas').delete().eq('id', id);
-    if (error) throw new BadRequestException(`Erro ao excluir novena: ${error.message}`);
+    if (error)
+      throw new BadRequestException(`Erro ao excluir novena: ${error.message}`);
     return { success: true, message: 'Novena excluída com sucesso.' };
   }
 
@@ -261,7 +291,9 @@ export class NovenasService {
   async getPublishedNovenas(category?: string, search?: string) {
     let query = this.supabase
       .from('novenas')
-      .select('id, slug, title, subtitle, description, category, tags, feast_date, ideal_start_date, image_url, banner_color, is_featured, display_order, novena_days(count)')
+      .select(
+        'id, slug, title, subtitle, description, category, tags, feast_date, ideal_start_date, image_url, banner_color, is_featured, display_order, novena_days(count)',
+      )
       .eq('is_published', true)
       .order('is_featured', { ascending: false })
       .order('display_order', { ascending: true })
@@ -269,7 +301,12 @@ export class NovenasService {
 
     if (category && category !== 'all') {
       if (category === 'liturgica' || category === 'liturgicas') {
-        query = query.in('category', ['liturgica', 'espirito_santo', 'almas', 'liturgicas']);
+        query = query.in('category', [
+          'liturgica',
+          'espirito_santo',
+          'almas',
+          'liturgicas',
+        ]);
       } else {
         query = query.eq('category', category);
       }
@@ -280,7 +317,8 @@ export class NovenasService {
     }
 
     const { data, error } = await query;
-    if (error) throw new BadRequestException(`Erro ao listar novenas: ${error.message}`);
+    if (error)
+      throw new BadRequestException(`Erro ao listar novenas: ${error.message}`);
 
     return (data || []).map((novena: any) => ({
       ...novena,
@@ -292,7 +330,10 @@ export class NovenasService {
     let query = this.supabase.from('novenas').select('*');
 
     // Se for UUID válido ou slug
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier);
+    const isUuid =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        identifier,
+      );
     if (isUuid) {
       query = query.eq('id', identifier);
     } else {
@@ -310,7 +351,10 @@ export class NovenasService {
       .eq('novena_id', novena.id)
       .order('day_number', { ascending: true });
 
-    if (daysErr) throw new BadRequestException(`Erro ao carregar dias: ${daysErr.message}`);
+    if (daysErr)
+      throw new BadRequestException(
+        `Erro ao carregar dias: ${daysErr.message}`,
+      );
 
     return {
       ...novena,
@@ -319,7 +363,9 @@ export class NovenasService {
   }
 
   private isValidUuid(id: string): boolean {
-    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      id,
+    );
   }
 
   async getUserActiveNovenas(userId: string) {
@@ -329,7 +375,8 @@ export class NovenasService {
 
     const { data, error } = await this.supabase
       .from('user_novenas')
-      .select(`
+      .select(
+        `
         id,
         current_day,
         status,
@@ -347,11 +394,15 @@ export class NovenasService {
           image_url,
           banner_color
         )
-      `)
+      `,
+      )
       .eq('user_id', userId)
       .order('updated_at', { ascending: false });
 
-    if (error) throw new BadRequestException(`Erro ao carregar novenas do usuário: ${error.message}`);
+    if (error)
+      throw new BadRequestException(
+        `Erro ao carregar novenas do usuário: ${error.message}`,
+      );
     return data || [];
   }
 
@@ -391,7 +442,8 @@ export class NovenasService {
       .select()
       .single();
 
-    if (error) throw new BadRequestException(`Erro ao iniciar novena: ${error.message}`);
+    if (error)
+      throw new BadRequestException(`Erro ao iniciar novena: ${error.message}`);
     return data;
   }
 
@@ -415,7 +467,9 @@ export class NovenasService {
     });
 
     const isLastDay = dto.dayNumber >= 9;
-    const nextDay = isLastDay ? 9 : Math.max(userNovena.current_day, dto.dayNumber + 1);
+    const nextDay = isLastDay
+      ? 9
+      : Math.max(userNovena.current_day, dto.dayNumber + 1);
     const newStatus = isLastDay ? 'completed' : 'in_progress';
 
     const { data: updated, error: updateErr } = await this.supabase
@@ -431,7 +485,10 @@ export class NovenasService {
       .select()
       .single();
 
-    if (updateErr) throw new BadRequestException(`Erro ao avançar dia: ${updateErr.message}`);
+    if (updateErr)
+      throw new BadRequestException(
+        `Erro ao avançar dia: ${updateErr.message}`,
+      );
     return updated;
   }
 }

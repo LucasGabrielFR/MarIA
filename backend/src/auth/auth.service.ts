@@ -30,7 +30,7 @@ export class AuthService {
     }
 
     let userRole = admin.role;
-    
+
     // Se o cargo no banco for admin, verifica se é um afiliado (burlar a constraint)
     if (userRole === 'admin') {
       const { data: affiliate } = await supabase
@@ -38,7 +38,7 @@ export class AuthService {
         .select('id')
         .eq('admin_id', data.user.id)
         .single();
-        
+
       if (affiliate) {
         userRole = 'affiliate';
       }

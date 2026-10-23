@@ -93,7 +93,9 @@ export class CronService {
       try {
         await task.fn();
       } catch (err) {
-        this.logger.error(`Falha ao gerar ${task.name} para ${date}: ${err.message}`);
+        this.logger.error(
+          `Falha ao gerar ${task.name} para ${date}: ${err.message}`,
+        );
       }
     }
   }
@@ -104,7 +106,9 @@ export class CronService {
     this.logger.log(`Gerando liturgia para ${date}...`);
     const rawLiturgy = await this.liturgyService.getDailyLiturgy(date);
     if (rawLiturgy === 'Não foi possível obter a liturgia no momento.') {
-      this.logger.warn(`API de liturgia falhou para ${date}. Abortando geração com IA.`);
+      this.logger.warn(
+        `API de liturgia falhou para ${date}. Abortando geração com IA.`,
+      );
       return;
     }
 
@@ -259,13 +263,13 @@ export class CronService {
 
   async processAffiliatesInsights() {
     const supabase = this.supabaseService.getClient();
-    
+
     // 1. Obter todos os afiliados
     const { data: affiliates, error: affError } = await supabase
       .from('affiliates')
       .select('id, code, is_active')
       .eq('is_active', true);
-      
+
     if (affError || !affiliates) {
       this.logger.error('Erro ao buscar afiliados para insights', affError);
       return;
@@ -278,14 +282,14 @@ export class CronService {
           .from('users')
           .select('id')
           .eq('affiliate_code', affiliate.code);
-          
+
         if (!users || users.length === 0) continue;
-        const userIds = users.map(u => u.id);
+        const userIds = users.map((u) => u.id);
 
         // 3. Obter mensagens da última semana
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        
+
         const { data: messages } = await supabase
           .from('messages')
           .select('content')
@@ -295,23 +299,29 @@ export class CronService {
           .limit(200);
 
         if (messages && messages.length > 0) {
-          const contents = messages.map(m => m.content);
+          const contents = messages.map((m) => m.content);
           // 4. Resumir interesses
-          const summary = await this.aiService.summarizeCommunityInterests(contents);
-          
+          const summary =
+            await this.aiService.summarizeCommunityInterests(contents);
+
           // 5. Salvar no afiliado
           await supabase
             .from('affiliates')
-            .update({ 
+            .update({
               community_insights: summary,
-              community_insights_updated_at: new Date().toISOString()
+              community_insights_updated_at: new Date().toISOString(),
             })
             .eq('id', affiliate.id);
-            
-          this.logger.log(`Insights atualizados para afiliado ${affiliate.code}`);
+
+          this.logger.log(
+            `Insights atualizados para afiliado ${affiliate.code}`,
+          );
         }
       } catch (err) {
-        this.logger.error(`Erro ao processar insights para afiliado ${affiliate.code}`, err);
+        this.logger.error(
+          `Erro ao processar insights para afiliado ${affiliate.code}`,
+          err,
+        );
       }
     }
   }
@@ -322,7 +332,9 @@ export class CronService {
    */
   @Cron('0 3 * * *', { timeZone: 'America/Sao_Paulo' })
   async cleanupOldCancelledReminders() {
-    this.logger.log('Iniciando rotina de limpeza de lembretes cancelados há mais de 30 dias...');
+    this.logger.log(
+      'Iniciando rotina de limpeza de lembretes cancelados há mais de 30 dias...',
+    );
     try {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -379,11 +391,15 @@ export class CronService {
       // Busca usuários em fluxos interativos ativos
       const { data: activeFlowUsers, error: queryError } = await supabase
         .from('users')
-        .select('id, reminder_state, exam_state, status, flow_updated_at, updated_at')
+        .select(
+          'id, reminder_state, exam_state, status, flow_updated_at, updated_at',
+        )
         .or('reminder_state.neq.idle,exam_state.neq.idle,status.like.flow:%');
 
       if (queryError) {
-        this.logger.error(`Erro ao buscar usuários em fluxos ativos: ${queryError.message}`);
+        this.logger.error(
+          `Erro ao buscar usuários em fluxos ativos: ${queryError.message}`,
+        );
         return;
       }
 
@@ -395,7 +411,9 @@ export class CronService {
       const expiredUsers: any[] = [];
 
       for (const u of activeFlowUsers) {
-        let lastActivity = u.flow_updated_at ? new Date(u.flow_updated_at).getTime() : null;
+        let lastActivity = u.flow_updated_at
+          ? new Date(u.flow_updated_at).getTime()
+          : null;
 
         if (!lastActivity && u.updated_at) {
           lastActivity = new Date(u.updated_at).getTime();
@@ -417,7 +435,7 @@ export class CronService {
         }
 
         // Se não houver registro de atividade ou se excedeu o limite de inatividade
-        if (!lastActivity || (now - lastActivity) >= timeoutMinutes * 60 * 1000) {
+        if (!lastActivity || now - lastActivity >= timeoutMinutes * 60 * 1000) {
           expiredUsers.push(u);
         }
       }
@@ -450,7 +468,9 @@ export class CronService {
         timeoutMinutes,
       });
     } catch (e: any) {
-      this.logger.error(`Exceção durante limpeza de fluxos inativos: ${e.message}`);
+      this.logger.error(
+        `Exceção durante limpeza de fluxos inativos: ${e.message}`,
+      );
     }
   }
 }

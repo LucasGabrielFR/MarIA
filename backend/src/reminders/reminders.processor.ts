@@ -21,24 +21,33 @@ export class RemindersProcessor extends WorkerHost {
 
   async process(job: Job<any, any, string>): Promise<any> {
     const { reminderId } = job.data;
-    this.logger.log(`Processando job do lembrete ${reminderId} (Job ID: ${job.id})`);
+    this.logger.log(
+      `Processando job do lembrete ${reminderId} (Job ID: ${job.id})`,
+    );
 
     const supabase = this.supabaseService.getClient();
 
     // Fetch the reminder and user
     const { data: reminder, error } = await supabase
       .from('reminders')
-      .select('*, users (wa_chatid, name), prayers (title, content, dynamic_ref)')
+      .select(
+        '*, users (wa_chatid, name), prayers (title, content, dynamic_ref)',
+      )
       .eq('id', reminderId)
       .single();
 
     if (error || !reminder) {
       const errMsg = `Lembrete ${reminderId} não encontrado no Supabase: ${error?.message}`;
       this.logger.error(errMsg);
-      await this.systemLogsService.logError('RemindersProcessor', errMsg, error, {
-        reminderId,
-        jobId: job.id,
-      });
+      await this.systemLogsService.logError(
+        'RemindersProcessor',
+        errMsg,
+        error,
+        {
+          reminderId,
+          jobId: job.id,
+        },
+      );
       return;
     }
 
@@ -51,7 +60,8 @@ export class RemindersProcessor extends WorkerHost {
     // Guard 2: Trava anti-duplicação (Idempotência)
     if (reminder.last_sent_at) {
       const lastSent = new Date(reminder.last_sent_at);
-      const minutesSinceLastSend = (Date.now() - lastSent.getTime()) / (60 * 1000);
+      const minutesSinceLastSend =
+        (Date.now() - lastSent.getTime()) / (60 * 1000);
       if (minutesSinceLastSend < 10) {
         this.logger.warn(
           `[DEDUP] Lembrete "${reminder.title}" (${reminderId}) já foi enviado há ${minutesSinceLastSend.toFixed(1)} min. Ignorando job duplicado (Job ID: ${job.id}).`,
@@ -68,15 +78,23 @@ export class RemindersProcessor extends WorkerHost {
     if (!waChatId) {
       const errMsg = `Usuário do lembrete ${reminderId} não possui wa_chatid válido.`;
       this.logger.error(errMsg);
-      await this.systemLogsService.logError('RemindersProcessor', errMsg, null, {
-        reminderId,
-        userId: reminder.user_id,
-      });
+      await this.systemLogsService.logError(
+        'RemindersProcessor',
+        errMsg,
+        null,
+        {
+          reminderId,
+          userId: reminder.user_id,
+        },
+      );
       return;
     }
 
     // Se o usuário desativou a ponte com WhatsApp no App, não envia no WhatsApp
-    if (user?.whatsapp_bridge_enabled === false || reminder.send_whatsapp === false) {
+    if (
+      user?.whatsapp_bridge_enabled === false ||
+      reminder.send_whatsapp === false
+    ) {
       this.logger.log(
         `Lembrete ${reminderId} ignorado no WhatsApp pois a ponte está desativada para o usuário ${reminder.user_id}.`,
       );
@@ -96,7 +114,11 @@ export class RemindersProcessor extends WorkerHost {
 
     const userName = user?.name || 'Fiel';
     const toolType = reminder.tool_type || 'custom';
-    const todayStr = formatInTimeZone(new Date(), 'America/Sao_Paulo', 'yyyy-MM-dd');
+    const todayStr = formatInTimeZone(
+      new Date(),
+      'America/Sao_Paulo',
+      'yyyy-MM-dd',
+    );
 
     let messageText = `⏰ *Lembrete*: ${reminder.title}`;
     let buttons = [
@@ -256,11 +278,16 @@ export class RemindersProcessor extends WorkerHost {
     } else {
       const failMsg = `Falha na entrega do lembrete "${reminder.title}" (${reminderId}) via Uazapi (retorno não-sucesso).`;
       this.logger.error(failMsg);
-      await this.systemLogsService.logError('RemindersProcessor', failMsg, null, {
-        reminderId,
-        waChatId,
-        title: reminder.title,
-      });
+      await this.systemLogsService.logError(
+        'RemindersProcessor',
+        failMsg,
+        null,
+        {
+          reminderId,
+          waChatId,
+          title: reminder.title,
+        },
+      );
       throw new Error(`Failed to send reminder via Uazapi`);
     }
   }
@@ -277,7 +304,11 @@ export class RemindersProcessor extends WorkerHost {
     const minute = parseInt(mStr || '0', 10);
 
     // Próximo disparo diário no fuso de Brasília
-    const todayDateSp = formatInTimeZone(now, 'America/Sao_Paulo', 'yyyy-MM-dd');
+    const todayDateSp = formatInTimeZone(
+      now,
+      'America/Sao_Paulo',
+      'yyyy-MM-dd',
+    );
     let nextScheduled = new Date(
       `${todayDateSp}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00-03:00`,
     );
@@ -327,5 +358,3 @@ export class RemindersProcessor extends WorkerHost {
     }
   }
 }
-
-

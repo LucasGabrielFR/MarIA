@@ -14,6 +14,7 @@ import { Queue } from 'bullmq';
 import { formatInTimeZone } from 'date-fns-tz';
 import { FlowInterpreterService } from './flow-interpreter.service';
 import { SystemLogsService } from '../system-logs/system-logs.service';
+import { MailService } from '../mail/mail.service';
 
 const MAGISTERIUM_INSTRUCTION =
   '\n\nOBRIGATÓRIO: Ao final da sua resposta, você deve listar as referências exatas de onde a informação foi extraída. ' +
@@ -42,12 +43,14 @@ export class AiService implements OnModuleInit {
     @InjectQueue('reminders-queue') private readonly remindersQueue: Queue,
     private readonly flowInterpreterService: FlowInterpreterService,
     private readonly systemLogsService: SystemLogsService,
+    private readonly mailService: MailService,
   ) {
     this.openRouterApiKey =
       this.configService.get<string>('OPENROUTER_API_KEY') || '';
     // Inicializar com variáveis de ambiente se disponíveis, caso contrário usar defaults
     this.model =
-      this.configService.get<string>('OPENROUTER_GPT_MODEL') || 'openai/gpt-4o-mini';
+      this.configService.get<string>('OPENROUTER_GPT_MODEL') ||
+      'openai/gpt-4o-mini';
     this.bridgeModel =
       this.configService.get<string>('OPENROUTER_BRIDGE_MODEL') ||
       'google/gemini-2.5-flash-lite';
@@ -123,49 +126,62 @@ export class AiService implements OnModuleInit {
       // Configuração para ferramentas (DuckDuckGo Search)
       // Só ativamos ferramentas em certas condições (ex: não json, chat normal, não utilitário)
       // Aqui vamos ativar para o model default e flash, e evitar em json mode
-      const useTools = !isJsonMode && (model.includes('gpt') || model.includes('gemini'));
-      const tools = useTools ? [
-        {
-          type: 'function',
-          function: {
-            name: 'search_web',
-            description: 'Pesquisa informações recentes, notícias ou fatos atuais na internet.',
-            parameters: {
-              type: 'object',
-              properties: {
-                query: { type: 'string', description: 'O termo de busca otimizado para o buscador' }
+      const useTools =
+        !isJsonMode && (model.includes('gpt') || model.includes('gemini'));
+      const tools = useTools
+        ? [
+            {
+              type: 'function',
+              function: {
+                name: 'search_web',
+                description:
+                  'Pesquisa informações recentes, notícias ou fatos atuais na internet.',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    query: {
+                      type: 'string',
+                      description: 'O termo de busca otimizado para o buscador',
+                    },
+                  },
+                  required: ['query'],
+                },
               },
-              required: ['query']
-            }
-          }
-        },
-        {
-          type: 'function',
-          function: {
-            name: 'get_prayer',
-            description: 'Busca o texto completo de uma oração ou guia específico quando o usuário pedir diretamente, ou quando você identificar a necessidade pastoral.',
-            parameters: {
-              type: 'object',
-              properties: {
-                title: { type: 'string', description: 'Nome da oração (ex: Oração de São Bento, Terço da Misericórdia, Angelus)' }
+            },
+            {
+              type: 'function',
+              function: {
+                name: 'get_prayer',
+                description:
+                  'Busca o texto completo de uma oração ou guia específico quando o usuário pedir diretamente, ou quando você identificar a necessidade pastoral.',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    title: {
+                      type: 'string',
+                      description:
+                        'Nome da oração (ex: Oração de São Bento, Terço da Misericórdia, Angelus)',
+                    },
+                  },
+                  required: ['title'],
+                },
               },
-              required: ['title']
-            }
-          }
-        },
-        {
-          type: 'function',
-          function: {
-            name: 'list_prayers',
-            description: 'Lista todas as orações e guias disponíveis no sistema. Use isso quando o usuário pedir o menu de orações ou perguntar o que você sabe rezar.',
-            parameters: {
-              type: 'object',
-              properties: {},
-              required: []
-            }
-          }
-        }
-      ] : undefined;
+            },
+            {
+              type: 'function',
+              function: {
+                name: 'list_prayers',
+                description:
+                  'Lista todas as orações e guias disponíveis no sistema. Use isso quando o usuário pedir o menu de orações ou perguntar o que você sabe rezar.',
+                parameters: {
+                  type: 'object',
+                  properties: {},
+                  required: [],
+                },
+              },
+            },
+          ]
+        : undefined;
 
       const headers = {
         Authorization: `Bearer ${this.openRouterApiKey}`,
@@ -175,7 +191,8 @@ export class AiService implements OnModuleInit {
       };
 
       const defaultTemp = isJsonMode ? 0.1 : 0.7;
-      const temperature = temperatureOverride !== undefined ? temperatureOverride : defaultTemp;
+      const temperature =
+        temperatureOverride !== undefined ? temperatureOverride : defaultTemp;
 
       let response = await fetch(
         'https://openrouter.ai/api/v1/chat/completions',
@@ -199,13 +216,18 @@ export class AiService implements OnModuleInit {
       }
 
       // Check for tool calls
-      if (data.choices?.[0]?.message?.tool_calls && data.choices[0].message.tool_calls.length > 0) {
+      if (
+        data.choices?.[0]?.message?.tool_calls &&
+        data.choices[0].message.tool_calls.length > 0
+      ) {
         const toolCall = data.choices[0].message.tool_calls[0];
         let toolResult = '';
 
         if (toolCall.function.name === 'search_web') {
           const args = JSON.parse(toolCall.function.arguments || '{}');
-          this.logger.debug(`Executando busca na web (DuckDuckGo): ${args.query}`);
+          this.logger.debug(
+            `Executando busca na web (DuckDuckGo): ${args.query}`,
+          );
           toolResult = await this.searchWeb(args.query);
         } else if (toolCall.function.name === 'get_prayer') {
           const args = JSON.parse(toolCall.function.arguments || '{}');
@@ -222,7 +244,7 @@ export class AiService implements OnModuleInit {
             role: 'tool',
             tool_call_id: toolCall.id,
             name: toolCall.function.name,
-            content: toolResult
+            content: toolResult,
           });
 
           // Second call
@@ -237,7 +259,7 @@ export class AiService implements OnModuleInit {
                 temperature: 0.7,
               }),
               signal: AbortSignal.timeout(30_000),
-            }
+            },
           );
           data = await response.json();
         }
@@ -268,17 +290,19 @@ export class AiService implements OnModuleInit {
    */
   private async searchWeb(query: string): Promise<string> {
     try {
-      if (!query) return "Termo de busca vazio.";
+      if (!query) return 'Termo de busca vazio.';
       // Import dinâmico para não falhar se o pacote não tiver sido buildado ainda
       const duckduckgo = await import('duck-duck-scrape');
-      
+
       // Para evitar dados defasados, adicionamos o ano e mês atual na query
       const currentYear = new Date().getFullYear();
       const currentMonth = new Date().getMonth() + 1; // 1-12
       const enhancedQuery = `${query} ${currentMonth}/${currentYear}`;
-      
-      this.logger.debug(`Busca melhorada com contexto temporal: ${enhancedQuery}`);
-      
+
+      this.logger.debug(
+        `Busca melhorada com contexto temporal: ${enhancedQuery}`,
+      );
+
       // Tenta usar a busca de notícias primeiro (searchNews) se existir, senão usa a busca normal com tempo restrito
       let results;
       if (typeof duckduckgo.searchNews === 'function') {
@@ -292,17 +316,20 @@ export class AiService implements OnModuleInit {
       }
 
       if (!results || !results.results || results.results.length === 0) {
-        return "Nenhum resultado de busca encontrado na internet para esse termo no momento atual.";
+        return 'Nenhum resultado de busca encontrado na internet para esse termo no momento atual.';
       }
-      
+
       // Retorna apenas títulos e resumos para evitar links na resposta da IA
       return results.results
         .slice(0, 3)
-        .map(r => `Fonte: ${r.title}\nResumo: ${r.description || r.excerpt || r.body || 'Sem resumo'}`)
+        .map(
+          (r) =>
+            `Fonte: ${r.title}\nResumo: ${r.description || r.excerpt || r.body || 'Sem resumo'}`,
+        )
         .join('\n\n---\n\n');
     } catch (error) {
       this.logger.error('Erro ao buscar no DuckDuckGo', error);
-      return "Ocorreu um erro ao buscar informações atuais. Continue respondendo com o que você já sabe.";
+      return 'Ocorreu um erro ao buscar informações atuais. Continue respondendo com o que você já sabe.';
     }
   }
 
@@ -314,7 +341,8 @@ export class AiService implements OnModuleInit {
   ): Promise<{ intent: string; rules: string[] }> {
     const bridgeModel = await this.getSystemSetting(
       'bridge_model',
-      this.configService.get<string>('OPENROUTER_BRIDGE_MODEL') || 'google/gemini-2.5-flash-lite',
+      this.configService.get<string>('OPENROUTER_BRIDGE_MODEL') ||
+        'google/gemini-2.5-flash-lite',
     );
     const routerPrompt = this.promptService.getPrompt('intent_router');
     if (!routerPrompt) return { intent: 'CASUAL', rules: [] };
@@ -378,7 +406,8 @@ export class AiService implements OnModuleInit {
         phone ||
         (source === 'mobile'
           ? `55009${Math.floor(10000000 + Math.random() * 90000000)}`
-          : waChatId.replace(/\D/g, '') || `55009${Date.now().toString().slice(-8)}`);
+          : waChatId.replace(/\D/g, '') ||
+            `55009${Date.now().toString().slice(-8)}`);
 
       const insertData: any = {
         wa_chatid: waChatId,
@@ -397,9 +426,13 @@ export class AiService implements OnModuleInit {
         .single();
       if (error) throw new Error(`Falha ao criar usuário: ${error.message}`);
       user = newUser;
+      await this.mailService.sendNewUserNotification(newUser);
     } else if (affiliateCode && user.affiliate_code !== affiliateCode) {
       // Atualiza o código se for diferente
-      await supabase.from('users').update({ affiliate_code: affiliateCode }).eq('id', user.id);
+      await supabase
+        .from('users')
+        .update({ affiliate_code: affiliateCode })
+        .eq('id', user.id);
       user.affiliate_code = affiliateCode;
     }
     return user;
@@ -460,21 +493,29 @@ export class AiService implements OnModuleInit {
       : await this.countMonthlyMessages(user.id);
 
     if (count >= monthlyLimit) {
-      const planName = isFree ? 'Gratuito' : user.subscription_tier === 'basic' ? 'Básico' : 'Premium';
-      
+      const planName = isFree
+        ? 'Gratuito'
+        : user.subscription_tier === 'basic'
+          ? 'Básico'
+          : 'Premium';
+
       let reasonText = '';
       if (isFree) {
         const customPrompt = this.promptService.getPrompt('free_tier_block');
-        reasonText = customPrompt 
-          ? customPrompt.replace('{monthlyLimit}', monthlyLimit.toString()) 
+        reasonText = customPrompt
+          ? customPrompt.replace('{monthlyLimit}', monthlyLimit.toString())
           : `Você atingiu seu limite de ${monthlyLimit} mensagens gratuitas. Seu apoio é fundamental para mantermos a MarIA ativa! Gostaria de fazer uma assinatura e continuar conversando?`;
       } else {
-        const customPrompt = this.promptService.getPrompt('usage_limit_reached');
+        const customPrompt = this.promptService.getPrompt(
+          'usage_limit_reached',
+        );
         reasonText = customPrompt
-          ? customPrompt.replace('{monthlyLimit}', monthlyLimit.toString()).replace('{planName}', planName)
+          ? customPrompt
+              .replace('{monthlyLimit}', monthlyLimit.toString())
+              .replace('{planName}', planName)
           : `Você atingiu seu limite mensal de ${monthlyLimit} mensagens no plano ${planName}. Seu apoio é fundamental para mantermos a MarIA ativa! Gostaria de fazer um upgrade ou renovar seu plano?`;
       }
-      
+
       return {
         allowed: false,
         reason: reasonText,
@@ -630,7 +671,13 @@ export class AiService implements OnModuleInit {
     origin: 'whatsapp' | 'mobile' = 'whatsapp',
   ): Promise<string> {
     const supabase = this.supabaseService.getClient();
-    let insertPayload: any = { user_id: userId, role, content, is_llm: isLlm, origin };
+    let insertPayload: any = {
+      user_id: userId,
+      role,
+      content,
+      is_llm: isLlm,
+      origin,
+    };
 
     let { data: msg, error } = await supabase
       .from('messages')
@@ -817,24 +864,30 @@ export class AiService implements OnModuleInit {
       return this.promptService.getPrompt('maintenance_message');
     }
 
-    const user = await this.getOrCreateUser(waChatId, pushName, phone, affiliateCode, source);
+    const user = await this.getOrCreateUser(
+      waChatId,
+      pushName,
+      phone,
+      affiliateCode,
+      source,
+    );
     const userId = user.id;
 
     // --- Tratamento de Código Promocional (Affiliates) ---
     const msgLower = message.trim().toLowerCase();
-    
+
     // Extrai palavras e o padrão [ref:code]
     const wordsMatch: string[] = msgLower.match(/[a-z0-9_-]+/g) || [];
     const refMatch = msgLower.match(/\[ref:([\w-]+)\]/);
     if (refMatch) wordsMatch.push(refMatch[1].toLowerCase());
-    
+
     if (wordsMatch.length > 0) {
       // Busca afiliados ativos para cruzar
       const { data: activeAffiliates } = (await supabase
         .from('affiliates')
         .select('id, code')
         .eq('is_active', true)) as { data: any[] | null };
-        
+
       if (activeAffiliates) {
         let foundAffiliate: any = null;
         for (const aff of activeAffiliates) {
@@ -843,19 +896,28 @@ export class AiService implements OnModuleInit {
             break;
           }
         }
-        
+
         if (foundAffiliate) {
-          if (!user.affiliate_code || user.affiliate_code !== foundAffiliate.code) {
-            await supabase.from('users').update({ 
-              affiliate_code: foundAffiliate.code, 
-              pending_affiliate_code: null, 
-              status: 'active' 
-            }).eq('id', user.id);
+          if (
+            !user.affiliate_code ||
+            user.affiliate_code !== foundAffiliate.code
+          ) {
+            await supabase
+              .from('users')
+              .update({
+                affiliate_code: foundAffiliate.code,
+                pending_affiliate_code: null,
+                status: 'active',
+              })
+              .eq('id', user.id);
             user.affiliate_code = foundAffiliate.code;
-            
+
             return await this.buildCouponActivatedMessage(foundAffiliate.code);
-          } else if (user.affiliate_code === foundAffiliate.code && msgLower === foundAffiliate.code.toLowerCase()) {
-            return "✅ Você já está usando este código promocional.";
+          } else if (
+            user.affiliate_code === foundAffiliate.code &&
+            msgLower === foundAffiliate.code.toLowerCase()
+          ) {
+            return '✅ Você já está usando este código promocional.';
           }
         }
       }
@@ -863,7 +925,6 @@ export class AiService implements OnModuleInit {
     // --- Fim Tratamento Promo Code ---
 
     let userStatus = user.status || 'active';
-
 
     // 2. Verificar se o bot está pausado para este fiel (Pausa Pastoral)
     if (user.is_paused) {
@@ -919,9 +980,21 @@ export class AiService implements OnModuleInit {
       await this.saveMessage(userId, 'user', message, false, source);
       const flowResponse = await this.handleFlowStep(user, userStatus, message);
       if (typeof flowResponse === 'string') {
-        await this.saveMessage(userId, 'assistant', flowResponse, false, source);
+        await this.saveMessage(
+          userId,
+          'assistant',
+          flowResponse,
+          false,
+          source,
+        );
       } else if (flowResponse && flowResponse.type === 'interactive') {
-        await this.saveMessage(userId, 'assistant', flowResponse.text, false, source);
+        await this.saveMessage(
+          userId,
+          'assistant',
+          flowResponse.text,
+          false,
+          source,
+        );
       }
       return flowResponse;
     }
@@ -955,14 +1028,28 @@ export class AiService implements OnModuleInit {
 
     // --- MÁQUINA DE ESTADOS (TRIAGEM) ---
     // Se a chamada for originada do aplicativo mobile, não aplicar triagem de onboarding de WhatsApp
-    if (source === 'mobile' && (userStatus === 'triage_intro' || userStatus === 'triage_name')) {
+    if (
+      source === 'mobile' &&
+      (userStatus === 'triage_intro' || userStatus === 'triage_name')
+    ) {
       userStatus = 'active';
       user.status = 'active';
-      if (!user.name && pushName && pushName !== 'Fiel' && pushName !== 'Usuário') {
+      if (
+        !user.name &&
+        pushName &&
+        pushName !== 'Fiel' &&
+        pushName !== 'Usuário'
+      ) {
         user.name = pushName;
-        await supabase.from('users').update({ status: 'active', name: pushName }).eq('id', userId);
+        await supabase
+          .from('users')
+          .update({ status: 'active', name: pushName })
+          .eq('id', userId);
       } else {
-        await supabase.from('users').update({ status: 'active' }).eq('id', userId);
+        await supabase
+          .from('users')
+          .update({ status: 'active' })
+          .eq('id', userId);
       }
     }
 
@@ -997,15 +1084,15 @@ export class AiService implements OnModuleInit {
         userStatus = 'triage_presentation_subscription';
         user.name = updateData.name; // <--- Atualiza na memória para o próximo bloco!
         user.gender = updateData.gender;
-
       } else {
         const { data: flowData } = await supabase
           .from('automatic_flows')
           .select('steps')
           .eq('key', 'welcome_flow')
           .single();
-          
-        const response = flowData?.steps?.['ask_name']?.text || 'Olá! Como você se chama?';
+
+        const response =
+          flowData?.steps?.['ask_name']?.text || 'Olá! Como você se chama?';
 
         if (userStatus === 'triage_intro') {
           await supabase
@@ -1026,8 +1113,9 @@ export class AiService implements OnModuleInit {
         .select('steps')
         .eq('key', 'welcome_flow')
         .single();
-        
-      let presentationPrompt = flowData?.steps?.['presentation']?.text || 'Seja bem-vindo(a), {nome}!';
+
+      const presentationPrompt =
+        flowData?.steps?.['presentation']?.text || 'Seja bem-vindo(a), {nome}!';
 
       const userName = user.name || 'amigo(a)';
       const responseText = presentationPrompt
@@ -1036,12 +1124,17 @@ export class AiService implements OnModuleInit {
 
       const isFree = user.subscription_tier === 'free';
       if (isFree) {
-        await supabase.from('users').update({ status: 'triage_ask_daily_liturgy' }).eq('id', userId);
-        
-        const questionText = flowData?.steps?.['ask_daily_liturgy']?.text || 'Gostaria de receber a liturgia todos os dias pela manhã?';
+        await supabase
+          .from('users')
+          .update({ status: 'triage_ask_daily_liturgy' })
+          .eq('id', userId);
+
+        const questionText =
+          flowData?.steps?.['ask_daily_liturgy']?.text ||
+          'Gostaria de receber a liturgia todos os dias pela manhã?';
         const buttons = flowData?.steps?.['ask_daily_liturgy']?.buttons || [
           { id: '1', text: 'Sim' },
-          { id: '2', text: 'Não' }
+          { id: '2', text: 'Não' },
         ];
 
         await this.saveMessage(userId, 'assistant', responseText, false);
@@ -1049,7 +1142,7 @@ export class AiService implements OnModuleInit {
 
         return [
           responseText,
-          { type: 'interactive', text: questionText, buttons }
+          { type: 'interactive', text: questionText, buttons },
         ];
       } else {
         await Promise.all([
@@ -1065,7 +1158,7 @@ export class AiService implements OnModuleInit {
       const cleanMsg = message.toLowerCase().trim();
       let receive = false;
       let handled = false;
-      
+
       if (cleanMsg === 'sim' || cleanMsg === '1') {
         receive = true;
         handled = true;
@@ -1075,15 +1168,18 @@ export class AiService implements OnModuleInit {
       }
 
       if (handled) {
-        await supabase.from('users').update({
-          status: 'active',
-          receive_daily_liturgy: receive
-        }).eq('id', userId);
+        await supabase
+          .from('users')
+          .update({
+            status: 'active',
+            receive_daily_liturgy: receive,
+          })
+          .eq('id', userId);
 
-        const responseText = receive 
-           ? 'Que maravilha! Enviarei a liturgia todos os dias pela manhã para você. Que Deus te abençoe! 🙏' 
-           : 'Tudo bem! Se mudar de ideia, você pode ativar a qualquer momento pelo menu da liturgia. Fique com Deus! 🙏';
-        
+        const responseText = receive
+          ? 'Que maravilha! Enviarei a liturgia todos os dias pela manhã para você. Que Deus te abençoe! 🙏'
+          : 'Tudo bem! Se mudar de ideia, você pode ativar a qualquer momento pelo menu da liturgia. Fique com Deus! 🙏';
+
         await this.saveMessage(userId, 'assistant', responseText, false);
         return responseText;
       } else {
@@ -1101,10 +1197,18 @@ export class AiService implements OnModuleInit {
         return reason || this.promptService.getPrompt('usage_limit_reached');
       }
 
-      if (lowerMsg === 'cancelar' || lowerMsg === 'sair' || lowerMsg === 'parar') {
+      if (
+        lowerMsg === 'cancelar' ||
+        lowerMsg === 'sair' ||
+        lowerMsg === 'parar'
+      ) {
         await supabase
           .from('users')
-          .update({ exam_state: 'idle', exam_context: {}, flow_updated_at: null })
+          .update({
+            exam_state: 'idle',
+            exam_context: {},
+            flow_updated_at: null,
+          })
           .eq('id', userId);
         const cancelMsg =
           'Exame de consciência cancelado. Quando quiser retomar, basta me pedir! Tenha uma noite abençoada. 🙏';
@@ -1134,7 +1238,15 @@ export class AiService implements OnModuleInit {
         .eq('key', 'conscience_exam_flow')
         .maybeSingle();
 
-      const days = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+      const days = [
+        'Domingo',
+        'Segunda',
+        'Terça',
+        'Quarta',
+        'Quinta',
+        'Sexta',
+        'Sábado',
+      ];
       const currentDayName = days[new Date().getDay()];
       const { data: dailyPrayer } = await supabase
         .from('prayers')
@@ -1150,12 +1262,17 @@ export class AiService implements OnModuleInit {
       let finalConfessionText = stepConfessionText;
       if (dailyFocus) {
         if (finalConfessionText.includes('{{foco_diario}}')) {
-          finalConfessionText = finalConfessionText.replace(/{{foco_diario}}/g, dailyFocus);
+          finalConfessionText = finalConfessionText.replace(
+            /{{foco_diario}}/g,
+            dailyFocus,
+          );
         } else {
           finalConfessionText += `\n\n${dailyFocus}`;
         }
       } else {
-        finalConfessionText = finalConfessionText.replace(/{{foco_diario}}/g, '').trim();
+        finalConfessionText = finalConfessionText
+          .replace(/{{foco_diario}}/g, '')
+          .trim();
       }
       await this.saveMessage(userId, 'assistant', finalConfessionText, true);
       return finalConfessionText;
@@ -1167,10 +1284,18 @@ export class AiService implements OnModuleInit {
         return reason || this.promptService.getPrompt('usage_limit_reached');
       }
 
-      if (lowerMsg === 'cancelar' || lowerMsg === 'sair' || lowerMsg === 'parar') {
+      if (
+        lowerMsg === 'cancelar' ||
+        lowerMsg === 'sair' ||
+        lowerMsg === 'parar'
+      ) {
         await supabase
           .from('users')
-          .update({ exam_state: 'idle', exam_context: {}, flow_updated_at: null })
+          .update({
+            exam_state: 'idle',
+            exam_context: {},
+            flow_updated_at: null,
+          })
           .eq('id', userId);
         const cancelMsg =
           'Exame de consciência cancelado. Quando quiser retomar, basta me pedir! Tenha uma noite abençoada. 🙏';
@@ -1195,7 +1320,9 @@ export class AiService implements OnModuleInit {
         'Bênçãos do dia reconhecidas com gratidão.';
       const slipupsText = message;
 
-      let promptTemplate = this.promptService.getPrompt('generator_guided_exam');
+      let promptTemplate = this.promptService.getPrompt(
+        'generator_guided_exam',
+      );
       if (!promptTemplate) {
         promptTemplate = `Você é a MarIA, acolhendo o exame de consciência noturno de {{nome}} (gênero: {{genero}}).\nAgradecimento do dia: "{{user_gratitude}}"\nFaltas/desabafo: "{{user_slipups}}"\n\nResponda com:\n1. Acolhida carinhosa e conforto pastoral\n2. Sugestão prática de uma virtude para amanhã\n3. Breve oração de reparação / Ato de Contrição\n4. Lembrete afetuoso da Confissão Sacramental se houver pecado grave. Formatação WhatsApp (*negrito*, _itálico_).`;
       }
@@ -1345,37 +1472,51 @@ export class AiService implements OnModuleInit {
 
     // Interceptação de Cancelamento de Lembrete (Botão ou Comando Direto)
     if (lowerMsg.startsWith('cancel_reminder_')) {
-      const reminderId = message.trim().replace(/^cancel_reminder_/i, '').trim();
+      const reminderId = message
+        .trim()
+        .replace(/^cancel_reminder_/i, '')
+        .trim();
       return await this.handleCancelReminder(userId, reminderId);
     }
 
     // Interceptação de Lembretes de Novenas (Botões do WhatsApp)
     if (lowerMsg.startsWith('novena_read_')) {
-      const parts = message.trim().replace(/^novena_read_/i, '').split('_');
+      const parts = message
+        .trim()
+        .replace(/^novena_read_/i, '')
+        .split('_');
       const userNovenaId = parts[0];
       const dayNum = parseInt(parts[1] || '1', 10);
       return await this.handleNovenaReadPrayer(userId, userNovenaId, dayNum);
     }
 
     if (lowerMsg.startsWith('novena_app_')) {
-      const novenaAppMsg =
-        `Que bênção, ${pushName}! 📱 O aplicativo MarIA está de portas abertas esperando por você. Lá você encontra todo o itinerário litúrgico e as contas da sua novena. Tenha um santo e frutuoso momento com Deus! 🙏✨`;
+      const novenaAppMsg = `Que bênção, ${pushName}! 📱 O aplicativo MarIA está de portas abertas esperando por você. Lá você encontra todo o itinerário litúrgico e as contas da sua novena. Tenha um santo e frutuoso momento com Deus! 🙏✨`;
       await this.saveMessage(userId, 'assistant', novenaAppMsg, false);
       return novenaAppMsg;
     }
 
     if (lowerMsg.startsWith('novena_check_')) {
-      const parts = message.trim().replace(/^novena_check_/i, '').split('_');
+      const parts = message
+        .trim()
+        .replace(/^novena_check_/i, '')
+        .split('_');
       const userNovenaId = parts[0];
       const dayNum = parseInt(parts[1] || '1', 10);
       return await this.handleNovenaCheckDay(userId, userNovenaId, dayNum);
     }
 
     if (lowerMsg.startsWith('novena_cancel_')) {
-      const userNovenaId = message.trim().replace(/^novena_cancel_/i, '').trim();
+      const userNovenaId = message
+        .trim()
+        .replace(/^novena_cancel_/i, '')
+        .trim();
       await supabase
         .from('user_novenas')
-        .update({ notify_whatsapp: false, updated_at: new Date().toISOString() })
+        .update({
+          notify_whatsapp: false,
+          updated_at: new Date().toISOString(),
+        })
         .eq('id', userNovenaId);
       const cancelNovenaMsg =
         'Lembrete da novena desativado no WhatsApp com sucesso! Você pode continuar rezando os dias restantes diretamente pelo aplicativo MarIA quando desejar. Deus te abençoe! 🙏';
@@ -1397,10 +1538,14 @@ export class AiService implements OnModuleInit {
     ) {
       return await this.handleCancelReminder(userId);
     }
-    
+
     // Utilitário para buscar textos do fluxo
     const getReminderSteps = async () => {
-      const { data } = await supabase.from('automatic_flows').select('steps').eq('key', 'reminder_flow').maybeSingle();
+      const { data } = await supabase
+        .from('automatic_flows')
+        .select('steps')
+        .eq('key', 'reminder_flow')
+        .maybeSingle();
       return data?.steps || {};
     };
 
@@ -1409,86 +1554,164 @@ export class AiService implements OnModuleInit {
       const currentStep = rFlow?.steps?.['reminder_type'];
       const resolution = currentStep
         ? this.flowInterpreterService.resolveNextStep(currentStep, message)
-        : { isExit: lowerMsg === 'cancelar' || lowerMsg === 'sair', nextStepKey: null };
+        : {
+            isExit: lowerMsg === 'cancelar' || lowerMsg === 'sair',
+            nextStepKey: null,
+          };
 
       if (resolution.isExit) {
-         await supabase.from('users').update({ reminder_state: 'idle', reminder_context: {}, flow_updated_at: null }).eq('id', userId);
-         const cancelMsg = 'Agendamento de lembrete cancelado.';
-         await this.saveMessage(userId, 'assistant', cancelMsg, false);
-         return cancelMsg;
+        await supabase
+          .from('users')
+          .update({
+            reminder_state: 'idle',
+            reminder_context: {},
+            flow_updated_at: null,
+          })
+          .eq('id', userId);
+        const cancelMsg = 'Agendamento de lembrete cancelado.';
+        await this.saveMessage(userId, 'assistant', cancelMsg, false);
+        return cancelMsg;
       }
-      
-      const rSteps = rFlow?.steps || await getReminderSteps();
-      
-      if (resolution.nextStepKey === 'reminder_custom_title' || lowerMsg === '1' || lowerMsg === 'personalizado') {
-         await supabase.from('users').update({ reminder_state: 'reminder_title', reminder_context: { type: 'custom' }, flow_updated_at: new Date().toISOString() }).eq('id', userId);
-         const respMsg = rSteps.reminder_custom_title?.text || 'Certo! Qual o título ou mensagem do seu lembrete?';
-         await this.saveMessage(userId, 'assistant', respMsg, false);
-         return respMsg;
-      } else if (resolution.nextStepKey === 'reminder_prayer_select' || lowerMsg === '2' || lowerMsg === 'oração' || lowerMsg === 'oracao') {
-         const { data: prayers } = await supabase.from('prayers').select('id, title').eq('is_selectable', true).limit(10);
-         if (!prayers || prayers.length === 0) {
-            await supabase.from('users').update({ reminder_state: 'idle', reminder_context: {}, flow_updated_at: null }).eq('id', userId);
-            const cancelMsg2 = 'Nenhuma oração disponível no momento. Lembrete cancelado.';
-            await this.saveMessage(userId, 'assistant', cancelMsg2, false);
-            return cancelMsg2;
-         }
-         const buttons = prayers.map((p, index) => ({
-           id: (index + 1).toString(),
-           text: p.title.substring(0, 24),
-           description: 'Oração sugerida',
-         }));
-         // Guardar lista no contexto para o próximo passo
-         await supabase.from('users').update({ reminder_state: 'reminder_prayer_select', reminder_context: { type: 'prayer', prayersList: prayers }, flow_updated_at: new Date().toISOString() }).eq('id', userId);
-         const respMsgText = rSteps.reminder_prayer_select?.text || 'Selecione a oração desejada (ou digite o nome se não estiver na lista):';
-         const respMsg = {
-           type: 'interactive',
-           interactiveType: 'list',
-           listButton: 'Ver Orações',
-           sectionTitle: 'Orações Disponíveis',
-           text: respMsgText,
-           buttons,
-         };
-         await this.saveMessage(userId, 'assistant', respMsg.text, false);
-         return respMsg;
+
+      const rSteps = rFlow?.steps || (await getReminderSteps());
+
+      if (
+        resolution.nextStepKey === 'reminder_custom_title' ||
+        lowerMsg === '1' ||
+        lowerMsg === 'personalizado'
+      ) {
+        await supabase
+          .from('users')
+          .update({
+            reminder_state: 'reminder_title',
+            reminder_context: { type: 'custom' },
+            flow_updated_at: new Date().toISOString(),
+          })
+          .eq('id', userId);
+        const respMsg =
+          rSteps.reminder_custom_title?.text ||
+          'Certo! Qual o título ou mensagem do seu lembrete?';
+        await this.saveMessage(userId, 'assistant', respMsg, false);
+        return respMsg;
+      } else if (
+        resolution.nextStepKey === 'reminder_prayer_select' ||
+        lowerMsg === '2' ||
+        lowerMsg === 'oração' ||
+        lowerMsg === 'oracao'
+      ) {
+        const { data: prayers } = await supabase
+          .from('prayers')
+          .select('id, title')
+          .eq('is_selectable', true)
+          .limit(10);
+        if (!prayers || prayers.length === 0) {
+          await supabase
+            .from('users')
+            .update({
+              reminder_state: 'idle',
+              reminder_context: {},
+              flow_updated_at: null,
+            })
+            .eq('id', userId);
+          const cancelMsg2 =
+            'Nenhuma oração disponível no momento. Lembrete cancelado.';
+          await this.saveMessage(userId, 'assistant', cancelMsg2, false);
+          return cancelMsg2;
+        }
+        const buttons = prayers.map((p, index) => ({
+          id: (index + 1).toString(),
+          text: p.title.substring(0, 24),
+          description: 'Oração sugerida',
+        }));
+        // Guardar lista no contexto para o próximo passo
+        await supabase
+          .from('users')
+          .update({
+            reminder_state: 'reminder_prayer_select',
+            reminder_context: { type: 'prayer', prayersList: prayers },
+            flow_updated_at: new Date().toISOString(),
+          })
+          .eq('id', userId);
+        const respMsgText =
+          rSteps.reminder_prayer_select?.text ||
+          'Selecione a oração desejada (ou digite o nome se não estiver na lista):';
+        const respMsg = {
+          type: 'interactive',
+          interactiveType: 'list',
+          listButton: 'Ver Orações',
+          sectionTitle: 'Orações Disponíveis',
+          text: respMsgText,
+          buttons,
+        };
+        await this.saveMessage(userId, 'assistant', respMsg.text, false);
+        return respMsg;
       }
       return 'Opção inválida. Escolha 1 para Personalizado ou 2 para Oração. Ou digite "cancelar".';
     }
 
     if (userReminderState === 'reminder_prayer_select') {
       if (lowerMsg === 'cancelar' || lowerMsg === 'sair') {
-         await supabase.from('users').update({ reminder_state: 'idle', reminder_context: {}, flow_updated_at: null }).eq('id', userId);
-         const cancelMsg = 'Agendamento de lembrete cancelado.';
-         await this.saveMessage(userId, 'assistant', cancelMsg, false);
-         return cancelMsg;
+        await supabase
+          .from('users')
+          .update({
+            reminder_state: 'idle',
+            reminder_context: {},
+            flow_updated_at: null,
+          })
+          .eq('id', userId);
+        const cancelMsg = 'Agendamento de lembrete cancelado.';
+        await this.saveMessage(userId, 'assistant', cancelMsg, false);
+        return cancelMsg;
       }
       const ctx = user.reminder_context || {};
       let prayer: any = null;
-      
+
       if (ctx.prayersList) {
-         const idx = parseInt(lowerMsg);
-         if (!isNaN(idx) && idx >= 1 && idx <= ctx.prayersList.length) {
-            prayer = ctx.prayersList[idx - 1];
-         }
+        const idx = parseInt(lowerMsg);
+        if (!isNaN(idx) && idx >= 1 && idx <= ctx.prayersList.length) {
+          prayer = ctx.prayersList[idx - 1];
+        }
       }
 
       if (!prayer) {
-         const { data: p2 } = await supabase.from('prayers').select('id, title').ilike('title', `%${message}%`).eq('is_selectable', true).maybeSingle();
-         if (!p2) return 'Oração não encontrada. Tente novamente ou digite "cancelar".';
-         prayer = p2;
+        const { data: p2 } = await supabase
+          .from('prayers')
+          .select('id, title')
+          .ilike('title', `%${message}%`)
+          .eq('is_selectable', true)
+          .maybeSingle();
+        if (!p2)
+          return 'Oração não encontrada. Tente novamente ou digite "cancelar".';
+        prayer = p2;
       }
 
       ctx.prayer_id = prayer.id;
       ctx.title = prayer.title;
       delete ctx.prayersList;
 
-      await supabase.from('users').update({ reminder_state: 'reminder_period', reminder_context: ctx, flow_updated_at: new Date().toISOString() }).eq('id', userId);
-      
+      await supabase
+        .from('users')
+        .update({
+          reminder_state: 'reminder_period',
+          reminder_context: ctx,
+          flow_updated_at: new Date().toISOString(),
+        })
+        .eq('id', userId);
+
       const rSteps = await getReminderSteps();
       const defaultText = `Ótima escolha: {prayer_title}!\n\nEm qual período você quer receber?`;
-      const msgText = (rSteps.reminder_period_prayer?.text || defaultText).replace('{prayer_title}', prayer.title);
-      const buttons = rSteps.reminder_period_prayer?.buttons?.length > 0 ? rSteps.reminder_period_prayer.buttons : [{id:'1', text:'Manhã'}, {id:'2', text:'Tarde'}, {id:'3', text:'Noite'}];
-      
+      const msgText = (
+        rSteps.reminder_period_prayer?.text || defaultText
+      ).replace('{prayer_title}', prayer.title);
+      const buttons =
+        rSteps.reminder_period_prayer?.buttons?.length > 0
+          ? rSteps.reminder_period_prayer.buttons
+          : [
+              { id: '1', text: 'Manhã' },
+              { id: '2', text: 'Tarde' },
+              { id: '3', text: 'Noite' },
+            ];
+
       const respMsg = { type: 'interactive', text: msgText, buttons };
       await this.saveMessage(userId, 'assistant', respMsg.text, false);
       return respMsg;
@@ -1496,247 +1719,375 @@ export class AiService implements OnModuleInit {
 
     if (userReminderState === 'reminder_title') {
       if (lowerMsg === 'cancelar' || lowerMsg === 'sair') {
-         await supabase.from('users').update({ reminder_state: 'idle', reminder_context: {}, flow_updated_at: null }).eq('id', userId);
-         const cancelMsg = 'Agendamento de lembrete cancelado.';
-         await this.saveMessage(userId, 'assistant', cancelMsg, false);
-         return cancelMsg;
+        await supabase
+          .from('users')
+          .update({
+            reminder_state: 'idle',
+            reminder_context: {},
+            flow_updated_at: null,
+          })
+          .eq('id', userId);
+        const cancelMsg = 'Agendamento de lembrete cancelado.';
+        await this.saveMessage(userId, 'assistant', cancelMsg, false);
+        return cancelMsg;
       }
       const ctx = user.reminder_context || {};
       ctx.title = message;
-      await supabase.from('users').update({ reminder_state: 'reminder_period', reminder_context: ctx, flow_updated_at: new Date().toISOString() }).eq('id', userId);
-      
+      await supabase
+        .from('users')
+        .update({
+          reminder_state: 'reminder_period',
+          reminder_context: ctx,
+          flow_updated_at: new Date().toISOString(),
+        })
+        .eq('id', userId);
+
       const rSteps = await getReminderSteps();
       const defaultText = `Perfeito. Título do lembrete: *{reminder_title}*.\n\nEm qual período você quer receber?`;
-      const msgText = (rSteps.reminder_period_custom?.text || defaultText).replace('{reminder_title}', message).replace('{title}', message);
-      const buttons = rSteps.reminder_period_custom?.buttons?.length > 0 ? rSteps.reminder_period_custom.buttons : [{id:'1', text:'Manhã'}, {id:'2', text:'Tarde'}, {id:'3', text:'Noite'}];
-      
+      const msgText = (rSteps.reminder_period_custom?.text || defaultText)
+        .replace('{reminder_title}', message)
+        .replace('{title}', message);
+      const buttons =
+        rSteps.reminder_period_custom?.buttons?.length > 0
+          ? rSteps.reminder_period_custom.buttons
+          : [
+              { id: '1', text: 'Manhã' },
+              { id: '2', text: 'Tarde' },
+              { id: '3', text: 'Noite' },
+            ];
+
       const respMsg = { type: 'interactive', text: msgText, buttons };
       await this.saveMessage(userId, 'assistant', respMsg.text, false);
       return respMsg;
     }
 
     if (userReminderState === 'reminder_period') {
-       if (lowerMsg === 'cancelar' || lowerMsg === 'sair') {
-          await supabase.from('users').update({ reminder_state: 'idle', reminder_context: {} }).eq('id', userId);
-          const cancelMsg = 'Agendamento de lembrete cancelado.';
-          await this.saveMessage(userId, 'assistant', cancelMsg, false);
-          return cancelMsg;
-       }
-       const ctx = user.reminder_context || {};
-       
-       const rSteps = await getReminderSteps();
-       
-       let pBtn = ctx.type === 'custom' 
-          ? rSteps.reminder_period_custom?.buttons 
+      if (lowerMsg === 'cancelar' || lowerMsg === 'sair') {
+        await supabase
+          .from('users')
+          .update({ reminder_state: 'idle', reminder_context: {} })
+          .eq('id', userId);
+        const cancelMsg = 'Agendamento de lembrete cancelado.';
+        await this.saveMessage(userId, 'assistant', cancelMsg, false);
+        return cancelMsg;
+      }
+      const ctx = user.reminder_context || {};
+
+      const rSteps = await getReminderSteps();
+
+      let pBtn =
+        ctx.type === 'custom'
+          ? rSteps.reminder_period_custom?.buttons
           : rSteps.reminder_period_prayer?.buttons;
-       
-       if (!pBtn || pBtn.length === 0) {
-           pBtn = [{id: '1', text: 'Manhã'}, {id: '2', text: 'Tarde'}, {id: '3', text: 'Noite'}];
-       }
 
-       let selectedPeriod = '';
-       const numMatch = parseInt(lowerMsg, 10);
-       if (!isNaN(numMatch) && numMatch >= 1 && numMatch <= pBtn.length) {
-           selectedPeriod = pBtn[numMatch - 1].text;
-       } else {
-           const matchedBtn = pBtn.find((b: any) => lowerMsg === (b.text || '').toLowerCase() || lowerMsg === String(b.id || '').toLowerCase());
-           if (matchedBtn) {
-               selectedPeriod = matchedBtn.text;
-           } else {
-               const fallbackMatch = pBtn.find((b: any) => (b.text || '').toLowerCase().includes(lowerMsg));
-               if (fallbackMatch) {
-                   selectedPeriod = fallbackMatch.text;
-               }
-           }
-       }
+      if (!pBtn || pBtn.length === 0) {
+        pBtn = [
+          { id: '1', text: 'Manhã' },
+          { id: '2', text: 'Tarde' },
+          { id: '3', text: 'Noite' },
+        ];
+      }
 
-       if (selectedPeriod) {
-           ctx.period = selectedPeriod;
-           
-           const lowerPeriod = selectedPeriod.toLowerCase();
-           let periodKey = 'morning';
-           let defaultTimeButtons = [{id:'07:00', text:'07:00'}, {id:'08:00', text:'08:00'}, {id:'09:00', text:'09:00'}];
-           let defaultText = `Que horário pela manhã? (Selecione ou digite um horário específico como 08:30)`;
-           
-           if (lowerPeriod.includes('tarde')) {
-             periodKey = 'afternoon';
-             defaultTimeButtons = [{id:'12:00', text:'12:00'}, {id:'15:00', text:'15:00'}, {id:'18:00', text:'18:00'}];
-             defaultText = `Que horário à tarde? (Selecione ou digite um horário específico como 15:30)`;
-           } else if (lowerPeriod.includes('noite')) {
-             periodKey = 'night';
-             defaultTimeButtons = [{id:'19:00', text:'19:00'}, {id:'21:00', text:'21:00'}, {id:'22:00', text:'22:00'}];
-             defaultText = `Que horário à noite? (Selecione ou digite um horário específico como 20:30)`;
-           }
+      let selectedPeriod = '';
+      const numMatch = parseInt(lowerMsg, 10);
+      if (!isNaN(numMatch) && numMatch >= 1 && numMatch <= pBtn.length) {
+        selectedPeriod = pBtn[numMatch - 1].text;
+      } else {
+        const matchedBtn = pBtn.find(
+          (b: any) =>
+            lowerMsg === (b.text || '').toLowerCase() ||
+            lowerMsg === String(b.id || '').toLowerCase(),
+        );
+        if (matchedBtn) {
+          selectedPeriod = matchedBtn.text;
+        } else {
+          const fallbackMatch = pBtn.find((b: any) =>
+            (b.text || '').toLowerCase().includes(lowerMsg),
+          );
+          if (fallbackMatch) {
+            selectedPeriod = fallbackMatch.text;
+          }
+        }
+      }
 
-           // Busca primeiro pelo passo específico do turno (ex: reminder_time_morning), depois pelo unificado (reminder_time)
-           const timeStep = rSteps[`reminder_time_${periodKey}`] || rSteps.reminder_time;
-           const text = (timeStep?.text || defaultText).replace('{period}', selectedPeriod);
-           const buttons = (timeStep?.buttons && timeStep.buttons.length > 0)
-             ? timeStep.buttons
-             : defaultTimeButtons;
-           
-           await supabase.from('users').update({ reminder_state: 'reminder_time', reminder_context: ctx, flow_updated_at: new Date().toISOString() }).eq('id', userId);
-           const respMsg = { type: 'interactive', text, buttons };
-           await this.saveMessage(userId, 'assistant', text, false);
-           return respMsg;
-       } else {
-           return 'Período inválido. Escolha um dos turnos da lista ou digite "cancelar".';
-       }
+      if (selectedPeriod) {
+        ctx.period = selectedPeriod;
+
+        const lowerPeriod = selectedPeriod.toLowerCase();
+        let periodKey = 'morning';
+        let defaultTimeButtons = [
+          { id: '07:00', text: '07:00' },
+          { id: '08:00', text: '08:00' },
+          { id: '09:00', text: '09:00' },
+        ];
+        let defaultText = `Que horário pela manhã? (Selecione ou digite um horário específico como 08:30)`;
+
+        if (lowerPeriod.includes('tarde')) {
+          periodKey = 'afternoon';
+          defaultTimeButtons = [
+            { id: '12:00', text: '12:00' },
+            { id: '15:00', text: '15:00' },
+            { id: '18:00', text: '18:00' },
+          ];
+          defaultText = `Que horário à tarde? (Selecione ou digite um horário específico como 15:30)`;
+        } else if (lowerPeriod.includes('noite')) {
+          periodKey = 'night';
+          defaultTimeButtons = [
+            { id: '19:00', text: '19:00' },
+            { id: '21:00', text: '21:00' },
+            { id: '22:00', text: '22:00' },
+          ];
+          defaultText = `Que horário à noite? (Selecione ou digite um horário específico como 20:30)`;
+        }
+
+        // Busca primeiro pelo passo específico do turno (ex: reminder_time_morning), depois pelo unificado (reminder_time)
+        const timeStep =
+          rSteps[`reminder_time_${periodKey}`] || rSteps.reminder_time;
+        const text = (timeStep?.text || defaultText).replace(
+          '{period}',
+          selectedPeriod,
+        );
+        const buttons =
+          timeStep?.buttons && timeStep.buttons.length > 0
+            ? timeStep.buttons
+            : defaultTimeButtons;
+
+        await supabase
+          .from('users')
+          .update({
+            reminder_state: 'reminder_time',
+            reminder_context: ctx,
+            flow_updated_at: new Date().toISOString(),
+          })
+          .eq('id', userId);
+        const respMsg = { type: 'interactive', text, buttons };
+        await this.saveMessage(userId, 'assistant', text, false);
+        return respMsg;
+      } else {
+        return 'Período inválido. Escolha um dos turnos da lista ou digite "cancelar".';
+      }
     }
 
     if (userReminderState === 'reminder_time') {
-       if (lowerMsg === 'cancelar' || lowerMsg === 'sair') {
-          await supabase.from('users').update({ reminder_state: 'idle', reminder_context: {}, flow_updated_at: null }).eq('id', userId);
-          const cancelMsg = 'Agendamento de lembrete cancelado.';
-          await this.saveMessage(userId, 'assistant', cancelMsg, false);
-          return cancelMsg;
-       }
-       const ctx = user.reminder_context || {};
-       
-       const extractedTime = await this.extractTargetTime(message);
-       if (!extractedTime) {
-          return 'Desculpe, não consegui entender o horário exato. Por favor, seja um pouco mais específico (exemplo: "às 18:20", "oito da noite", "15h").';
-       }
-       ctx.time = extractedTime;
-       await supabase.from('users').update({ reminder_state: 'reminder_confirm', reminder_context: ctx, flow_updated_at: new Date().toISOString() }).eq('id', userId);
-       
-       const rSteps = await getReminderSteps();
-       const defaultText = `Confirma o agendamento de *{title}* para às *{time}* (horário de Brasília)?`;
-       const confirmText = (rSteps.reminder_confirm?.text || defaultText).replace('{title}', ctx.title).replace('{time}', ctx.time);
-       const buttons = rSteps.reminder_confirm?.buttons?.length > 0 ? rSteps.reminder_confirm.buttons : [{id:'1', text:'Confirmar'}, {id:'2', text:'Cancelar'}];
-       
-       const respMsg = { type: 'interactive', text: confirmText, buttons };
-       await this.saveMessage(userId, 'assistant', confirmText, false);
-       return respMsg;
+      if (lowerMsg === 'cancelar' || lowerMsg === 'sair') {
+        await supabase
+          .from('users')
+          .update({
+            reminder_state: 'idle',
+            reminder_context: {},
+            flow_updated_at: null,
+          })
+          .eq('id', userId);
+        const cancelMsg = 'Agendamento de lembrete cancelado.';
+        await this.saveMessage(userId, 'assistant', cancelMsg, false);
+        return cancelMsg;
+      }
+      const ctx = user.reminder_context || {};
+
+      const extractedTime = await this.extractTargetTime(message);
+      if (!extractedTime) {
+        return 'Desculpe, não consegui entender o horário exato. Por favor, seja um pouco mais específico (exemplo: "às 18:20", "oito da noite", "15h").';
+      }
+      ctx.time = extractedTime;
+      await supabase
+        .from('users')
+        .update({
+          reminder_state: 'reminder_confirm',
+          reminder_context: ctx,
+          flow_updated_at: new Date().toISOString(),
+        })
+        .eq('id', userId);
+
+      const rSteps = await getReminderSteps();
+      const defaultText = `Confirma o agendamento de *{title}* para às *{time}* (horário de Brasília)?`;
+      const confirmText = (rSteps.reminder_confirm?.text || defaultText)
+        .replace('{title}', ctx.title)
+        .replace('{time}', ctx.time);
+      const buttons =
+        rSteps.reminder_confirm?.buttons?.length > 0
+          ? rSteps.reminder_confirm.buttons
+          : [
+              { id: '1', text: 'Confirmar' },
+              { id: '2', text: 'Cancelar' },
+            ];
+
+      const respMsg = { type: 'interactive', text: confirmText, buttons };
+      await this.saveMessage(userId, 'assistant', confirmText, false);
+      return respMsg;
     }
 
     if (userReminderState === 'reminder_confirm') {
-       const rSteps = await getReminderSteps();
-       const confirmBtn = rSteps.reminder_confirm?.buttons?.[0]?.text?.toLowerCase() || 'confirmar';
-       const cancelBtn = rSteps.reminder_confirm?.buttons?.[1]?.text?.toLowerCase() || 'cancelar';
+      const rSteps = await getReminderSteps();
+      const confirmBtn =
+        rSteps.reminder_confirm?.buttons?.[0]?.text?.toLowerCase() ||
+        'confirmar';
+      const cancelBtn =
+        rSteps.reminder_confirm?.buttons?.[1]?.text?.toLowerCase() ||
+        'cancelar';
 
-       if (lowerMsg === '2' || lowerMsg === 'não' || lowerMsg === 'nao' || lowerMsg === 'sair' || lowerMsg === cancelBtn || lowerMsg === 'cancelar') {
-          await supabase.from('users').update({ reminder_state: 'idle', reminder_context: {}, flow_updated_at: null }).eq('id', userId);
-          const cancelMsg = 'Agendamento de lembrete cancelado.';
-          await this.saveMessage(userId, 'assistant', cancelMsg, false);
-          return cancelMsg;
-       }
-       if (lowerMsg === '1' || lowerMsg === 'sim' || lowerMsg === confirmBtn || lowerMsg === 'confirmar') {
-          const ctx = user.reminder_context || {};
-          const timeParts = ctx.time.split(':');
-          const [hour, minute] = [parseInt(timeParts[0]), parseInt(timeParts[1])];
+      if (
+        lowerMsg === '2' ||
+        lowerMsg === 'não' ||
+        lowerMsg === 'nao' ||
+        lowerMsg === 'sair' ||
+        lowerMsg === cancelBtn ||
+        lowerMsg === 'cancelar'
+      ) {
+        await supabase
+          .from('users')
+          .update({
+            reminder_state: 'idle',
+            reminder_context: {},
+            flow_updated_at: null,
+          })
+          .eq('id', userId);
+        const cancelMsg = 'Agendamento de lembrete cancelado.';
+        await this.saveMessage(userId, 'assistant', cancelMsg, false);
+        return cancelMsg;
+      }
+      if (
+        lowerMsg === '1' ||
+        lowerMsg === 'sim' ||
+        lowerMsg === confirmBtn ||
+        lowerMsg === 'confirmar'
+      ) {
+        const ctx = user.reminder_context || {};
+        const timeParts = ctx.time.split(':');
+        const [hour, minute] = [parseInt(timeParts[0]), parseInt(timeParts[1])];
 
-          // Calculate delay in milliseconds
-          const nowSP = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
-          let targetSP = new Date(nowSP);
-          targetSP.setHours(hour, minute, 0, 0);
+        // Calculate delay in milliseconds
+        const nowSP = new Date(
+          new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }),
+        );
+        const targetSP = new Date(nowSP);
+        targetSP.setHours(hour, minute, 0, 0);
 
-          if (targetSP.getTime() <= nowSP.getTime()) {
-             // If time already passed today, schedule for tomorrow
-             targetSP.setDate(targetSP.getDate() + 1);
-          }
+        if (targetSP.getTime() <= nowSP.getTime()) {
+          // If time already passed today, schedule for tomorrow
+          targetSP.setDate(targetSP.getDate() + 1);
+        }
 
-          const delay = targetSP.getTime() - nowSP.getTime();
-          const scheduledTargetDate = new Date(Date.now() + delay);
+        const delay = targetSP.getTime() - nowSP.getTime();
+        const scheduledTargetDate = new Date(Date.now() + delay);
 
-          const reminderTimeStr = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-          const externalId = `wpp_${Date.now()}`;
+        const reminderTimeStr = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+        const externalId = `wpp_${Date.now()}`;
 
-          const { data: reminder, error: remError } = await supabase.from('reminders').insert({
-             user_id: userId,
-             external_id: externalId,
-             title: ctx.title,
-             reminder_time: reminderTimeStr,
-             send_whatsapp: true,
-             tool_type: 'custom',
-             is_prayer: ctx.type === 'prayer',
-             prayer_id: ctx.prayer_id || null,
-             status: 'pending',
-             scheduled_time: scheduledTargetDate.toISOString(),
-             scheduled_period: ctx.period
-          }).select().single();
+        const { data: reminder, error: remError } = await supabase
+          .from('reminders')
+          .insert({
+            user_id: userId,
+            external_id: externalId,
+            title: ctx.title,
+            reminder_time: reminderTimeStr,
+            send_whatsapp: true,
+            tool_type: 'custom',
+            is_prayer: ctx.type === 'prayer',
+            prayer_id: ctx.prayer_id || null,
+            status: 'pending',
+            scheduled_time: scheduledTargetDate.toISOString(),
+            scheduled_period: ctx.period,
+          })
+          .select()
+          .single();
 
-          if (remError || !reminder) {
-             this.logger.error(`Erro ao salvar lembrete no Supabase para o usuário ${userId}: ${JSON.stringify(remError)}`);
-             return 'Houve um erro ao salvar o lembrete. Tente novamente mais tarde.';
-          }
-
-          // Unifica diretamente no Plano de Vida Espiritual do usuário no app
-          try {
-            const { data: userPlan } = await supabase
-              .from('user_spiritual_plans')
-              .select('*')
-              .eq('user_id', userId)
-              .maybeSingle();
-
-            const habits = userPlan?.habits || [];
-            habits.push({
-              id: externalId,
-              title: ctx.title,
-              description: ctx.type === 'prayer' ? 'Oração agendada via WhatsApp' : 'Lembrete pessoal agendado via WhatsApp',
-              period: ctx.period || 'Manhã',
-              defaultTime: reminderTimeStr,
-              reminderEnabled: true,
-              notifyOnDevice: true,
-              notifyOnWhatsApp: true,
-              soundType: 'Sino de Mosteiro',
-              isCustom: true,
-              toolType: 'custom',
-              orderIndex: habits.length,
-            });
-
-            await supabase
-              .from('user_spiritual_plans')
-              .upsert(
-                {
-                  user_id: userId,
-                  habits,
-                  streak_days: userPlan?.streak_days || 0,
-                  updated_at: new Date().toISOString(),
-                },
-                { onConflict: 'user_id' },
-              );
-            this.logger.log(`[AiService] Lembrete do WhatsApp "${ctx.title}" consolidado no Plano de Vida do usuário ${userId}.`);
-          } catch (syncErr: any) {
-            this.logger.warn(`Erro ao consolidar lembrete no user_spiritual_plans: ${syncErr?.message}`);
-          }
-
-          // Adicionar à fila BullMQ com retry e retenção configurada
-          const scheduledTimeMs = scheduledTargetDate.getTime();
-          const initialJobId = `${reminder.id}_${scheduledTimeMs}`;
-
-          await this.remindersQueue.add(
-             'send-reminder',
-             { reminderId: reminder.id, userId },
-             {
-               delay,
-               jobId: initialJobId,
-               attempts: 3,
-               backoff: { type: 'exponential', delay: 15000 },
-               removeOnComplete: 100,
-               removeOnFail: 200,
-             }
+        if (remError || !reminder) {
+          this.logger.error(
+            `Erro ao salvar lembrete no Supabase para o usuário ${userId}: ${JSON.stringify(remError)}`,
           );
+          return 'Houve um erro ao salvar o lembrete. Tente novamente mais tarde.';
+        }
 
-          await this.systemLogsService.logInfo(
-            'AiService',
-            `Novo lembrete agendado: "${ctx.title}" para ${scheduledTargetDate.toISOString()} (delay: ${Math.round(delay / 60000)} min)`,
+        // Unifica diretamente no Plano de Vida Espiritual do usuário no app
+        try {
+          const { data: userPlan } = await supabase
+            .from('user_spiritual_plans')
+            .select('*')
+            .eq('user_id', userId)
+            .maybeSingle();
+
+          const habits = userPlan?.habits || [];
+          habits.push({
+            id: externalId,
+            title: ctx.title,
+            description:
+              ctx.type === 'prayer'
+                ? 'Oração agendada via WhatsApp'
+                : 'Lembrete pessoal agendado via WhatsApp',
+            period: ctx.period || 'Manhã',
+            defaultTime: reminderTimeStr,
+            reminderEnabled: true,
+            notifyOnDevice: true,
+            notifyOnWhatsApp: true,
+            soundType: 'Sino de Mosteiro',
+            isCustom: true,
+            toolType: 'custom',
+            orderIndex: habits.length,
+          });
+
+          await supabase.from('user_spiritual_plans').upsert(
             {
-              reminderId: reminder.id,
-              userId,
-              title: ctx.title,
-              scheduled_time: scheduledTargetDate.toISOString(),
+              user_id: userId,
+              habits,
+              streak_days: userPlan?.streak_days || 0,
+              updated_at: new Date().toISOString(),
             },
+            { onConflict: 'user_id' },
           );
+          this.logger.log(
+            `[AiService] Lembrete do WhatsApp "${ctx.title}" consolidado no Plano de Vida do usuário ${userId}.`,
+          );
+        } catch (syncErr: any) {
+          this.logger.warn(
+            `Erro ao consolidar lembrete no user_spiritual_plans: ${syncErr?.message}`,
+          );
+        }
 
-          await supabase.from('users').update({ reminder_state: 'idle', reminder_context: {}, flow_updated_at: null }).eq('id', userId);
-          
-          const defaultSuccess = `Lembrete *{title}* agendado com sucesso para às *{time}*! 🙌`;
-          const successMsg = (rSteps.reminder_success?.text || defaultSuccess).replace('{title}', ctx.title).replace('{time}', ctx.time);
-          await this.saveMessage(userId, 'assistant', successMsg, false);
-          return successMsg;
-       }
-       return `Por favor, responda com ${confirmBtn} ou ${cancelBtn}.`;
+        // Adicionar à fila BullMQ com retry e retenção configurada
+        const scheduledTimeMs = scheduledTargetDate.getTime();
+        const initialJobId = `${reminder.id}_${scheduledTimeMs}`;
+
+        await this.remindersQueue.add(
+          'send-reminder',
+          { reminderId: reminder.id, userId },
+          {
+            delay,
+            jobId: initialJobId,
+            attempts: 3,
+            backoff: { type: 'exponential', delay: 15000 },
+            removeOnComplete: 100,
+            removeOnFail: 200,
+          },
+        );
+
+        await this.systemLogsService.logInfo(
+          'AiService',
+          `Novo lembrete agendado: "${ctx.title}" para ${scheduledTargetDate.toISOString()} (delay: ${Math.round(delay / 60000)} min)`,
+          {
+            reminderId: reminder.id,
+            userId,
+            title: ctx.title,
+            scheduled_time: scheduledTargetDate.toISOString(),
+          },
+        );
+
+        await supabase
+          .from('users')
+          .update({
+            reminder_state: 'idle',
+            reminder_context: {},
+            flow_updated_at: null,
+          })
+          .eq('id', userId);
+
+        const defaultSuccess = `Lembrete *{title}* agendado com sucesso para às *{time}*! 🙌`;
+        const successMsg = (rSteps.reminder_success?.text || defaultSuccess)
+          .replace('{title}', ctx.title)
+          .replace('{time}', ctx.time);
+        await this.saveMessage(userId, 'assistant', successMsg, false);
+        return successMsg;
+      }
+      return `Por favor, responda com ${confirmBtn} ou ${cancelBtn}.`;
     }
 
     // Gatilhos de Início do Lembrete (Centralizado no Aplicativo MarIA)
@@ -1750,7 +2101,11 @@ export class AiService implements OnModuleInit {
       // Reseta qualquer estado residual
       await supabase
         .from('users')
-        .update({ reminder_state: 'idle', reminder_context: {}, flow_updated_at: null })
+        .update({
+          reminder_state: 'idle',
+          reminder_context: {},
+          flow_updated_at: null,
+        })
         .eq('id', userId);
 
       const appReminderMsg =
@@ -1781,31 +2136,55 @@ export class AiService implements OnModuleInit {
       intent = 'LITURGY_SHORT';
     } else if (lowerMsg === 'liturgy_full') {
       intent = 'LITURGY_FULL';
-    } else if (lowerMsg === 'toggle_daily_liturgy' || lowerMsg === 'receber envio diário' || lowerMsg === 'cancelar envio diário') {
+    } else if (
+      lowerMsg === 'toggle_daily_liturgy' ||
+      lowerMsg === 'receber envio diário' ||
+      lowerMsg === 'cancelar envio diário'
+    ) {
       intent = 'TOGGLE_DAILY_LITURGY';
     }
 
     // Iniciar o fluxo de lembretes caso a IA detecte a intenção
     if (intent === 'REMINDER') {
       if (isFree) {
-        const upgradeMsg = 'Desculpe, meu filho(a). O agendamento de lembretes diários é uma funcionalidade exclusiva para assinantes. Considere escolher um de nossos planos para ter acesso a essa e outras bênçãos! 🙏✨\n\nSelecione a opção de *Assinatura* no menu principal ou digite *Planos* para conhecer.';
+        const upgradeMsg =
+          'Desculpe, meu filho(a). O agendamento de lembretes diários é uma funcionalidade exclusiva para assinantes. Considere escolher um de nossos planos para ter acesso a essa e outras bênçãos! 🙏✨\n\nSelecione a opção de *Assinatura* no menu principal ou digite *Planos* para conhecer.';
         await this.saveMessage(userId, 'assistant', upgradeMsg, false);
         return upgradeMsg;
       }
 
-      await supabase.from('users').update({ reminder_state: 'reminder_type', reminder_context: {}, flow_updated_at: new Date().toISOString() }).eq('id', userId);
-      
-      const { data: remFlow } = await supabase.from('automatic_flows').select('steps').eq('key', 'reminder_flow').maybeSingle();
+      await supabase
+        .from('users')
+        .update({
+          reminder_state: 'reminder_type',
+          reminder_context: {},
+          flow_updated_at: new Date().toISOString(),
+        })
+        .eq('id', userId);
+
+      const { data: remFlow } = await supabase
+        .from('automatic_flows')
+        .select('steps')
+        .eq('key', 'reminder_flow')
+        .maybeSingle();
       const rSteps = remFlow?.steps || {};
-      
-      const responseText = rSteps.reminder_type?.text || '*Agendador de Lembretes* ⏰\n\nQue tipo de lembrete você gostaria de criar?';
-      const buttons = rSteps.reminder_type?.buttons?.length > 0 ? rSteps.reminder_type.buttons : [{ id: '1', text: 'Personalizado' }, { id: '2', text: 'Oração' }];
-      
+
+      const responseText =
+        rSteps.reminder_type?.text ||
+        '*Agendador de Lembretes* ⏰\n\nQue tipo de lembrete você gostaria de criar?';
+      const buttons =
+        rSteps.reminder_type?.buttons?.length > 0
+          ? rSteps.reminder_type.buttons
+          : [
+              { id: '1', text: 'Personalizado' },
+              { id: '2', text: 'Oração' },
+            ];
+
       const respMsg = { type: 'interactive', text: responseText, buttons };
       await this.saveMessage(userId, 'assistant', responseText, false);
       return respMsg;
     }
-    
+
     // Interceptar intenção de TERÇO
     if (
       lowerMsg === 'como rezar o terço' ||
@@ -1887,11 +2266,19 @@ export class AiService implements OnModuleInit {
         text: 'Escolha seu plano:',
         buttons: [],
       };
-      
-      const interactiveResponse = await this.buildSelectPlanMessage(selectStep, user.affiliate_code);
+
+      const interactiveResponse = await this.buildSelectPlanMessage(
+        selectStep,
+        user.affiliate_code,
+      );
       interactiveResponse.text = upgradeIntro + interactiveResponse.text;
 
-      await this.saveMessage(userId, 'assistant', interactiveResponse.text, false);
+      await this.saveMessage(
+        userId,
+        'assistant',
+        interactiveResponse.text,
+        false,
+      );
       return interactiveResponse;
     }
 
@@ -1919,11 +2306,13 @@ export class AiService implements OnModuleInit {
     let cachedResponse: string | null = null;
     const mainModel = await this.getSystemSetting(
       'main_model',
-      this.configService.get<string>('OPENROUTER_GPT_MODEL') || 'openai/gpt-4o-mini',
+      this.configService.get<string>('OPENROUTER_GPT_MODEL') ||
+        'openai/gpt-4o-mini',
     );
     const bridgeModel = await this.getSystemSetting(
       'bridge_model',
-      this.configService.get<string>('OPENROUTER_BRIDGE_MODEL') || 'google/gemini-2.5-flash-lite',
+      this.configService.get<string>('OPENROUTER_BRIDGE_MODEL') ||
+        'google/gemini-2.5-flash-lite',
     );
     const targetDate = await this.extractTargetDate(message, bridgeModel);
 
@@ -1940,12 +2329,12 @@ export class AiService implements OnModuleInit {
         if (liturgyFlow && liturgyFlow.steps?.choose_format) {
           const buttons = [...liturgyFlow.steps.choose_format.buttons];
           const hasDaily = user.receive_daily_liturgy;
-          
+
           if (buttons.length < 3) {
-             buttons.push({
-               id: 'toggle_daily_liturgy',
-               text: hasDaily ? 'Cancelar envio diário' : 'Receber envio diário'
-             });
+            buttons.push({
+              id: 'toggle_daily_liturgy',
+              text: hasDaily ? 'Cancelar envio diário' : 'Receber envio diário',
+            });
           }
 
           // Atualiza status do usuário para não prender no fluxo, pois é só uma escolha simples
@@ -1956,11 +2345,12 @@ export class AiService implements OnModuleInit {
             buttons: buttons,
           };
         }
-        
+
         // Fallback: Se não houver fluxo configurado, retorna a resumida (cache)
         cachedResponse = await this.getDailyCache('liturgy', targetDate);
         if (!cachedResponse) {
-          cachedResponse = await this.liturgyService.getDailyLiturgy(targetDate);
+          cachedResponse =
+            await this.liturgyService.getDailyLiturgy(targetDate);
         }
         intentContext = `CONTEÚDO DA LITURGIA (${targetDate}):\n${cachedResponse}`;
         break;
@@ -1968,7 +2358,8 @@ export class AiService implements OnModuleInit {
       case 'LITURGY_SHORT':
         cachedResponse = await this.getDailyCache('liturgy', targetDate);
         if (!cachedResponse) {
-          cachedResponse = await this.liturgyService.getDailyLiturgy(targetDate);
+          cachedResponse =
+            await this.liturgyService.getDailyLiturgy(targetDate);
         }
         intentContext = `CONTEÚDO DA LITURGIA (${targetDate}):\n${cachedResponse}`;
         break;
@@ -1976,14 +2367,18 @@ export class AiService implements OnModuleInit {
       case 'LITURGY_FULL':
         cachedResponse = await this.getDailyCache('liturgy_full', targetDate);
         if (!cachedResponse) {
-          cachedResponse = await this.liturgyService.getDailyLiturgy(targetDate);
+          cachedResponse =
+            await this.liturgyService.getDailyLiturgy(targetDate);
         }
         intentContext = `CONTEÚDO DA LITURGIA COMPLETA (${targetDate}):\n${cachedResponse}`;
         break;
 
       case 'TOGGLE_DAILY_LITURGY':
         const newDailyStatus = !user.receive_daily_liturgy;
-        await supabase.from('users').update({ receive_daily_liturgy: newDailyStatus }).eq('id', user.id);
+        await supabase
+          .from('users')
+          .update({ receive_daily_liturgy: newDailyStatus })
+          .eq('id', user.id);
         const toggleResponse = newDailyStatus
           ? 'Que maravilha! Enviarei a liturgia todos os dias pela manhã para você. Que Deus te abençoe! 🙏'
           : 'Envio diário cancelado! Você não receberá mais a liturgia automaticamente pela manhã, mas pode pedi-la quando quiser. 🙏';
@@ -2018,18 +2413,26 @@ export class AiService implements OnModuleInit {
         let canUseMagisterium = false;
 
         if (user.subscription_tier !== 'free') {
-          if (user.subscription_tier === 'admin' || user.subscription_tier === 'unlimited') {
+          if (
+            user.subscription_tier === 'admin' ||
+            user.subscription_tier === 'unlimited'
+          ) {
             canUseMagisterium = true;
           } else {
             try {
               const plansService = this.getPlansService();
               // get any plan for this tier (monthly or annual) to check the limit since they should match
-              const plan = await plansService.getPlan(user.subscription_tier, 'monthly');
+              const plan = await plansService.getPlan(
+                user.subscription_tier,
+                'monthly',
+              );
               const limit = plan?.magisterium_limit || 0;
               const used = await this.countMonthlyMagisterium(userId);
               canUseMagisterium = used < limit;
             } catch (err) {
-              this.logger.error(`Erro ao verificar limite do Magisterium: ${err}`);
+              this.logger.error(
+                `Erro ao verificar limite do Magisterium: ${err}`,
+              );
               canUseMagisterium = false;
             }
           }
@@ -2040,10 +2443,11 @@ export class AiService implements OnModuleInit {
           const { content: magisteriumRes, usage: magUsage } =
             await this.magisteriumService.query(
               message,
-              'Responda com base no Magistério da Igreja Católica.' // O Magisterium só precisa de uma diretriz técnica, não de persona.
+              'Responda com base no Magistério da Igreja Católica.', // O Magisterium só precisa de uma diretriz técnica, não de persona.
             );
-          if (magUsage) await this.logUsage(userId, magUsage, 'magisterium-expert');
-          
+          if (magUsage)
+            await this.logUsage(userId, magUsage, 'magisterium-expert');
+
           // 2. Passa o resultado E a diretriz de persona (intentPrompt) para a MarIA traduzir
           intentContext = `DIRETRIZ DE POSTURA E TRADUÇÃO:\n${intentPrompt}\n\nCONTEÚDO DO MAGISTERIUM (Baseie sua resposta fielmente nisto):\n${magisteriumRes}`;
         } else {
@@ -2108,7 +2512,9 @@ export class AiService implements OnModuleInit {
 
     const history = await this.getChatHistory(userId);
     const summary = user.general_summary || 'Sem resumo.';
-    const userNameContext = user.name ? `O nome do usuário com quem você está falando é: ${user.name}. Use esse nome se for natural no diálogo.` : '';
+    const userNameContext = user.name
+      ? `O nome do usuário com quem você está falando é: ${user.name}. Use esse nome se for natural no diálogo.`
+      : '';
     let genderContext = '';
     if (user.gender === 'M') {
       genderContext = `O gênero do usuário é MASCULINO. Trate-o por pronomes masculinos (ex: "meu querido filho", "amigo").`;
@@ -2118,7 +2524,9 @@ export class AiService implements OnModuleInit {
       genderContext = `O gênero do usuário é DESCONHECIDO. Use uma linguagem neutra ou acolhedora sem especificar gênero.`;
     }
 
-    const todayStr = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+    const todayStr = new Date().toLocaleDateString('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+    });
     const fullSystemPrompt = `${corePersona}\n\nData atual: Hoje é ${todayStr}.\n\nCONTEXTO:\n${summary}\n${userNameContext}\n${genderContext}\n\nINTENÇÃO:\n${intentContext}\n\nResponda com amor maternal.`;
 
     const { content: response, usage } = await this.callOpenRouter(
@@ -2229,12 +2637,18 @@ export class AiService implements OnModuleInit {
       .order('title', { ascending: true });
 
     if (error || !data || data.length === 0) {
-      return "Não há orações cadastradas no momento.";
+      return 'Não há orações cadastradas no momento.';
     }
-    
-    let result = "Lista de Orações Disponíveis no sistema (ofereça essas opções ao usuário):\n";
+
+    let result =
+      'Lista de Orações Disponíveis no sistema (ofereça essas opções ao usuário):\n';
     data.forEach((p, idx) => {
-      const cat = p.category === 'guia' ? 'Guia de Oração' : p.category === 'terco' ? 'Terço' : 'Oração';
+      const cat =
+        p.category === 'guia'
+          ? 'Guia de Oração'
+          : p.category === 'terco'
+            ? 'Terço'
+            : 'Oração';
       result += `${idx + 1}. ${p.title} (${cat})\n`;
     });
     return result;
@@ -2387,19 +2801,23 @@ export class AiService implements OnModuleInit {
     }
 
     // Fast path: reconhecimento de formatos comuns como "8h", "08h30", "15h"
-    const simpleHourMatch = trimmed.match(/^([0-1]?[0-9]|2[0-3])h([0-5][0-9])?$/i);
+    const simpleHourMatch = trimmed.match(
+      /^([0-1]?[0-9]|2[0-3])h([0-5][0-9])?$/i,
+    );
     if (simpleHourMatch) {
       const h = simpleHourMatch[1].padStart(2, '0');
       const m = simpleHourMatch[2] || '00';
       return `${h}:${m}`;
     }
 
-    const prompt = (this.promptService.getPrompt('extractor_time') || '')
-      .replace('{{message}}', message);
+    const prompt = (
+      this.promptService.getPrompt('extractor_time') || ''
+    ).replace('{{message}}', message);
 
     try {
       // Use flash lite or mini model for extraction
-      const model = process.env.OPENROUTER_BRIDGE_MODEL || 'google/gemini-2.5-flash-lite';
+      const model =
+        process.env.OPENROUTER_BRIDGE_MODEL || 'google/gemini-2.5-flash-lite';
       const { content } = await this.callOpenRouter(
         prompt,
         '',
@@ -2407,7 +2825,7 @@ export class AiService implements OnModuleInit {
         [],
         model,
       );
-      
+
       const extracted = content.trim();
       const match = extracted.match(/^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/);
       return match ? match[0] : null;
@@ -2472,7 +2890,9 @@ export class AiService implements OnModuleInit {
 
   private getAffiliatesService(): AffiliatesService {
     if (!this.affiliatesService) {
-      this.affiliatesService = this.moduleRef.get(AffiliatesService, { strict: false });
+      this.affiliatesService = this.moduleRef.get(AffiliatesService, {
+        strict: false,
+      });
     }
     return this.affiliatesService;
   }
@@ -2504,7 +2924,7 @@ export class AiService implements OnModuleInit {
     userAffiliateCode?: string,
   ) {
     const tierLabel = tier === 'basic' ? 'Básico' : 'Premium';
-    
+
     const plansService = this.getPlansService();
     const affiliatesService = this.getAffiliatesService();
 
@@ -2515,20 +2935,31 @@ export class AiService implements OnModuleInit {
     let aPriceVal = annualPlan ? annualPlan.price : 0;
 
     if (userAffiliateCode) {
-      const affiliate = await affiliatesService.getAffiliateByCode(userAffiliateCode);
+      const affiliate =
+        await affiliatesService.getAffiliateByCode(userAffiliateCode);
       if (affiliate && affiliate.is_active) {
-        const mPromo = await affiliatesService.getPromotionForAffiliateAndPlan(affiliate.id, tier, 'monthly');
-        const aPromo = await affiliatesService.getPromotionForAffiliateAndPlan(affiliate.id, tier, 'annual');
-        
+        const mPromo = await affiliatesService.getPromotionForAffiliateAndPlan(
+          affiliate.id,
+          tier,
+          'monthly',
+        );
+        const aPromo = await affiliatesService.getPromotionForAffiliateAndPlan(
+          affiliate.id,
+          tier,
+          'annual',
+        );
+
         if (mPromo && mPromo.is_active && mPromo.discount_percentage) {
-          mPriceVal = mPriceVal - (mPriceVal * (mPromo.discount_percentage / 100));
+          mPriceVal =
+            mPriceVal - mPriceVal * (mPromo.discount_percentage / 100);
         }
         if (aPromo && aPromo.is_active && aPromo.discount_percentage) {
-          aPriceVal = aPriceVal - (aPriceVal * (aPromo.discount_percentage / 100));
+          aPriceVal =
+            aPriceVal - aPriceVal * (aPromo.discount_percentage / 100);
         }
       }
     }
-    
+
     const mPrice = mPriceVal.toFixed(2).replace('.', ',');
     const aPrice = aPriceVal.toFixed(2).replace('.', ',');
     const aPriceMonthly = (aPriceVal / 12).toFixed(2).replace('.', ',');
@@ -2568,43 +2999,57 @@ export class AiService implements OnModuleInit {
     let factor = 1;
 
     if (userAffiliateCode) {
-      const affiliate = await affiliatesService.getAffiliateByCode(userAffiliateCode);
+      const affiliate =
+        await affiliatesService.getAffiliateByCode(userAffiliateCode);
       if (affiliate && affiliate.is_active) {
         couponInfo = `🎁 *Desconto do cupom ${userAffiliateCode} aplicado!*\n\n`;
-        const promos = await affiliatesService.getPromotionsByAffiliate(affiliate.id);
-        
+        const promos = await affiliatesService.getPromotionsByAffiliate(
+          affiliate.id,
+        );
+
         let maxDiscount = 0;
         for (const promo of promos) {
-          if (promo.is_active && promo.discount_percentage && promo.discount_percentage > maxDiscount) {
+          if (
+            promo.is_active &&
+            promo.discount_percentage &&
+            promo.discount_percentage > maxDiscount
+          ) {
             maxDiscount = promo.discount_percentage;
           }
         }
         if (maxDiscount > 0) {
-          factor = 1 - (maxDiscount / 100);
+          factor = 1 - maxDiscount / 100;
         }
       }
     }
 
-    let dynamicPlansText = couponInfo + 'Confira nossos planos disponíveis:\n\n';
-    let buttons: { id: string; text: string }[] = [];
+    let dynamicPlansText =
+      couponInfo + 'Confira nossos planos disponíveis:\n\n';
+    const buttons: { id: string; text: string }[] = [];
 
     // O WhatsApp permite no máximo 3 botões por mensagem interativa simples.
     // Para mais opções, idealmente seria usado um botão de lista, mas vamos limitar a 3 botões para compatibilidade (2 planos + cancelar).
     let btnIndex = 1;
     for (const tier of tiers) {
       if (buttons.length >= 2) break; // Reserva 1 espaço para cancelar
-      
-      const monthlyPlan = activePlans.find((p: any) => p.tier === tier && p.cycle === 'monthly');
-      const annualPlan = activePlans.find((p: any) => p.tier === tier && p.cycle === 'annual');
+
+      const monthlyPlan = activePlans.find(
+        (p: any) => p.tier === tier && p.cycle === 'monthly',
+      );
+      const annualPlan = activePlans.find(
+        (p: any) => p.tier === tier && p.cycle === 'annual',
+      );
       const planName = monthlyPlan?.name || annualPlan?.name || tier;
-      
+
       dynamicPlansText += `*${btnIndex}. ${planName}*\n`;
-      let descText = "";
+      let descText = '';
       const rawDesc = monthlyPlan?.description || annualPlan?.description || '';
       try {
-        const parsed = JSON.parse(rawDesc || "{}");
+        const parsed = JSON.parse(rawDesc || '{}');
         if (parsed && typeof parsed === 'object') {
-          const features = Array.isArray(parsed.features) ? parsed.features : [rawDesc];
+          const features = Array.isArray(parsed.features)
+            ? parsed.features
+            : [rawDesc];
           descText = features.map((f: string) => `✅ ${f}`).join('\n');
           if (parsed.highlight) {
             descText += `\n${parsed.highlight}`;
@@ -2619,7 +3064,7 @@ export class AiService implements OnModuleInit {
       if (descText) {
         dynamicPlansText += `${descText}\n`;
       }
-      
+
       if (monthlyPlan) {
         const price = monthlyPlan.price * factor;
         dynamicPlansText += `- Mensal: R$ ${price.toFixed(2).replace('.', ',')}\n`;
@@ -2629,7 +3074,7 @@ export class AiService implements OnModuleInit {
         dynamicPlansText += `- Anual: R$ ${(price / 12).toFixed(2).replace('.', ',')} / mês\n`;
       }
       dynamicPlansText += `\n`;
-      
+
       buttons.push({ id: tier, text: planName });
       btnIndex++;
     }
@@ -2640,7 +3085,7 @@ export class AiService implements OnModuleInit {
     if (!text || text.includes('{basic_price_month}')) {
       text = 'Escolha seu plano:'; // Fallback se o texto original for o antigo com placeholders hardcoded
     }
-    
+
     text = `${text}\n\n${dynamicPlansText}`.trim();
 
     return {
@@ -2653,22 +3098,32 @@ export class AiService implements OnModuleInit {
   private async buildCouponActivatedMessage(affiliateCode: string) {
     const supabase = this.supabaseService.getClient();
     let couponFlowData: any = null;
-    const { data: cData } = (await supabase.from('automatic_flows').select('steps').eq('key', 'coupon_flow').maybeSingle()) as { data: any };
+    const { data: cData } = (await supabase
+      .from('automatic_flows')
+      .select('steps')
+      .eq('key', 'coupon_flow')
+      .maybeSingle()) as { data: any };
     if (cData) couponFlowData = cData;
 
     const couponStep = couponFlowData?.steps?.coupon_activated || {
       text: '🎉 *Cupom ativado com sucesso!*\n\nO código *{coupon_code}* foi aplicado à sua conta. Você terá um desconto de {discount_percentage}% em nossos planos!\n\nQuer conhecer os planos e garantir esse desconto agora mesmo?',
-      buttons: [{ id: 'ver_planos', text: 'Ver Planos' }]
+      buttons: [{ id: 'ver_planos', text: 'Ver Planos' }],
     };
 
     let discountPercentage = 0;
     const affiliatesService = this.getAffiliatesService();
     const affiliate = await affiliatesService.getAffiliateByCode(affiliateCode);
-    
+
     if (affiliate && affiliate.is_active) {
-      const promos = await affiliatesService.getPromotionsByAffiliate(affiliate.id);
+      const promos = await affiliatesService.getPromotionsByAffiliate(
+        affiliate.id,
+      );
       for (const promo of promos) {
-        if (promo.is_active && promo.discount_percentage && promo.discount_percentage > discountPercentage) {
+        if (
+          promo.is_active &&
+          promo.discount_percentage &&
+          promo.discount_percentage > discountPercentage
+        ) {
           discountPercentage = promo.discount_percentage;
         }
       }
@@ -2682,7 +3137,7 @@ export class AiService implements OnModuleInit {
       return {
         type: 'interactive',
         text,
-        buttons: couponStep.buttons
+        buttons: couponStep.buttons,
       };
     }
 
@@ -2750,17 +3205,24 @@ export class AiService implements OnModuleInit {
       const plansService = this.getPlansService();
       const allPlans = await plansService.getAllPlans();
       const activePlans = allPlans.filter((p: any) => p.is_active !== false);
-      const activeTiers = Array.from(new Set(activePlans.map((p: any) => p.tier)));
+      const activeTiers = Array.from(
+        new Set(activePlans.map((p: any) => p.tier)),
+      );
 
       let tier = '';
-      
+
       // Match cancelar
-      const isCancel = this.matchesFlowOption(cleanMsg, 'cancel', getBtnText('cancel') || 'cancelar', [
-        'cancelar',
-        'sair',
-        '3' // compatibilidade retroativa
-      ]);
-      
+      const isCancel = this.matchesFlowOption(
+        cleanMsg,
+        'cancel',
+        getBtnText('cancel') || 'cancelar',
+        [
+          'cancelar',
+          'sair',
+          '3', // compatibilidade retroativa
+        ],
+      );
+
       if (isCancel) {
         await supabase
           .from('users')
@@ -2774,11 +3236,12 @@ export class AiService implements OnModuleInit {
       for (const t of activeTiers) {
         const plan = activePlans.find((p: any) => p.tier === t);
         const btnId = t; // now buttons are generated with id = tier
-        const isMatch = this.matchesFlowOption(cleanMsg, btnId, getBtnText(btnId), [
-          t,
-          plan?.name?.toLowerCase() || '',
-          index.toString()
-        ]);
+        const isMatch = this.matchesFlowOption(
+          cleanMsg,
+          btnId,
+          getBtnText(btnId),
+          [t, plan?.name?.toLowerCase() || '', index.toString()],
+        );
         if (isMatch) {
           tier = t as string;
           break;
@@ -2787,7 +3250,10 @@ export class AiService implements OnModuleInit {
       }
 
       if (!tier) {
-        const selectMessage = await this.buildSelectPlanMessage(selectStep, user.affiliate_code);
+        const selectMessage = await this.buildSelectPlanMessage(
+          selectStep,
+          user.affiliate_code,
+        );
         return {
           type: 'interactive',
           text: `⚠️ Opção inválida. Por favor, escolha uma das opções abaixo:\n\n${selectMessage.text}`,
@@ -2806,7 +3272,10 @@ export class AiService implements OnModuleInit {
       }
 
       if (userTier === 'basic' && tier === 'basic') {
-        const selectMessage = await this.buildSelectPlanMessage(selectStep, user.affiliate_code);
+        const selectMessage = await this.buildSelectPlanMessage(
+          selectStep,
+          user.affiliate_code,
+        );
         return {
           type: 'interactive',
           text:
@@ -2827,7 +3296,12 @@ export class AiService implements OnModuleInit {
 
       const cycleStep = steps.select_cycle ||
         steps.confirm_plan || { text: '', buttons: [] };
-      return await this.buildCycleStepMessage(cycleStep, tier, userTier, user.affiliate_code);
+      return await this.buildCycleStepMessage(
+        cycleStep,
+        tier,
+        userTier,
+        user.affiliate_code,
+      );
     }
 
     if (stepId === 'select_cycle' || stepId === 'confirm_plan') {
@@ -2868,17 +3342,26 @@ export class AiService implements OnModuleInit {
         if (isNo) {
           await supabase
             .from('users')
-            .update({ status: 'flow:subscription_flow:select_plan', flow_updated_at: new Date().toISOString() })
+            .update({
+              status: 'flow:subscription_flow:select_plan',
+              flow_updated_at: new Date().toISOString(),
+            })
             .eq('id', user.id);
           const selectStep = steps.select_plan;
-          return await this.buildSelectPlanMessage(selectStep, user.affiliate_code);
+          return await this.buildSelectPlanMessage(
+            selectStep,
+            user.affiliate_code,
+          );
         }
         if (!isYes) {
           const bMonthly = await this.plansService.getPlan('basic', 'monthly');
           const bAnnual = await this.plansService.getPlan('basic', 'annual');
-          const pMonthly = await this.plansService.getPlan('premium', 'monthly');
+          const pMonthly = await this.plansService.getPlan(
+            'premium',
+            'monthly',
+          );
           const pAnnual = await this.plansService.getPlan('premium', 'annual');
-          
+
           const formatPrice = (p: number) => p.toFixed(2).replace('.', ',');
 
           const planNames: Record<string, string> = {
@@ -2966,10 +3449,16 @@ export class AiService implements OnModuleInit {
       if (isBack) {
         await supabase
           .from('users')
-          .update({ status: 'flow:subscription_flow:select_plan', flow_updated_at: new Date().toISOString() })
+          .update({
+            status: 'flow:subscription_flow:select_plan',
+            flow_updated_at: new Date().toISOString(),
+          })
           .eq('id', user.id);
         const selectStep = steps.select_plan;
-        return await this.buildSelectPlanMessage(selectStep, user.affiliate_code);
+        return await this.buildSelectPlanMessage(
+          selectStep,
+          user.affiliate_code,
+        );
       }
 
       const isMonthly = this.matchesFlowOption(cleanMsg, '1', getBtnText('1'), [
@@ -3050,7 +3539,7 @@ export class AiService implements OnModuleInit {
       const { content } = await this.callOpenRouter(
         'Você é um assistente especialista em identificar gênero por nomes. Responda APENAS com uma letra maiúscula.',
         prompt,
-        false
+        false,
       );
       const res = content.trim().toUpperCase();
       if (res === 'M' || res === 'F' || res === 'N') return res;
@@ -3065,7 +3554,7 @@ export class AiService implements OnModuleInit {
    */
   async summarizeCommunityInterests(messages: string[]): Promise<string> {
     if (!messages || messages.length === 0) {
-      return "Ainda não há mensagens suficientes para gerar insights da sua comunidade.";
+      return 'Ainda não há mensagens suficientes para gerar insights da sua comunidade.';
     }
 
     const systemPrompt = `Você é um analista especialista em identificar interesses e padrões em comunidades.
@@ -3079,26 +3568,29 @@ DIRETRIZES:
 4. O resumo deve ser curto, objetivo, acolhedor e encorajador para o afiliado.
 5. Escreva em parágrafos diretos e em tom profissional e amigável.`;
 
-    const sample = messages.slice(0, 200).join("\n---\n");
+    const sample = messages.slice(0, 200).join('\n---\n');
     const userPrompt = `Mensagens recentes (amostra):\n${sample}\n\nGere o resumo dos interesses da comunidade de acordo com as diretrizes.`;
 
     try {
       const { content } = await this.callOpenRouter(
         systemPrompt,
         userPrompt,
-        false
+        false,
       );
       return content.trim();
     } catch (e) {
-      this.logger.error("Erro ao gerar insights da comunidade", e);
-      return "No momento não foi possível gerar os insights da comunidade devido a uma indisponibilidade. Tente novamente mais tarde.";
+      this.logger.error('Erro ao gerar insights da comunidade', e);
+      return 'No momento não foi possível gerar os insights da comunidade devido a uma indisponibilidade. Tente novamente mais tarde.';
     }
   }
 
   /**
    * Trata o cancelamento de um lembrete (soft delete com status = 'cancelled')
    */
-  async handleCancelReminder(userId: string, reminderId?: string): Promise<string> {
+  async handleCancelReminder(
+    userId: string,
+    reminderId?: string,
+  ): Promise<string> {
     const supabase = this.supabaseService.getClient();
 
     let targetReminder: any = null;
@@ -3126,7 +3618,8 @@ DIRETRIZES:
     }
 
     if (!targetReminder) {
-      const noReminderMsg = 'Não encontrei nenhum lembrete ativo no momento para cancelar. Se precisar de algo, estou à disposição! 🙏';
+      const noReminderMsg =
+        'Não encontrei nenhum lembrete ativo no momento para cancelar. Se precisar de algo, estou à disposição! 🙏';
       await this.saveMessage(userId, 'assistant', noReminderMsg, false);
       return noReminderMsg;
     }
@@ -3152,11 +3645,15 @@ DIRETRIZES:
       for (const job of delayedJobs) {
         if (job.data?.reminderId === targetReminder.id) {
           await job.remove();
-          this.logger.log(`Job ${job.id} do lembrete ${targetReminder.id} removido da fila BullMQ.`);
+          this.logger.log(
+            `Job ${job.id} do lembrete ${targetReminder.id} removido da fila BullMQ.`,
+          );
         }
       }
     } catch (e) {
-      this.logger.warn(`Não foi possível remover jobs do lembrete ${targetReminder.id} da fila: ${e.message}`);
+      this.logger.warn(
+        `Não foi possível remover jobs do lembrete ${targetReminder.id} da fila: ${e.message}`,
+      );
     }
 
     const cancelSuccessMsg = `Prontinho, meu filho(a)! Cancelei o seu lembrete de *${targetReminder.title}*. Você não receberá mais este aviso diário. Se quiser agendar novamente em outro momento, é só me chamar! 🙏✨`;
@@ -3184,7 +3681,9 @@ DIRETRIZES:
         }
       }
     } catch (err: any) {
-      this.logger.warn(`Erro ao buscar flow_inactivity_timeout_minutes: ${err?.message}`);
+      this.logger.warn(
+        `Erro ao buscar flow_inactivity_timeout_minutes: ${err?.message}`,
+      );
     }
     return 15;
   }
@@ -3192,7 +3691,10 @@ DIRETRIZES:
   /**
    * Verifica se o fluxo atual do usuário expirou por inatividade.
    */
-  private async checkIfFlowExpired(user: any, timeoutMinutes: number): Promise<boolean> {
+  private async checkIfFlowExpired(
+    user: any,
+    timeoutMinutes: number,
+  ): Promise<boolean> {
     try {
       let lastActivity: number | null = user.flow_updated_at
         ? new Date(user.flow_updated_at).getTime()
@@ -3227,7 +3729,11 @@ DIRETRIZES:
     }
   }
 
-  private async handleNovenaReadPrayer(userId: string, userNovenaId: string, dayNum: number) {
+  private async handleNovenaReadPrayer(
+    userId: string,
+    userNovenaId: string,
+    dayNum: number,
+  ) {
     const supabase = this.supabaseService.getClient();
 
     const { data: userNovena } = await supabase
@@ -3237,7 +3743,8 @@ DIRETRIZES:
       .maybeSingle();
 
     if (!userNovena) {
-      const notFound = 'Não encontrei os dados desta novena no momento. Por favor, acesse o aplicativo MarIA para rezar!';
+      const notFound =
+        'Não encontrei os dados desta novena no momento. Por favor, acesse o aplicativo MarIA para rezar!';
       await this.saveMessage(userId, 'assistant', notFound, false);
       return notFound;
     }
@@ -3281,7 +3788,10 @@ DIRETRIZES:
     prayerText += `_Ao terminar sua oração, clique no botão abaixo para registrar a conclusão do Dia ${dayNum}:_`;
 
     const buttons = [
-      { id: `novena_check_${userNovena.id}_${dayNum}`, text: `✅ Concluir Dia ${dayNum}` },
+      {
+        id: `novena_check_${userNovena.id}_${dayNum}`,
+        text: `✅ Concluir Dia ${dayNum}`,
+      },
       { id: `novena_cancel_${userNovena.id}`, text: '🔕 Cancelar Lembretes' },
     ];
 
@@ -3295,7 +3805,11 @@ DIRETRIZES:
     return resp;
   }
 
-  private async handleNovenaCheckDay(userId: string, userNovenaId: string, dayNum: number) {
+  private async handleNovenaCheckDay(
+    userId: string,
+    userNovenaId: string,
+    dayNum: number,
+  ) {
     const supabase = this.supabaseService.getClient();
 
     const { data: userNovena } = await supabase
@@ -3318,7 +3832,9 @@ DIRETRIZES:
     });
 
     const isLastDay = dayNum >= 9;
-    const nextDay = isLastDay ? 9 : Math.max(userNovena.current_day, dayNum + 1);
+    const nextDay = isLastDay
+      ? 9
+      : Math.max(userNovena.current_day, dayNum + 1);
     const newStatus = isLastDay ? 'completed' : 'in_progress';
 
     await supabase
@@ -3345,4 +3861,3 @@ DIRETRIZES:
     return congratMsg;
   }
 }
-

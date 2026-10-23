@@ -59,7 +59,9 @@ export class FlowInterpreterService {
       .maybeSingle();
 
     if (error || !data) {
-      this.logger.warn(`Fluxo automático "${flowKey}" não encontrado no banco de dados.`);
+      this.logger.warn(
+        `Fluxo automático "${flowKey}" não encontrado no banco de dados.`,
+      );
       return null;
     }
 
@@ -73,7 +75,11 @@ export class FlowInterpreterService {
     const lowerInput = (userInput || '').trim().toLowerCase();
 
     // 1. Comando universal de cancelamento/saída
-    if (lowerInput === 'cancelar' || lowerInput === 'sair' || lowerInput === 'parar') {
+    if (
+      lowerInput === 'cancelar' ||
+      lowerInput === 'sair' ||
+      lowerInput === 'parar'
+    ) {
       return { isExit: true, nextStepKey: 'idle' };
     }
 
@@ -81,13 +87,19 @@ export class FlowInterpreterService {
     if (step.buttons && step.buttons.length > 0) {
       // 2.1. Correspondência direta por ID
       let matched = step.buttons.find(
-        (b) => String(b.id || '').trim().toLowerCase() === lowerInput,
+        (b) =>
+          String(b.id || '')
+            .trim()
+            .toLowerCase() === lowerInput,
       );
 
       // 2.2. Correspondência direta por Texto do botão
       if (!matched) {
         matched = step.buttons.find(
-          (b) => String(b.text || '').trim().toLowerCase() === lowerInput,
+          (b) =>
+            String(b.text || '')
+              .trim()
+              .toLowerCase() === lowerInput,
         );
       }
 
@@ -102,7 +114,9 @@ export class FlowInterpreterService {
       // 2.4. Correspondência parcial por inclusão (fallback amigável)
       if (!matched && lowerInput.length >= 3) {
         matched = step.buttons.find((b) =>
-          String(b.text || '').toLowerCase().includes(lowerInput),
+          String(b.text || '')
+            .toLowerCase()
+            .includes(lowerInput),
         );
       }
 

@@ -119,7 +119,7 @@ Descrição: ${data.description}`;
     @Body() updateData: { steps: any; name?: string },
   ) {
     const supabase = this.supabaseService.getClient();
-    let { data, error } = await supabase
+    const { data, error } = await supabase
       .from('automatic_flows')
       .update({
         steps: updateData.steps,
@@ -142,7 +142,7 @@ Descrição: ${data.description}`;
         })
         .select()
         .single();
-      
+
       if (insertError) {
         console.error('Insert Error:', insertError);
         throw new Error(insertError.message);
@@ -160,6 +160,9 @@ Descrição: ${data.description}`;
   @Post('process-affiliate-insights')
   async processAffiliateInsights() {
     await this.cronService.processAffiliatesInsights();
-    return { success: true, message: 'Insights processing started in background' };
+    return {
+      success: true,
+      message: 'Insights processing started in background',
+    };
   }
 }

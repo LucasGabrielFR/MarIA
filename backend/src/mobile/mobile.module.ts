@@ -15,5 +15,3 @@ import { RemindersModule } from '../reminders/reminders.module';
   exports: [MobileService, MobileAuthService],
 })
 export class MobileModule {}
-
-

@@ -5,8 +5,16 @@ export interface LiturgyData {
   liturgia: string;
   cor: string;
   leituras: {
-    primeiraLeitura?: Array<{ referencia: string; titulo: string; texto: string }>;
-    segundaLeitura?: Array<{ referencia: string; titulo: string; texto: string }>;
+    primeiraLeitura?: Array<{
+      referencia: string;
+      titulo: string;
+      texto: string;
+    }>;
+    segundaLeitura?: Array<{
+      referencia: string;
+      titulo: string;
+      texto: string;
+    }>;
     salmo?: Array<{ referencia: string; refrao: string; texto: string }>;
     evangelho?: Array<{ referencia: string; titulo: string; texto: string }>;
     extras?: Array<{ titulo: string; texto: string }>;
@@ -26,7 +34,9 @@ export class LiturgyService {
         url = `${this.apiUrl}?dia=${parseInt(day, 10)}&mes=${parseInt(month, 10)}&ano=${year}`;
       }
       this.logger.log(`Fetching liturgy from ${url}...`);
-      const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+      const response = await fetch(url, {
+        signal: AbortSignal.timeout(10_000),
+      });
 
       if (!response.ok) {
         throw new Error(`Failed to fetch liturgy: ${response.statusText}`);
@@ -47,11 +57,15 @@ export class LiturgyService {
         const [year, month, day] = date.split('-');
         url = `${this.apiUrl}?dia=${parseInt(day, 10)}&mes=${parseInt(month, 10)}&ano=${year}`;
       }
-      const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+      const response = await fetch(url, {
+        signal: AbortSignal.timeout(10_000),
+      });
       if (!response.ok) return null;
       return (await response.json()) as LiturgyData;
     } catch (error) {
-      this.logger.warn(`Failed to fetch raw liturgy: ${error?.message || error}`);
+      this.logger.warn(
+        `Failed to fetch raw liturgy: ${error?.message || error}`,
+      );
       return null;
     }
   }
@@ -83,7 +97,7 @@ export class LiturgyService {
       { key: 'primeiraLeitura', label: '1ª Leitura', type: 'reading' },
       { key: 'salmo', label: 'Salmo', type: 'psalm' },
       { key: 'segundaLeitura', label: '2ª Leitura', type: 'reading' },
-      { key: 'evangelho', label: 'Evangelho', type: 'gospel' }
+      { key: 'evangelho', label: 'Evangelho', type: 'gospel' },
     ];
 
     for (const section of sections) {
@@ -91,7 +105,7 @@ export class LiturgyService {
       if (parts && Array.isArray(parts) && parts.length > 0) {
         parts.forEach((p) => {
           formatted += `*${section.label}*\n`;
-          
+
           if (section.type === 'psalm') {
             if (p.referencia) formatted += `Referência: ${p.referencia}\n`;
             if (p.refrao) formatted += `*${p.refrao.trim()}*\n\n`;
@@ -112,4 +126,3 @@ export class LiturgyService {
     return formatted.trim();
   }
 }
-

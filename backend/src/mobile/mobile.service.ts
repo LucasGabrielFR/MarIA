@@ -1,12 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AiService } from '../ai/ai.service';
 import { SupabaseService } from '../supabase/supabase.service';
-import { RemindersService, SyncMobileRemindersDto } from '../reminders/reminders.service';
+import {
+  RemindersService,
+  SyncMobileRemindersDto,
+} from '../reminders/reminders.service';
 import { LiturgyService } from '../ai/liturgy.service';
 import { SaintService } from '../ai/saint.service';
+import { MailService } from '../mail/mail.service';
 
 export class MobileChatMessageDto {
-
   role: 'user' | 'assistant';
   content: string;
 }
@@ -84,10 +87,12 @@ export class MobileService {
     private readonly remindersService: RemindersService,
     private readonly liturgyService: LiturgyService,
     private readonly saintService: SaintService,
+    private readonly mailService: MailService,
   ) {}
 
-
-  async processChat(dto: MobileChatRequestDto): Promise<{ response: string; timestamp: string }> {
+  async processChat(
+    dto: MobileChatRequestDto,
+  ): Promise<{ response: string; timestamp: string }> {
     const userMessage = dto.message.trim();
     const source = dto.source || 'mobile';
     const cleanPhone = dto.phone ? dto.phone.replace(/\D/g, '') : undefined;
@@ -134,7 +139,8 @@ export class MobileService {
       }
 
       if (!responseText || !responseText.trim()) {
-        responseText = 'Salve Maria! Filho querido, estou em constante oração por você.';
+        responseText =
+          'Salve Maria! Filho querido, estou em constante oração por você.';
       }
 
       return {
@@ -158,7 +164,10 @@ export class MobileService {
   /**
    * Obtém as preferências espirituais do fiel conectadas ao WhatsApp e Supabase.
    */
-  async getPreferences(phone?: string, userId?: string): Promise<UserPreferencesResponseDto> {
+  async getPreferences(
+    phone?: string,
+    userId?: string,
+  ): Promise<UserPreferencesResponseDto> {
     const supabase = this.supabaseService.getClient();
     const cleanPhone = phone ? phone.replace(/\D/g, '') : undefined;
 
@@ -168,12 +177,18 @@ export class MobileService {
       const { data } = await supabase
         .from('users')
         .select('*')
-        .or(`phone.eq.${cleanPhone},phone.eq.+${cleanPhone},phone.eq.55${cleanPhone},wa_chatid.ilike.%${cleanPhone}%`)
+        .or(
+          `phone.eq.${cleanPhone},phone.eq.+${cleanPhone},phone.eq.55${cleanPhone},wa_chatid.ilike.%${cleanPhone}%`,
+        )
         .limit(1)
         .maybeSingle();
       user = data;
     } else if (userId) {
-      const { data } = await supabase.from('users').select('*').eq('id', userId).maybeSingle();
+      const { data } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
       user = data;
     }
 
@@ -202,7 +217,9 @@ export class MobileService {
     };
   }
 
-  async updatePreferences(dto: UpdatePreferencesDto): Promise<UserPreferencesResponseDto> {
+  async updatePreferences(
+    dto: UpdatePreferencesDto,
+  ): Promise<UserPreferencesResponseDto> {
     const supabase = this.supabaseService.getClient();
     const rawDigits = dto.phone ? dto.phone.replace(/\D/g, '') : undefined;
     const cleanPhone = rawDigits
@@ -211,21 +228,24 @@ export class MobileService {
         : rawDigits
       : undefined;
 
-
-
-
     let user: any = null;
 
     if (cleanPhone) {
       const { data } = await supabase
         .from('users')
         .select('*')
-        .or(`phone.eq.${cleanPhone},phone.eq.+${cleanPhone},phone.eq.55${cleanPhone},wa_chatid.ilike.%${cleanPhone}%`)
+        .or(
+          `phone.eq.${cleanPhone},phone.eq.+${cleanPhone},phone.eq.55${cleanPhone},wa_chatid.ilike.%${cleanPhone}%`,
+        )
         .limit(1)
         .maybeSingle();
       user = data;
     } else if (dto.userId) {
-      const { data } = await supabase.from('users').select('*').eq('id', dto.userId).maybeSingle();
+      const { data } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', dto.userId)
+        .maybeSingle();
       user = data;
     }
 
@@ -246,7 +266,10 @@ export class MobileService {
 
       if (!createError && newUser) {
         user = newUser;
-        this.logger.log(`[Mobile Preferences] Usuário criado via App: ${user.id} (${cleanPhone})`);
+        await this.mailService.sendNewUserNotification(newUser);
+        this.logger.log(
+          `[Mobile Preferences] Usuário criado via App: ${user.id} (${cleanPhone})`,
+        );
       }
     }
 
@@ -306,7 +329,9 @@ export class MobileService {
         user = updated || user;
       }
     } catch (err) {
-      this.logger.error(`[Mobile Preferences] Erro ao salvar preferências: ${err.message}`);
+      this.logger.error(
+        `[Mobile Preferences] Erro ao salvar preferências: ${err.message}`,
+      );
     }
 
     this.logger.log(
@@ -317,25 +342,39 @@ export class MobileService {
       userId: user.id,
       phone: user.phone || cleanPhone || '',
       name: user.name || 'Fiel',
-      receiveDailyLiturgy: user.receive_daily_liturgy ?? dto.receiveDailyLiturgy ?? true,
+      receiveDailyLiturgy:
+        user.receive_daily_liturgy ?? dto.receiveDailyLiturgy ?? true,
       receiveDailyExam: user.receive_daily_exam ?? dto.receiveDailyExam ?? true,
-      receiveDailySaint: user.receive_daily_saint ?? dto.receiveDailySaint ?? false,
-      whatsappBridgeEnabled: user.whatsapp_bridge_enabled ?? dto.whatsappBridgeEnabled ?? true,
+      receiveDailySaint:
+        user.receive_daily_saint ?? dto.receiveDailySaint ?? false,
+      whatsappBridgeEnabled:
+        user.whatsapp_bridge_enabled ?? dto.whatsappBridgeEnabled ?? true,
       isRegisteredOnWhatsapp: !!user.wa_chatid || !!user.phone,
     };
   }
 
-  async getSpiritualPlan(phone?: string, userId?: string): Promise<SpiritualPlanResponseDto> {
+  async getSpiritualPlan(
+    phone?: string,
+    userId?: string,
+  ): Promise<SpiritualPlanResponseDto> {
     const cleanPhone = phone ? phone.replace(/\D/g, '') : undefined;
     const supabase = this.supabaseService.getClient();
 
     let user: any = null;
     if (userId) {
-      const { data } = await supabase.from('users').select('id, phone, name').eq('id', userId).maybeSingle();
+      const { data } = await supabase
+        .from('users')
+        .select('id, phone, name')
+        .eq('id', userId)
+        .maybeSingle();
       user = data;
     }
     if (!user && cleanPhone) {
-      const { data } = await supabase.from('users').select('id, phone, name').ilike('phone', `%${cleanPhone}%`).maybeSingle();
+      const { data } = await supabase
+        .from('users')
+        .select('id, phone, name')
+        .ilike('phone', `%${cleanPhone}%`)
+        .maybeSingle();
       user = data;
     }
 
@@ -355,7 +394,8 @@ export class MobileService {
       .eq('user_id', user.id)
       .maybeSingle();
 
-    let habits: SpiritualHabitDto[] = (plan?.habits as SpiritualHabitDto[]) || [];
+    const habits: SpiritualHabitDto[] =
+      (plan?.habits as SpiritualHabitDto[]) || [];
 
     // Busca lembretes cadastrados no banco para o usuário (ex: criados no WhatsApp ou pré-existentes)
     const { data: userReminders } = await supabase
@@ -369,7 +409,11 @@ export class MobileService {
       for (const rem of userReminders) {
         // Tenta achar hábito pelo external_id ou pelo tool_type
         const existingHabit = habits.find(
-          (h) => h.id === rem.external_id || (rem.tool_type && rem.tool_type !== 'custom' && h.toolType === rem.tool_type),
+          (h) =>
+            h.id === rem.external_id ||
+            (rem.tool_type &&
+              rem.tool_type !== 'custom' &&
+              h.toolType === rem.tool_type),
         );
 
         if (existingHabit) {
@@ -378,7 +422,10 @@ export class MobileService {
             existingHabit.notifyOnWhatsApp = rem.send_whatsapp === true;
             habitsChanged = true;
           }
-          if (rem.reminder_time && existingHabit.defaultTime !== rem.reminder_time) {
+          if (
+            rem.reminder_time &&
+            existingHabit.defaultTime !== rem.reminder_time
+          ) {
             existingHabit.defaultTime = rem.reminder_time;
             habitsChanged = true;
           }
@@ -390,7 +437,7 @@ export class MobileService {
           // Lembrete criado fora do app (ex: no WhatsApp via chat) -> adiciona como hábito consolidado!
           const [hStr] = (rem.reminder_time || '07:00').split(':');
           const hour = parseInt(hStr || '7', 10);
-          
+
           let period = rem.scheduled_period;
           if (!period) {
             if (hour < 12) period = 'Manhã';
@@ -414,7 +461,11 @@ export class MobileService {
           const newHabit: SpiritualHabitDto = {
             id: generatedId,
             title: rem.title,
-            description: rem.custom_text || (rem.is_prayer ? 'Oração agendada via WhatsApp' : 'Lembrete do Plano de Vida'),
+            description:
+              rem.custom_text ||
+              (rem.is_prayer
+                ? 'Oração agendada via WhatsApp'
+                : 'Lembrete do Plano de Vida'),
             period: period,
             defaultTime: rem.reminder_time || '07:00',
             reminderEnabled: true,
@@ -431,24 +482,25 @@ export class MobileService {
 
           // Se o reminder não tinha external_id, vincula agora
           if (!rem.external_id) {
-            await supabase.from('reminders').update({ external_id: generatedId }).eq('id', rem.id);
+            await supabase
+              .from('reminders')
+              .update({ external_id: generatedId })
+              .eq('id', rem.id);
           }
         }
       }
 
       // Se novos hábitos foram consolidados, salva em user_spiritual_plans
       if (habitsChanged) {
-        await supabase
-          .from('user_spiritual_plans')
-          .upsert(
-            {
-              user_id: user.id,
-              habits,
-              streak_days: plan?.streak_days || 0,
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: 'user_id' },
-          );
+        await supabase.from('user_spiritual_plans').upsert(
+          {
+            user_id: user.id,
+            habits,
+            streak_days: plan?.streak_days || 0,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id' },
+        );
       }
     }
 
@@ -461,17 +513,27 @@ export class MobileService {
     };
   }
 
-  async updateSpiritualPlan(dto: UpdateSpiritualPlanDto): Promise<SpiritualPlanResponseDto> {
+  async updateSpiritualPlan(
+    dto: UpdateSpiritualPlanDto,
+  ): Promise<SpiritualPlanResponseDto> {
     const cleanPhone = dto.phone ? dto.phone.replace(/\D/g, '') : undefined;
     const supabase = this.supabaseService.getClient();
 
     let user: any = null;
     if (dto.userId) {
-      const { data } = await supabase.from('users').select('id, phone, name').eq('id', dto.userId).maybeSingle();
+      const { data } = await supabase
+        .from('users')
+        .select('id, phone, name')
+        .eq('id', dto.userId)
+        .maybeSingle();
       user = data;
     }
     if (!user && cleanPhone) {
-      const { data } = await supabase.from('users').select('id, phone, name').ilike('phone', `%${cleanPhone}%`).maybeSingle();
+      const { data } = await supabase
+        .from('users')
+        .select('id, phone, name')
+        .ilike('phone', `%${cleanPhone}%`)
+        .maybeSingle();
       user = data;
     }
 
@@ -486,6 +548,7 @@ export class MobileService {
         .select()
         .single();
       user = newUser;
+      if (newUser) await this.mailService.sendNewUserNotification(newUser);
     }
 
     if (!user) {
@@ -514,9 +577,13 @@ export class MobileService {
       .single();
 
     if (error) {
-      this.logger.error(`[Spiritual Plan] Erro ao salvar plano para usuário ${user.id}: ${error.message}`);
+      this.logger.error(
+        `[Spiritual Plan] Erro ao salvar plano para usuário ${user.id}: ${error.message}`,
+      );
     } else {
-      this.logger.log(`[Spiritual Plan] Plano salvo para ${user.id} com ${dto.habits?.length ?? 0} hábitos.`);
+      this.logger.log(
+        `[Spiritual Plan] Plano salvo para ${user.id} com ${dto.habits?.length ?? 0} hábitos.`,
+      );
 
       // Sincroniza hábitos ativados na tabela reminders e limpa quaisquer lembretes desativados
       try {
@@ -524,14 +591,16 @@ export class MobileService {
           let toolType = h.toolType || 'custom';
           if (toolType === 'custom') {
             const hid = (h.id || '').toLowerCase();
-            if (hid.includes('morning') || hid.includes('offering')) toolType = 'morning_prayer';
+            if (hid.includes('morning') || hid.includes('offering'))
+              toolType = 'morning_prayer';
             else if (hid.includes('liturgy')) toolType = 'liturgy';
             else if (hid.includes('saint')) toolType = 'saint';
             else if (hid.includes('angelus')) toolType = 'angelus';
             else if (hid.includes('mercy')) toolType = 'divine_mercy';
             else if (hid.includes('rosary')) toolType = 'rosary';
             else if (hid.includes('night_prayer')) toolType = 'night_prayer';
-            else if (hid.includes('night_exam') || hid.includes('exam')) toolType = 'conscience_exam';
+            else if (hid.includes('night_exam') || hid.includes('exam'))
+              toolType = 'conscience_exam';
           }
 
           return {
@@ -554,17 +623,26 @@ export class MobileService {
           phone: user.phone || cleanPhone,
           reminders: remindersToSync,
         });
-        this.logger.log(`[Spiritual Plan] Lembretes do usuário ${user.id} sincronizados com sucesso.`);
+        this.logger.log(
+          `[Spiritual Plan] Lembretes do usuário ${user.id} sincronizados com sucesso.`,
+        );
 
         // Sincroniza toggles no registro do usuário para conformidade do perfil
         const hasLiturgyWhatsApp = (dto.habits || []).some(
-          (h) => (h.toolType === 'liturgy' || (h.id || '').includes('liturgy')) && h.notifyOnWhatsApp === true,
+          (h) =>
+            (h.toolType === 'liturgy' || (h.id || '').includes('liturgy')) &&
+            h.notifyOnWhatsApp === true,
         );
         const hasExamWhatsApp = (dto.habits || []).some(
-          (h) => (h.toolType === 'conscience_exam' || (h.id || '').includes('exam')) && h.notifyOnWhatsApp === true,
+          (h) =>
+            (h.toolType === 'conscience_exam' ||
+              (h.id || '').includes('exam')) &&
+            h.notifyOnWhatsApp === true,
         );
         const hasSaintWhatsApp = (dto.habits || []).some(
-          (h) => (h.toolType === 'saint' || (h.id || '').includes('saint')) && h.notifyOnWhatsApp === true,
+          (h) =>
+            (h.toolType === 'saint' || (h.id || '').includes('saint')) &&
+            h.notifyOnWhatsApp === true,
         );
 
         await supabase
@@ -577,7 +655,9 @@ export class MobileService {
           })
           .eq('id', user.id);
       } catch (err) {
-        this.logger.error(`[Spiritual Plan] Erro ao sincronizar lembretes na fila: ${err.message}`);
+        this.logger.error(
+          `[Spiritual Plan] Erro ao sincronizar lembretes na fila: ${err.message}`,
+        );
       }
     }
 
@@ -654,7 +734,9 @@ export class MobileService {
     // 4. Terço Diário
     let rosary: any = null;
     if (rosaryRow?.content) {
-      const mysteryMatch = rosaryRow.content.match(/Mistérios\s+([A-Za-zÀ-ú]+)/i);
+      const mysteryMatch = rosaryRow.content.match(
+        /Mistérios\s+([A-Za-zÀ-ú]+)/i,
+      );
       rosary = {
         mysteryType: mysteryMatch ? mysteryMatch[1] : 'Mistérios do Terço',
         rawContent: rosaryRow.content,
@@ -881,7 +963,9 @@ export class MobileService {
         };
       }
     } catch (err) {
-      this.logger.warn(`[Daily Content] Fallback saint db error: ${err.message}`);
+      this.logger.warn(
+        `[Daily Content] Fallback saint db error: ${err.message}`,
+      );
     }
 
     return {
@@ -898,4 +982,3 @@ export class MobileService {
     };
   }
 }
-

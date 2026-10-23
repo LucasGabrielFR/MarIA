@@ -60,7 +60,13 @@ export class AsaasController {
     if (!planId || !cycle || !phone) {
       throw new BadRequestException('planId, cycle and phone are required');
     }
-    return this.asaasService.createCheckoutUrl(planId, cycle, phone, undefined, affiliateCode);
+    return this.asaasService.createCheckoutUrl(
+      planId,
+      cycle,
+      phone,
+      undefined,
+      affiliateCode,
+    );
   }
 
   @Post('checkout-web')
@@ -72,7 +78,11 @@ export class AsaasController {
     if (!planId || !cycle) {
       throw new BadRequestException('planId and cycle are required');
     }
-    return this.asaasService.createWebCheckoutSession(planId, cycle, affiliateCode);
+    return this.asaasService.createWebCheckoutSession(
+      planId,
+      cycle,
+      affiliateCode,
+    );
   }
 
   @Get('status/:sessionId')
@@ -92,12 +102,17 @@ export class AsaasController {
     }
 
     try {
-      await this.supabaseService.getClient().from('webhook_logs').insert({
-        event_type: `asaas_${body.event}`,
-        payload: body,
-      });
+      await this.supabaseService
+        .getClient()
+        .from('webhook_logs')
+        .insert({
+          event_type: `asaas_${body.event}`,
+          payload: body,
+        });
     } catch (logError) {
-      this.logger.error(`Failed to save Asaas webhook log: ${logError.message}`);
+      this.logger.error(
+        `Failed to save Asaas webhook log: ${logError.message}`,
+      );
     }
 
     return this.asaasService.handleWebhook(body);

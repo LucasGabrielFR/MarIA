@@ -78,13 +78,24 @@ export class MobileAuthService {
     }
 
     const cleanEmail = dto.email.toLowerCase().trim();
-    const fullName = `${dto.firstName.trim()} ${dto.lastName ? dto.lastName.trim() : ''}`.trim();
+    const fullName =
+      `${dto.firstName.trim()} ${dto.lastName ? dto.lastName.trim() : ''}`.trim();
 
     // 1. Verifica se já existe um usuário com este e-mail em public.users ou public.admins
-    const [{ data: existingUser }, { data: existingAdmin }] = await Promise.all([
-      supabase.from('users').select('id, email').eq('email', cleanEmail).maybeSingle(),
-      supabase.from('admins').select('id, email').eq('email', cleanEmail).maybeSingle(),
-    ]);
+    const [{ data: existingUser }, { data: existingAdmin }] = await Promise.all(
+      [
+        supabase
+          .from('users')
+          .select('id, email')
+          .eq('email', cleanEmail)
+          .maybeSingle(),
+        supabase
+          .from('admins')
+          .select('id, email')
+          .eq('email', cleanEmail)
+          .maybeSingle(),
+      ],
+    );
 
     if (existingUser || existingAdmin) {
       throw new BadRequestException(
@@ -123,15 +134,16 @@ export class MobileAuthService {
       this.logger.warn(
         `[MobileAuth] admin.createUser falhou, tentando auth.signUp: ${adminCreateError.message}`,
       );
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email: cleanEmail,
-        password: dto.password,
-        options: {
-          data: {
-            name: fullName,
+      const { data: signUpData, error: signUpError } =
+        await supabase.auth.signUp({
+          email: cleanEmail,
+          password: dto.password,
+          options: {
+            data: {
+              name: fullName,
+            },
           },
-        },
-      });
+        });
 
       if (signUpError) {
         throw new BadRequestException(
@@ -162,9 +174,12 @@ export class MobileAuthService {
       });
 
     if (loginError || !loginData.session) {
-      this.logger.error(`[MobileAuth] Erro ao logar pós-cadastro: ${loginError?.message}`);
+      this.logger.error(
+        `[MobileAuth] Erro ao logar pós-cadastro: ${loginError?.message}`,
+      );
       throw new BadRequestException(
-        loginError?.message || 'Falha ao inicializar sessão. Tente fazer login diretamente.',
+        loginError?.message ||
+          'Falha ao inicializar sessão. Tente fazer login diretamente.',
       );
     }
 
@@ -187,11 +202,16 @@ export class MobileAuthService {
       .single();
 
     if (insertError) {
-      this.logger.error(`[MobileAuth] Erro ao criar public.users: ${insertError.message}`);
+      this.logger.error(
+        `[MobileAuth] Erro ao criar public.users: ${insertError.message}`,
+      );
       throw new BadRequestException('Falha ao inicializar perfil do usuário.');
     }
 
-    this.logger.log(`[MobileAuth] Novo usuário cadastrado: ${publicUser.id} (${cleanEmail})`);
+    this.logger.log(
+      `[MobileAuth] Novo usuário cadastrado: ${publicUser.id} (${cleanEmail})`,
+    );
+    await this.notifyNewUser(publicUser);
 
     return {
       user: this.mapUser(publicUser),
@@ -255,9 +275,12 @@ export class MobileAuthService {
         .single();
 
       if (createError) {
-        this.logger.error(`[MobileAuth] Erro ao sincronizar public.users no login: ${createError.message}`);
+        this.logger.error(
+          `[MobileAuth] Erro ao sincronizar public.users no login: ${createError.message}`,
+        );
       }
       publicUser = createdUser;
+      if (publicUser) await this.notifyNewUser(publicUser);
     } else if (!publicUser.auth_user_id) {
       // Atualiza vínculo se faltava
       await supabase
@@ -288,7 +311,9 @@ export class MobileAuthService {
     const supabase = this.supabaseService.getClient();
 
     if (!dto.idToken || !dto.idToken.trim()) {
-      throw new BadRequestException('O token de identificação do Google (idToken) é obrigatório.');
+      throw new BadRequestException(
+        'O token de identificação do Google (idToken) é obrigatório.',
+      );
     }
 
     // 1. Valida o idToken no Supabase Auth oficial
@@ -300,7 +325,9 @@ export class MobileAuthService {
       });
 
     if (authError || !authData.session || !authData.user) {
-      this.logger.error(`[MobileAuth] Falha no login Google: ${authError?.message}`);
+      this.logger.error(
+        `[MobileAuth] Falha no login Google: ${authError?.message}`,
+      );
       throw new UnauthorizedException(
         authError?.message || 'Falha ao autenticar com o Google.',
       );
@@ -348,6 +375,7 @@ export class MobileAuthService {
         );
       }
       publicUser = createdUser;
+      if (publicUser) await this.notifyNewUser(publicUser);
     } else {
       // 4. Usuário existente: atualiza vínculo com auth.users se necessário
       const updates: any = {};
@@ -403,15 +431,21 @@ export class MobileAuthService {
       .is('used_at', null);
 
     // Salva o novo código na tabela dedicada
-    const { error: insertError } = await supabase.from('password_resets').insert({
-      email: cleanEmail,
-      code,
-      expires_at: expiresAt,
-    });
+    const { error: insertError } = await supabase
+      .from('password_resets')
+      .insert({
+        email: cleanEmail,
+        code,
+        expires_at: expiresAt,
+      });
 
     if (insertError) {
-      this.logger.error(`[MobileAuth] Falha ao gravar password_resets: ${insertError.message}`);
-      throw new BadRequestException('Falha ao processar solicitação de recuperação.');
+      this.logger.error(
+        `[MobileAuth] Falha ao gravar password_resets: ${insertError.message}`,
+      );
+      throw new BadRequestException(
+        'Falha ao processar solicitação de recuperação.',
+      );
     }
 
     // Dispara e-mail com layout sacro oficial da MarIA
@@ -422,7 +456,8 @@ export class MobileAuthService {
     );
 
     return {
-      message: 'Código de verificação de 6 dígitos enviado com sucesso para o seu e-mail.',
+      message:
+        'Código de verificação de 6 dígitos enviado com sucesso para o seu e-mail.',
     };
   }
 
@@ -438,10 +473,14 @@ export class MobileAuthService {
       throw new BadRequestException('E-mail é obrigatório.');
     }
     if (!dto.code || !dto.code.trim()) {
-      throw new BadRequestException('Código de verificação de 6 dígitos é obrigatório.');
+      throw new BadRequestException(
+        'Código de verificação de 6 dígitos é obrigatório.',
+      );
     }
     if (!dto.newPassword || dto.newPassword.length < 6) {
-      throw new BadRequestException('A nova senha deve ter no mínimo 6 caracteres.');
+      throw new BadRequestException(
+        'A nova senha deve ter no mínimo 6 caracteres.',
+      );
     }
 
     // Regra flexibilizada: mínimo 6 caracteres e pelo menos 2 tipos diferentes
@@ -485,7 +524,7 @@ export class MobileAuthService {
       .eq('id', resetRecord.id);
 
     // 3. Obtém o auth_user_id do usuário
-    let { data: publicUser } = await supabase
+    const { data: publicUser } = await supabase
       .from('users')
       .select('id, auth_user_id, email')
       .eq('email', cleanEmail)
@@ -502,7 +541,9 @@ export class MobileAuthService {
     }
 
     if (!authUserId) {
-      throw new BadRequestException('Usuário não localizado no sistema de autenticação.');
+      throw new BadRequestException(
+        'Usuário não localizado no sistema de autenticação.',
+      );
     }
 
     // 4. Atualiza a senha no Supabase Auth via Admin API
@@ -512,14 +553,19 @@ export class MobileAuthService {
     );
 
     if (updateError) {
-      this.logger.error(`[MobileAuth] Falha no updateUserById: ${updateError.message}`);
+      this.logger.error(
+        `[MobileAuth] Falha no updateUserById: ${updateError.message}`,
+      );
       throw new BadRequestException('Falha ao atualizar a senha no servidor.');
     }
 
-    this.logger.log(`[MobileAuth] Senha redefinida com sucesso para ${cleanEmail}`);
+    this.logger.log(
+      `[MobileAuth] Senha redefinida com sucesso para ${cleanEmail}`,
+    );
 
     return {
-      message: 'Senha redefinida com sucesso! Você já pode entrar com sua nova senha.',
+      message:
+        'Senha redefinida com sucesso! Você já pode entrar com sua nova senha.',
     };
   }
 
@@ -540,8 +586,12 @@ export class MobileAuthService {
     );
 
     if (authError || !authData.user) {
-      this.logger.error(`[MobileAuth] Falha ao obter usuário pelo token: ${authError?.message}`);
-      throw new UnauthorizedException('Token de autenticação inválido ou expirado.');
+      this.logger.error(
+        `[MobileAuth] Falha ao obter usuário pelo token: ${authError?.message}`,
+      );
+      throw new UnauthorizedException(
+        'Token de autenticação inválido ou expirado.',
+      );
     }
 
     const authUser = authData.user;
@@ -576,9 +626,12 @@ export class MobileAuthService {
         .single();
 
       if (createError) {
-        throw new BadRequestException('Falha ao inicializar perfil do usuário.');
+        throw new BadRequestException(
+          'Falha ao inicializar perfil do usuário.',
+        );
       }
       publicUser = createdUser;
+      if (publicUser) await this.notifyNewUser(publicUser);
     } else {
       const updates: any = {};
       if (!publicUser.auth_user_id) updates.auth_user_id = authUser.id;
@@ -674,7 +727,9 @@ export class MobileAuthService {
     });
 
     if (insertError) {
-      this.logger.error(`[MobileAuth] Erro ao salvar OTP: ${insertError.message}`);
+      this.logger.error(
+        `[MobileAuth] Erro ao salvar OTP: ${insertError.message}`,
+      );
       throw new BadRequestException('Falha ao gerar código de verificação.');
     }
 
@@ -691,13 +746,17 @@ export class MobileAuthService {
     const sent = await this.uazapiService.sendMessage(targetChat, message);
 
     if (!sent) {
-      this.logger.error(`[MobileAuth] Falha no disparo Uazapi para targetChat: ${targetChat}`);
+      this.logger.error(
+        `[MobileAuth] Falha no disparo Uazapi para targetChat: ${targetChat}`,
+      );
       throw new BadRequestException(
         'Falha ao enviar o código pelo WhatsApp. Verifique se o número informado está correto.',
       );
     }
 
-    this.logger.log(`[MobileAuth] Código OTP enviado para WhatsApp ${cleanPhone} (user: ${userId})`);
+    this.logger.log(
+      `[MobileAuth] Código OTP enviado para WhatsApp ${cleanPhone} (user: ${userId})`,
+    );
 
     return {
       message: 'Código de verificação enviado com sucesso para o seu WhatsApp.',
@@ -737,14 +796,19 @@ export class MobileAuthService {
       throw new BadRequestException('Código de verificação incorreto.');
     }
     if (record.used) {
-      throw new BadRequestException('Este código já foi utilizado. Solicite um novo.');
+      throw new BadRequestException(
+        'Este código já foi utilizado. Solicite um novo.',
+      );
     }
     if (new Date(record.expires_at) < new Date()) {
       throw new BadRequestException('Este código expirou. Solicite um novo.');
     }
 
     // Marca como usado
-    await supabase.from('magic_links').update({ used: true }).eq('id', record.id);
+    await supabase
+      .from('magic_links')
+      .update({ used: true })
+      .eq('id', record.id);
 
     // 2. Busca o usuário atual do app
     const { data: currentAppUser } = await supabase
@@ -794,7 +858,9 @@ export class MobileAuthService {
 
         if (existingPlan) {
           // Concatena hábitos não duplicados
-          const existingIds = new Set((existingPlan.habits || []).map((h: any) => h.id));
+          const existingIds = new Set(
+            (existingPlan.habits || []).map((h: any) => h.id),
+          );
           const newHabits = (mobilePlan.habits || []).filter(
             (h: any) => !existingIds.has(h.id),
           );
@@ -805,7 +871,10 @@ export class MobileAuthService {
               updated_at: new Date().toISOString(),
             })
             .eq('id', existingPlan.id);
-          await supabase.from('user_spiritual_plans').delete().eq('id', mobilePlan.id);
+          await supabase
+            .from('user_spiritual_plans')
+            .delete()
+            .eq('id', mobilePlan.id);
         } else {
           await supabase
             .from('user_spiritual_plans')
@@ -847,7 +916,9 @@ export class MobileAuthService {
       // E) Remove a conta temporária do app para evitar duplicidade
       await supabase.from('users').delete().eq('id', userId);
 
-      this.logger.log(`[MobileAuth Smart Merge] Sucesso! Conta unificada sob ID ${existingWppUser.id}`);
+      this.logger.log(
+        `[MobileAuth Smart Merge] Sucesso! Conta unificada sob ID ${existingWppUser.id}`,
+      );
 
       return this.mapUser(mergedUser || existingWppUser);
     }
@@ -859,7 +930,10 @@ export class MobileAuthService {
         phone: cleanPhone,
         wa_chatid: `${cleanPhone}@s.whatsapp.net`,
         whatsapp_bridge_enabled: true,
-        origin: currentAppUser.origin === 'mobile' ? 'omnichannel' : currentAppUser.origin,
+        origin:
+          currentAppUser.origin === 'mobile'
+            ? 'omnichannel'
+            : currentAppUser.origin,
         updated_at: new Date().toISOString(),
       })
       .eq('id', userId)
@@ -867,11 +941,15 @@ export class MobileAuthService {
       .single();
 
     if (updateError || !updatedUser) {
-      this.logger.error(`[MobileAuth] Erro ao vincular telefone: ${updateError?.message}`);
+      this.logger.error(
+        `[MobileAuth] Erro ao vincular telefone: ${updateError?.message}`,
+      );
       throw new BadRequestException('Falha ao salvar telefone vinculado.');
     }
 
-    this.logger.log(`[MobileAuth] WhatsApp vinculado com sucesso para ${userId} (${cleanPhone})`);
+    this.logger.log(
+      `[MobileAuth] WhatsApp vinculado com sucesso para ${userId} (${cleanPhone})`,
+    );
 
     return this.mapUser(updatedUser);
   }
@@ -891,6 +969,15 @@ export class MobileAuthService {
       receiveDailySaint: row.receive_daily_saint ?? false,
       whatsappBridgeEnabled: row.whatsapp_bridge_enabled ?? true,
     };
+  }
+
+  private async notifyNewUser(user: any) {
+    const notified = await this.mailService.sendNewUserNotification(user);
+    if (!notified) {
+      this.logger.warn(
+        `[MobileAuth] Usuário ${user.id} criado, mas a notificação ao superadmin não foi enviada.`,
+      );
+    }
   }
 
   private extractToken(authHeader?: string): string {

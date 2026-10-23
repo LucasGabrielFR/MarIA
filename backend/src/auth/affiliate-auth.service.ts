@@ -37,17 +37,18 @@ export class AffiliateAuthService {
 
     // Gerar token JWT
     // JWT_SECRET deve estar configurado no .env, usaremos um default para desenvolvimento seguro
-    const secret = process.env.JWT_SECRET || process.env.SUPABASE_KEY || 'default-secret';
-    
+    const secret =
+      process.env.JWT_SECRET || process.env.SUPABASE_KEY || 'default-secret';
+
     const token = jwt.sign(
-      { 
+      {
         sub: affiliate.id,
         role: 'affiliate',
         code: affiliate.code,
-        name: affiliate.name 
+        name: affiliate.name,
       },
       secret,
-      { expiresIn: '7d' } // Expira em 7 dias
+      { expiresIn: '7d' }, // Expira em 7 dias
     );
 
     return {
@@ -55,7 +56,7 @@ export class AffiliateAuthService {
         id: affiliate.id,
         name: affiliate.name,
         code: affiliate.code,
-        role: 'affiliate'
+        role: 'affiliate',
       },
       token: token,
     };

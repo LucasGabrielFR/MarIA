@@ -18,7 +18,12 @@ type BillingCycle = 'monthly' | 'annual';
 @Injectable()
 export class AsaasService {
   private readonly logger = new Logger(AsaasService.name);
-  async getEnvConfig(): Promise<{ apiKey: string; apiUrl: string; webhookToken: string; isProduction: boolean }> {
+  async getEnvConfig(): Promise<{
+    apiKey: string;
+    apiUrl: string;
+    webhookToken: string;
+    isProduction: boolean;
+  }> {
     const supabase = this.supabase.getClient();
     const { data } = await supabase
       .from('system_settings')
@@ -27,10 +32,12 @@ export class AsaasService {
       .single();
 
     const env = data?.value === 'production' ? 'production' : 'sandbox';
-    
+
     if (env === 'production') {
       const apiKey = process.env.ASAAS_API_KEY || process.env.ASAAS_TOKEN || '';
-      this.logger.debug(`[DEBUG] Production Key start: ${apiKey.substring(0, 15)}`);
+      this.logger.debug(
+        `[DEBUG] Production Key start: ${apiKey.substring(0, 15)}`,
+      );
       return {
         apiKey,
         apiUrl: process.env.ASAAS_API_URL || 'https://api.asaas.com/v3',
@@ -39,10 +46,14 @@ export class AsaasService {
       };
     } else {
       const apiKey = process.env.ASAAS_API_KEY_SANDBOX || '';
-      this.logger.debug(`[DEBUG] Sandbox Key start: ${apiKey.substring(0, 15)}`);
+      this.logger.debug(
+        `[DEBUG] Sandbox Key start: ${apiKey.substring(0, 15)}`,
+      );
       return {
         apiKey,
-        apiUrl: process.env.ASAAS_API_URL_SANDBOX || 'https://sandbox.asaas.com/api/v3',
+        apiUrl:
+          process.env.ASAAS_API_URL_SANDBOX ||
+          'https://sandbox.asaas.com/api/v3',
         webhookToken: process.env.ASAAS_AUTH_TOKEN_SANDBOX || '',
         isProduction: false,
       };
@@ -59,7 +70,10 @@ export class AsaasService {
   ) {}
 
   private async getPlanConfig(planId: PlanId, cycle: BillingCycle) {
-    const cfg = await this.plansService.getPlanConfigByTierAndCycle(planId, cycle);
+    const cfg = await this.plansService.getPlanConfigByTierAndCycle(
+      planId,
+      cycle,
+    );
     if (!cfg) {
       throw new BadRequestException('Plano ou ciclo inválido');
     }
@@ -117,8 +131,12 @@ export class AsaasService {
     try {
       result = text ? JSON.parse(text) : {};
     } catch (e) {
-      this.logger.error(`Asaas API error (non-JSON) [${method} ${endpoint}] Status: ${response.status} - Body: ${text.substring(0, 200)}`);
-      throw new Error(`Erro de integração com Asaas. HTTP Status ${response.status}`);
+      this.logger.error(
+        `Asaas API error (non-JSON) [${method} ${endpoint}] Status: ${response.status} - Body: ${text.substring(0, 200)}`,
+      );
+      throw new Error(
+        `Erro de integração com Asaas. HTTP Status ${response.status}`,
+      );
     }
 
     if (!response.ok) {
@@ -284,14 +302,22 @@ export class AsaasService {
     let price = cfg.value;
 
     if (affiliateCode) {
-      const affiliate = await this.affiliatesService.getAffiliateByCode(affiliateCode);
+      const affiliate =
+        await this.affiliatesService.getAffiliateByCode(affiliateCode);
       if (affiliate && affiliate.is_active) {
-        const promotion = await this.affiliatesService.getPromotionForAffiliateAndPlan(affiliate.id, planId, cycle);
+        const promotion =
+          await this.affiliatesService.getPromotionForAffiliateAndPlan(
+            affiliate.id,
+            planId,
+            cycle,
+          );
         if (promotion && promotion.is_active) {
           const discountPercentage = promotion.discount_percentage || 0;
           const discountAmount = cfg.value * (discountPercentage / 100);
           price = Number((cfg.value - discountAmount).toFixed(2));
-          this.logger.log(`Affiliate promotion applied! Original price: ${cfg.value}, Discount: ${discountPercentage}%, Promo price: ${price}`);
+          this.logger.log(
+            `Affiliate promotion applied! Original price: ${cfg.value}, Discount: ${discountPercentage}%, Promo price: ${price}`,
+          );
         }
       }
     }
@@ -486,7 +512,7 @@ export class AsaasService {
         normalizedPlan,
         normalizedCycle,
         phoneOrSession,
-        affiliateCode
+        affiliateCode,
       );
 
       this.logger.log(
@@ -527,7 +553,7 @@ export class AsaasService {
         normalizedPlan,
         normalizedCycle,
         phone,
-        affiliateCode
+        affiliateCode,
       );
 
       let resolvedUserId = userId;
@@ -611,7 +637,12 @@ export class AsaasService {
     await this.systemLogsService.logInfo(
       'AsaasWebhook',
       `Webhook recebido do Asaas: ${event.event}`,
-      { event: event.event, paymentId: event.payment?.id, value: event.payment?.value, customerId: event.payment?.customer },
+      {
+        event: event.event,
+        paymentId: event.payment?.id,
+        value: event.payment?.value,
+        customerId: event.payment?.customer,
+      },
     );
 
     if (
@@ -628,7 +659,10 @@ export class AsaasService {
       let planTier = parsed.planTier;
 
       if (planTier !== 'basic' && planTier !== 'premium') {
-        const premiumMonthly = await this.plansService.getPlan('premium', 'monthly');
+        const premiumMonthly = await this.plansService.getPlan(
+          'premium',
+          'monthly',
+        );
         const threshold = premiumMonthly ? premiumMonthly.price * 0.9 : 29.9;
         if (payment.value >= threshold) planTier = 'premium';
         else planTier = 'basic';
@@ -639,11 +673,11 @@ export class AsaasService {
       let isRecurrence = false;
       let existingUserWithSub: any = null;
       if (subscriptionId) {
-        const { data: u } = await supabaseClient
+        const { data: u } = (await supabaseClient
           .from('users')
           .select('*')
           .eq('asaas_subscription_id', subscriptionId)
-          .maybeSingle() as { data: any };
+          .maybeSingle()) as { data: any };
         if (u) {
           isRecurrence = true;
           existingUserWithSub = u;
@@ -651,7 +685,9 @@ export class AsaasService {
       }
 
       if (isRecurrence && existingUserWithSub) {
-        this.logger.log(`Pagamento de recorrência detectado para a assinatura ${subscriptionId} do usuário ${existingUserWithSub.id}`);
+        this.logger.log(
+          `Pagamento de recorrência detectado para a assinatura ${subscriptionId} do usuário ${existingUserWithSub.id}`,
+        );
         const user = existingUserWithSub;
 
         // Atualizar expiração
@@ -698,17 +734,18 @@ export class AsaasService {
 
         // Mensagem padrão de recorrência
         let recurrenceMsg = '';
-        const { data: promptData } = await supabaseClient
+        const { data: promptData } = (await supabaseClient
           .from('ai_prompts')
           .select('content')
           .eq('key', 'recurrence_success')
           .eq('is_active', true)
-          .maybeSingle() as any;
-        
+          .maybeSingle()) as any;
+
         if (promptData?.content) {
           recurrenceMsg = promptData.content;
         } else {
-          recurrenceMsg = '✅ *Sua assinatura foi renovada com sucesso!* Muito obrigado por continuar com a MarIA!';
+          recurrenceMsg =
+            '✅ *Sua assinatura foi renovada com sucesso!* Muito obrigado por continuar com a MarIA!';
         }
 
         recurrenceMsg = recurrenceMsg
@@ -719,7 +756,9 @@ export class AsaasService {
         try {
           await this.uazapi.sendMessage(targetChatId, recurrenceMsg);
         } catch (msgErr) {
-          this.logger.error(`Error sending recurrence message to user ${user.id}: ${msgErr.message}`);
+          this.logger.error(
+            `Error sending recurrence message to user ${user.id}: ${msgErr.message}`,
+          );
         }
 
         return { received: true };
@@ -765,7 +804,8 @@ export class AsaasService {
         }
 
         // Gerar código único legível de ativação
-        const code = 'MARIA-' + crypto.randomBytes(3).toString('hex').toUpperCase();
+        const code =
+          'MARIA-' + crypto.randomBytes(3).toString('hex').toUpperCase();
 
         const expiresAt = new Date();
         expiresAt.setHours(expiresAt.getHours() + 1);
@@ -897,8 +937,7 @@ export class AsaasService {
         const basicAnnual = await this.plansService.getPlan('basic', 'annual');
         const annualThreshold = basicAnnual ? basicAnnual.price * 0.7 : 100;
         const isAnnual =
-          parsed.cycle === 'annual' ||
-          payment.value >= annualThreshold;
+          parsed.cycle === 'annual' || payment.value >= annualThreshold;
         if (isAnnual) {
           expiresAt.setFullYear(expiresAt.getFullYear() + 1);
         } else {
@@ -1028,7 +1067,9 @@ export class AsaasService {
         })
         .eq('asaas_subscription_id', subscriptionId);
 
-      this.logger.log(`Canceled subscription ${subscriptionId} in database (access kept until expiration)`);
+      this.logger.log(
+        `Canceled subscription ${subscriptionId} in database (access kept until expiration)`,
+      );
       await this.systemLogsService.logWarn(
         'AsaasWebhook',
         `Assinatura ${subscriptionId} cancelada no Asaas (acesso mantido até vencimento do ciclo).`,
@@ -1066,9 +1107,12 @@ export class AsaasService {
         const value = sub.value;
         const nextDueDate = sub.nextDueDate;
 
-        const premiumMonthly = await this.plansService.getPlan('premium', 'monthly');
+        const premiumMonthly = await this.plansService.getPlan(
+          'premium',
+          'monthly',
+        );
         const threshold = premiumMonthly ? premiumMonthly.price * 0.9 : 29.9;
-        
+
         let planTier = 'basic';
         if (
           value >= threshold ||

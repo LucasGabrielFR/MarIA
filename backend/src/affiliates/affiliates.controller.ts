@@ -1,5 +1,9 @@
 import { Controller, Get, Post, Put, Body, Param } from '@nestjs/common';
-import { AffiliatesService, Affiliate, AffiliatePromotion } from './affiliates.service';
+import {
+  AffiliatesService,
+  Affiliate,
+  AffiliatePromotion,
+} from './affiliates.service';
 
 @Controller('affiliates')
 export class AffiliatesController {
@@ -13,7 +17,7 @@ export class AffiliatesController {
   @Get('by-admin/:adminId')
   async getByAdminId(@Param('adminId') adminId: string) {
     const affiliates = await this.affiliatesService.getAllAffiliates();
-    const affiliate = affiliates.find(a => a.admin_id === adminId);
+    const affiliate = affiliates.find((a) => a.admin_id === adminId);
     if (!affiliate) {
       return { success: false, message: 'Affiliate not found for this admin' };
     }
@@ -45,7 +49,10 @@ export class AffiliatesController {
   }
 
   @Post(':id/promotions')
-  async setPromotion(@Param('id') id: string, @Body() promotion: Partial<AffiliatePromotion>) {
+  async setPromotion(
+    @Param('id') id: string,
+    @Body() promotion: Partial<AffiliatePromotion>,
+  ) {
     return this.affiliatesService.setPromotion({
       ...promotion,
       affiliate_id: id,
@@ -64,7 +71,12 @@ export class AffiliatesController {
       return { success: false, message: 'Affiliate not found or inactive' };
     }
 
-    const promotion = await this.affiliatesService.getPromotionForAffiliateAndPlan(affiliate.id, tier, cycle);
+    const promotion =
+      await this.affiliatesService.getPromotionForAffiliateAndPlan(
+        affiliate.id,
+        tier,
+        cycle,
+      );
     if (!promotion || !promotion.is_active) {
       return { success: false, message: 'Promotion not found or inactive' };
     }
@@ -81,8 +93,10 @@ export class AffiliatesController {
     if (!affiliate || !affiliate.is_active) {
       return { success: false, message: 'Affiliate not found or inactive' };
     }
-    const promotions = await this.affiliatesService.getPromotionsByAffiliate(affiliate.id);
-    return { success: true, promotions: promotions.filter(p => p.is_active) };
+    const promotions = await this.affiliatesService.getPromotionsByAffiliate(
+      affiliate.id,
+    );
+    return { success: true, promotions: promotions.filter((p) => p.is_active) };
   }
 
   @Get(':id/dashboard')

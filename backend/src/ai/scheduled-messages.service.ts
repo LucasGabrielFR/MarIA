@@ -14,7 +14,6 @@ export class ScheduledMessagesService {
     private readonly systemLogsService: SystemLogsService,
   ) {}
 
-
   @Cron(CronExpression.EVERY_MINUTE)
   async checkScheduledMessages() {
     try {
@@ -25,7 +24,7 @@ export class ScheduledMessagesService {
         minute: '2-digit',
         hour12: false,
       });
-      
+
       let currentTime = formatter.format(now);
       if (currentTime.startsWith('24:')) {
         currentTime = '00:' + currentTime.substring(3);
@@ -54,16 +53,23 @@ export class ScheduledMessagesService {
   }
 
   private async queueBroadcast(campaign: any) {
-    this.logger.log(`Iniciando enfileiramento de broadcast agendado: ${campaign.name}`);
+    this.logger.log(
+      `Iniciando enfileiramento de broadcast agendado: ${campaign.name}`,
+    );
     const supabase = this.supabaseService.getClient();
 
     const { data: allUsers, error } = await supabase
       .from('users')
-      .select('id, wa_chatid, subscription_tier, receive_daily_liturgy, receive_daily_exam, receive_daily_saint, whatsapp_bridge_enabled')
+      .select(
+        'id, wa_chatid, subscription_tier, receive_daily_liturgy, receive_daily_exam, receive_daily_saint, whatsapp_bridge_enabled',
+      )
       .not('wa_chatid', 'is', null);
 
     if (error) {
-      this.logger.error('Erro ao buscar usuários para broadcast agendado', error);
+      this.logger.error(
+        'Erro ao buscar usuários para broadcast agendado',
+        error,
+      );
       return;
     }
 
@@ -73,7 +79,9 @@ export class ScheduledMessagesService {
     const { data: spiritualPlans } = await supabase
       .from('user_spiritual_plans')
       .select('user_id');
-    const usersWithSpiritualPlan = new Set((spiritualPlans || []).map((p) => p.user_id));
+    const usersWithSpiritualPlan = new Set(
+      (spiritualPlans || []).map((p) => p.user_id),
+    );
 
     // Busca lembretes personalizados ativos do app para não duplicar com campanhas gerais
     const { data: userReminders } = await supabase
@@ -101,16 +109,23 @@ export class ScheduledMessagesService {
 
       // 2. Filtro de audiência (plano)
       const plan = u.subscription_tier || 'free';
-      const audienceMatch = campaign.audience && campaign.audience.includes(plan);
+      const audienceMatch =
+        campaign.audience && campaign.audience.includes(plan);
       if (!audienceMatch) return false;
 
       // 3. Detecção do tipo de ferramenta da campanha
       const tools = Array.isArray(campaign.tools) ? campaign.tools : [];
       const campName = (campaign.name || '').toLowerCase();
 
-      const isLiturgy = tools.some((t: any) => t.type === 'liturgy') || campName.includes('liturgia');
-      const isExam = tools.some((t: any) => t.type === 'conscience_exam') || campName.includes('exame');
-      const isSaint = tools.some((t: any) => t.type === 'saint') || campName.includes('santo');
+      const isLiturgy =
+        tools.some((t: any) => t.type === 'liturgy') ||
+        campName.includes('liturgia');
+      const isExam =
+        tools.some((t: any) => t.type === 'conscience_exam') ||
+        campName.includes('exame');
+      const isSaint =
+        tools.some((t: any) => t.type === 'saint') ||
+        campName.includes('santo');
 
       // Se for Liturgia: respeita toggle do app e prevalece horário próprio se configurado
       if (isLiturgy) {
@@ -133,14 +148,15 @@ export class ScheduledMessagesService {
       return true;
     });
 
-
     if (eligibleUsers.length === 0) {
-      this.logger.log(`Nenhum usuário elegível para a campanha ${campaign.name}.`);
+      this.logger.log(
+        `Nenhum usuário elegível para a campanha ${campaign.name}.`,
+      );
       return;
     }
 
     const jobName = `[ai_sched|${campaign.id}] ${campaign.name}`;
-    
+
     // Verificamos se já não existe um job para hoje com esse nome para evitar duplicidade
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
@@ -164,7 +180,7 @@ export class ScheduledMessagesService {
       .from('broadcast_jobs')
       .insert({
         name: jobName,
-        message_text: JSON.stringify(campaign), 
+        message_text: JSON.stringify(campaign),
         status: 'pending',
         total_recipients: eligibleUsers.length,
       })
@@ -189,11 +205,17 @@ export class ScheduledMessagesService {
       await supabase.from('broadcast_messages').insert(chunk);
     }
 
-    this.logger.log(`Broadcast ${jobName} criado com ${eligibleUsers.length} destinatários.`);
+    this.logger.log(
+      `Broadcast ${jobName} criado com ${eligibleUsers.length} destinatários.`,
+    );
     await this.systemLogsService.logInfo(
       'ScheduledMessages',
       `Campanha agendada enfileirada: "${campaign.name}" (${eligibleUsers.length} destinatários)`,
-      { campaignId: campaign.id, name: campaign.name, recipientsCount: eligibleUsers.length },
+      {
+        campaignId: campaign.id,
+        name: campaign.name,
+        recipientsCount: eligibleUsers.length,
+      },
     );
   }
 }

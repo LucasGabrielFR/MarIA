@@ -58,6 +58,11 @@
 - **Dashboard Admin:** Painel Vite + React para parametrização de prompts, gestão de fiéis, controle financeiro, curadoria de conteúdos diários (Liturgia Diária, Santo do Dia, Terço Diário e gestão canônica da Liturgia das Horas alimentada pela fonte Oratio com sincronização diária ou semanal até sábado, métricas detalhadas de status e edição manual) e gestão de novenas.
 
 ## 🛠 Arquitetura
+
+### Telemetria do Aplicativo Mobile
+
+O painel administrativo possui as abas Total, Mobile e Chat/WhatsApp. A visão Total mantém os indicadores gerais, conversas recentes, saúde do sistema e análises de IA; Mobile inclui somente perfis `origin = mobile`, com DAU/MAU, sessões, permanência por tela, telas mais acessadas, versões e erros. Chat/WhatsApp inclui somente perfis `origin = wpp`. O app envia somente eventos técnicos autenticados (`session_*`, `screen_*` e `app_error`), sem conteúdo de conversas, orações ou dados sensíveis. Antes de publicar, aplique a migration [`docs/migrations/20261023000000_create_mobile_analytics.sql`](docs/migrations/20261023000000_create_mobile_analytics.sql) no Supabase. Cada novo perfil criado pelo fluxo mobile também notifica `lucasgabriel@acutistech.com.br`; o destino pode ser alterado por `NEW_USER_NOTIFICATION_EMAIL`.
+
 - **Motor Cognitivo & Backend:** NestJS (TypeScript) com arquitetura de **Triagem Híbrida**.
   - **Roteador de Intenções:** Classificação inteligente de mensagens e roteamento para caches ou LLMs.
   - **Injeção de Contexto Teológico:** Integração nativa com **Magisterium AI** e Cache Semântico local.

@@ -95,10 +95,12 @@ export class BroadcastService {
       // 1. Pegar lotes de mensagens pendentes (ex: 50 mensagens por vez)
       // Ajuste esse limite de acordo com o Rate Limit que quer aplicar por minuto
       const batchSize = 60; // 60 mensagens por minuto = ~1 mensagem por segundo.
-      
+
       const { data: pendingMessages, error: pendingError } = await supabase
         .from('broadcast_messages')
-        .select('id, job_id, wa_chatid, user_id, broadcast_jobs!inner(name, message_text, status)')
+        .select(
+          'id, job_id, wa_chatid, user_id, broadcast_jobs!inner(name, message_text, status)',
+        )
         .eq('status', 'pending')
         .eq('broadcast_jobs.status', 'pending')
         .order('created_at', { ascending: true })
@@ -115,14 +117,19 @@ export class BroadcastService {
         return;
       }
 
-      this.logger.log(`Processando ${pendingMessages.length} mensagens da fila de broadcast...`);
+      this.logger.log(
+        `Processando ${pendingMessages.length} mensagens da fila de broadcast...`,
+      );
 
       // 2. Iterar sobre as mensagens
       for (const msg of pendingMessages) {
         // Marca como "processing" temporariamente
         await supabase
           .from('broadcast_messages')
-          .update({ status: 'processing', updated_at: new Date().toISOString() })
+          .update({
+            status: 'processing',
+            updated_at: new Date().toISOString(),
+          })
           .eq('id', msg.id);
 
         let finalStatus = 'sent';
@@ -140,41 +147,55 @@ export class BroadcastService {
           const userName = user?.name || 'amigo(a)';
           const rawText = (msg.broadcast_jobs as any).message_text;
           const jobName = (msg.broadcast_jobs as any).name || '';
-          
+
           let textToSend = rawText;
           let buttonsToAttach: any[] = [];
-          let buttonText = "Escolha uma opção:";
-          
+          let buttonText = 'Escolha uma opção:';
+
           if (jobName.startsWith('[ai_sched|')) {
             try {
               const config = JSON.parse(rawText);
               const today = new Date().toISOString().split('T')[0];
-              let contextForPrompt: Record<string, string> = {};
-              
-              for (const tool of (config.tools || [])) {
+              const contextForPrompt: Record<string, string> = {};
+
+              for (const tool of config.tools || []) {
                 if (tool.type === 'liturgy') {
                   if (tool.option === 'menu') {
-                    const { data: flow } = await supabase.from('automatic_flows').select('steps').eq('key', 'liturgy_flow').single();
+                    const { data: flow } = await supabase
+                      .from('automatic_flows')
+                      .select('steps')
+                      .eq('key', 'liturgy_flow')
+                      .single();
                     if (flow?.steps?.choose_format?.buttons) {
                       buttonsToAttach = [...flow.steps.choose_format.buttons];
                       if (flow.steps.choose_format.text) {
                         buttonText = flow.steps.choose_format.text;
                       }
 
-                      const { data: userData } = await supabase.from('users').select('receive_daily_liturgy').eq('id', msg.user_id).single();
+                      const { data: userData } = await supabase
+                        .from('users')
+                        .select('receive_daily_liturgy')
+                        .eq('id', msg.user_id)
+                        .single();
                       const hasDaily = userData?.receive_daily_liturgy;
 
                       if (buttonsToAttach.length < 3) {
-                         buttonsToAttach.push({
-                           id: 'toggle_daily_liturgy',
-                           text: hasDaily ? 'Cancelar envio diário' : 'Receber envio diário'
-                         });
+                        buttonsToAttach.push({
+                          id: 'toggle_daily_liturgy',
+                          text: hasDaily
+                            ? 'Cancelar envio diário'
+                            : 'Receber envio diário',
+                        });
                       }
                     }
-                  } else if (tool.option === 'short' || tool.option === 'full') {
+                  } else if (
+                    tool.option === 'short' ||
+                    tool.option === 'full'
+                  ) {
                     // For short/full, we just fetch the text and let AI summarize/handle it based on the prompt.
                     // (Full optimizations like grabbing from cache for short could be added later).
-                    const liturgyText = await this.liturgyService.getDailyLiturgy(today);
+                    const liturgyText =
+                      await this.liturgyService.getDailyLiturgy(today);
                     contextForPrompt['{liturgia}'] = liturgyText;
                   }
                 } else if (tool.type === 'conscience_exam') {
@@ -195,7 +216,8 @@ export class BroadcastService {
                         { id: 'start_guided_exam', text: '✨ Exame Guiado' },
                         { id: 'start_full_exam', text: '📖 Exame Completo' },
                       ];
-                      buttonText = 'Boa noite! 🌙 Vamos fazer nosso Exame de Consciência?';
+                      buttonText =
+                        'Boa noite! 🌙 Vamos fazer nosso Exame de Consciência?';
                     }
                   }
                 } else if (tool.type === 'context') {
@@ -205,22 +227,26 @@ export class BroadcastService {
                     .eq('user_id', msg.user_id)
                     .order('created_at', { ascending: false })
                     .limit(10);
-                  const contextStr = recentMsgs?.reverse().map(m => `${m.role}: ${m.content}`).join('\n') || 'Sem histórico recente.';
+                  const contextStr =
+                    recentMsgs
+                      ?.reverse()
+                      .map((m) => `${m.role}: ${m.content}`)
+                      .join('\n') || 'Sem histórico recente.';
                   contextForPrompt['{contexto}'] = contextStr;
                 }
               }
 
               let prompt = config.prompt || '';
-              
+
               if (prompt.trim() !== '') {
                 prompt = prompt
                   .replace(/{{nome}}/gi, userName)
                   .replace(/{nome}/gi, userName);
-                  
+
                 for (const [tag, val] of Object.entries(contextForPrompt)) {
                   prompt = prompt.replace(new RegExp(tag, 'gi'), val);
                 }
-                
+
                 let genderContext = '';
                 if (user?.gender === 'M') {
                   genderContext = `O gênero do destinatário é MASCULINO. Trate-o por pronomes masculinos.`;
@@ -230,15 +256,24 @@ export class BroadcastService {
 
                 const corePersona = this.promptService.getCorePersona();
                 const fullSystemPrompt = `${corePersona}\n\nData atual: Hoje é ${today}.\n\nINSTRUÇÕES IMPORTANTES DE PERSONALIZAÇÃO:\n- Escreva esta mensagem de forma ÚNICA e EXCLUSIVA para este usuário.\n- Mude a estrutura, escolha palavras diferentes e traga uma pequena variação na reflexão em relação a outras mensagens do mesmo tema.\n- O destinatário chama-se: ${userName}.\n- ${genderContext}`;
-                
+
                 // Aumentamos a temperatura para 0.9 para gerar mais diversidade nas mensagens em massa
-                const { content } = await this.aiService.callOpenRouter(fullSystemPrompt, prompt, false, [], undefined, 0.9);
+                const { content } = await this.aiService.callOpenRouter(
+                  fullSystemPrompt,
+                  prompt,
+                  false,
+                  [],
+                  undefined,
+                  0.9,
+                );
                 textToSend = content;
               } else {
                 textToSend = ''; // Sem prompt significa sem IA
               }
             } catch (e) {
-              this.logger.error(`Error processing dynamic AI scheduled message: ${e.message}`);
+              this.logger.error(
+                `Error processing dynamic AI scheduled message: ${e.message}`,
+              );
               throw new Error('Erro ao processar prompt da campanha dinâmica.');
             }
           } else {
@@ -250,14 +285,21 @@ export class BroadcastService {
           // Enviar texto da IA (ou texto normal) via Uazapi
           let sent = true;
           if (textToSend && textToSend.trim() !== '') {
-            sent = await this.uazapiService.sendMessage(msg.wa_chatid, textToSend);
+            sent = await this.uazapiService.sendMessage(
+              msg.wa_chatid,
+              textToSend,
+            );
           }
-          
+
           // Se houver botões anexados, enviá-los como uma segunda mensagem separada
           if (sent && buttonsToAttach.length > 0) {
-            sent = await this.uazapiService.sendInteractiveMessage(msg.wa_chatid, buttonText, buttonsToAttach);
+            sent = await this.uazapiService.sendInteractiveMessage(
+              msg.wa_chatid,
+              buttonText,
+              buttonsToAttach,
+            );
           }
-          
+
           if (!sent) {
             finalStatus = 'failed';
             errorMessage = 'UazapiService retornou false.';
@@ -265,7 +307,10 @@ export class BroadcastService {
         } catch (err: any) {
           finalStatus = 'failed';
           errorMessage = err.message || 'Erro desconhecido ao enviar.';
-          this.logger.error(`Erro no disparo em massa (msg id: ${msg.id})`, err);
+          this.logger.error(
+            `Erro no disparo em massa (msg id: ${msg.id})`,
+            err,
+          );
         }
 
         // Atualizar status final da mensagem
@@ -280,12 +325,13 @@ export class BroadcastService {
           .eq('id', msg.id);
 
         // Atualizar contagem processada no job
-        await supabase.rpc('increment_broadcast_processed', { row_id: msg.job_id });
+        await supabase.rpc('increment_broadcast_processed', {
+          row_id: msg.job_id,
+        });
 
         // Delay de segurança (1 segundo) para evitar rate limit
         await this.sleep(1000);
       }
-
     } catch (err) {
       this.logger.error('Erro no processador de broadcast', err);
     } finally {
@@ -296,7 +342,7 @@ export class BroadcastService {
 
   private async markCompletedJobs() {
     const supabase = this.supabaseService.getClient();
-    
+
     // Busca jobs pending
     const { data: jobs } = await supabase
       .from('broadcast_jobs')
@@ -305,10 +351,16 @@ export class BroadcastService {
 
     if (jobs) {
       for (const job of jobs) {
-        if (job.processed_count >= job.total_recipients && job.total_recipients > 0) {
+        if (
+          job.processed_count >= job.total_recipients &&
+          job.total_recipients > 0
+        ) {
           await supabase
             .from('broadcast_jobs')
-            .update({ status: 'completed', updated_at: new Date().toISOString() })
+            .update({
+              status: 'completed',
+              updated_at: new Date().toISOString(),
+            })
             .eq('id', job.id);
           this.logger.log(`Job de broadcast ${job.id} marcado como concluído.`);
         }

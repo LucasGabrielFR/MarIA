@@ -243,11 +243,38 @@ export class AdminService {
 
   async getDashboardStats() {
     const supabase = this.supabaseService.getClient();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
 
     // 1. Total de Usuários
     const { count: totalUsers } = await supabase
       .from('users')
       .select('*', { count: 'exact', head: true });
+
+    const [
+      { count: totalMobileUsers },
+      { count: newUsersLast30Days },
+      { data: recentUsers },
+    ] = await Promise.all([
+      supabase
+        .from('users')
+        .select('*', { count: 'exact', head: true })
+        .eq('origin', 'mobile'),
+      supabase
+        .from('users')
+        .select('*', { count: 'exact', head: true })
+        .eq('origin', 'mobile')
+        .gte('created_at', thirtyDaysAgo.toISOString()),
+      supabase
+        .from('users')
+        .select(
+          'id, name, email, origin, subscription_tier, status, created_at',
+        )
+        .order('created_at', { ascending: false })
+        .limit(12),
+    ]);
 
     // 2. Total de Mensagens (Total de Interações)
     const { count: totalMessages } = await supabase
@@ -298,6 +325,71 @@ export class AdminService {
       .from('ai_prompts')
       .select('id')
       .eq('is_active', true);
+
+    const { data: analyticsEvents, error: analyticsError } = await supabase
+      .from('mobile_analytics_events')
+      .select(
+        'event_type, screen_name, session_id, user_id, duration_ms, app_version, platform, occurred_at',
+      )
+      .gte('occurred_at', thirtyDaysAgo.toISOString())
+      .order('occurred_at', { ascending: false })
+      .limit(10000);
+
+    if (analyticsError && analyticsError.code !== '42P01') {
+      console.error(
+        'Erro ao consultar telemetria mobile:',
+        analyticsError.message,
+      );
+    }
+
+    const events = analyticsEvents || [];
+    const activeUsersToday = new Set(
+      events
+        .filter((event) => new Date(event.occurred_at) >= todayStart)
+        .map((event) => event.user_id),
+    ).size;
+    const activeUsers30Days = new Set(events.map((event) => event.user_id))
+      .size;
+    const sessions = new Set(events.map((event) => event.session_id)).size;
+    const exitEvents = events.filter(
+      (event) =>
+        event.event_type === 'screen_exit' && event.duration_ms !== null,
+    );
+    const averageScreenTimeMs = exitEvents.length
+      ? Math.round(
+          exitEvents.reduce(
+            (total, event) => total + Number(event.duration_ms),
+            0,
+          ) / exitEvents.length,
+        )
+      : 0;
+    const screenViews = events.filter(
+      (event) => event.event_type === 'screen_view',
+    );
+    const screenCounts = screenViews.reduce<Record<string, number>>(
+      (counts, event) => {
+        const name = event.screen_name || 'Não identificada';
+        counts[name] = (counts[name] || 0) + 1;
+        return counts;
+      },
+      {},
+    );
+    const topScreens = Object.entries(screenCounts)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 6)
+      .map(([screen, views]) => ({ screen, views }));
+    const versionCounts = events.reduce<Record<string, number>>(
+      (counts, event) => {
+        const version = event.app_version || 'Não informada';
+        counts[version] = (counts[version] || 0) + 1;
+        return counts;
+      },
+      {},
+    );
+    const appVersions = Object.entries(versionCounts)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5)
+      .map(([version, events]) => ({ version, events }));
 
     // Preços por 1M tokens (USD)
     const modelPrices: Record<
@@ -364,6 +456,19 @@ export class AdminService {
 
     return {
       totalUsers: totalUsers || 0,
+      recentUsers: recentUsers || [],
+      mobile: {
+        totalUsers: totalMobileUsers || 0,
+        newUsersLast30Days: newUsersLast30Days || 0,
+        dau: activeUsersToday,
+        mau: activeUsers30Days,
+        sessions,
+        averageScreenTimeMs,
+        crashes: events.filter((event) => event.event_type === 'app_error')
+          .length,
+        topScreens,
+        appVersions,
+      },
       totalMessages: totalMessages || 0,
       totalTokens,
       totalCostUsd: Number(totalCostUsd.toFixed(2)),
@@ -532,7 +637,11 @@ export class AdminService {
   }
 
   async getPublicSystemSetting(key: string) {
-    const allowedKeys = ['terms_of_use', 'privacy_policy', 'wa_message_template'];
+    const allowedKeys = [
+      'terms_of_use',
+      'privacy_policy',
+      'wa_message_template',
+    ];
     if (!allowedKeys.includes(key)) {
       throw new Error(`Acesso negado: a configuração '${key}' não é pública.`);
     }
@@ -812,7 +921,10 @@ export class AdminService {
 
     // 2. Limpar registros vinculados por e-mail (caso existam em tabelas sem FK direta)
     if (targetUser.email) {
-      await supabase.from('password_resets').delete().eq('email', targetUser.email);
+      await supabase
+        .from('password_resets')
+        .delete()
+        .eq('email', targetUser.email);
     }
 
     // 3. Deletar de public.users (as FKs possuem ON DELETE CASCADE)
@@ -822,7 +934,9 @@ export class AdminService {
       .eq('id', userId);
 
     if (deleteError) {
-      console.error(`[AdminService] Erro ao deletar usuário do banco: ${deleteError.message}`);
+      console.error(
+        `[AdminService] Erro ao deletar usuário do banco: ${deleteError.message}`,
+      );
       throw deleteError;
     }
 
@@ -946,7 +1060,7 @@ export class AdminService {
       monthly_limit_brl: monthlyLimitBrl,
       updated_at: new Date(),
     };
-    
+
     if (name !== undefined) {
       updateData.name = name;
     }
@@ -954,7 +1068,7 @@ export class AdminService {
     if (gender !== undefined) {
       updateData.gender = gender;
     }
-    
+
     if (status !== undefined) {
       updateData.status = status;
     }
@@ -1230,7 +1344,7 @@ export class AdminService {
   async createScheduledMessage(adminId: string, payload: any) {
     const requester = await this.getRequesterAdmin(adminId);
     const supabase = this.supabaseService.getClient();
-    
+
     const { data, error } = await supabase
       .from('scheduled_messages')
       .insert({
@@ -1270,7 +1384,8 @@ export class AdminService {
     if (payload.prompt !== undefined) updateData.prompt = payload.prompt;
     if (payload.audience !== undefined) updateData.audience = payload.audience;
     if (payload.tools !== undefined) updateData.tools = payload.tools;
-    if (payload.is_active !== undefined) updateData.is_active = payload.is_active;
+    if (payload.is_active !== undefined)
+      updateData.is_active = payload.is_active;
 
     const { data, error } = await supabase
       .from('scheduled_messages')
@@ -1344,7 +1459,7 @@ export class AdminService {
   async createPrayer(adminId: string, payload: any) {
     const requester = await this.getRequesterAdmin(adminId);
     const supabase = this.supabaseService.getClient();
-    
+
     const { data, error } = await supabase
       .from('prayers')
       .insert({
@@ -1413,10 +1528,7 @@ export class AdminService {
       .eq('id', id)
       .single();
 
-    const { error } = await supabase
-      .from('prayers')
-      .delete()
-      .eq('id', id);
+    const { error } = await supabase.from('prayers').delete().eq('id', id);
 
     if (error) throw error;
 

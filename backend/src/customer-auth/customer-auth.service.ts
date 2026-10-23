@@ -332,11 +332,14 @@ export class CustomerAuthService {
       throw new Error('Falha ao atualizar cadastro do assinante.');
     }
 
-    const portalData = await this.getCustomerPortalDataByPhone(updatedUser.phone);
+    const portalData = await this.getCustomerPortalDataByPhone(
+      updatedUser.phone,
+    );
 
     return {
       success: true,
-      message: 'Assinatura cancelada com sucesso. Seu acesso continuará ativo até a data de expiração.',
+      message:
+        'Assinatura cancelada com sucesso. Seu acesso continuará ativo até a data de expiração.',
       ...portalData,
     };
   }
@@ -363,7 +366,7 @@ export class CustomerAuthService {
     }
 
     let value = 0;
-    let cycleAsaas = cycle.toLowerCase() === 'annual' ? 'YEARLY' : 'MONTHLY';
+    const cycleAsaas = cycle.toLowerCase() === 'annual' ? 'YEARLY' : 'MONTHLY';
     let description = '';
 
     const tier = planId.toLowerCase();

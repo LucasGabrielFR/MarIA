@@ -68,7 +68,8 @@ export class CanonicalHoursController {
   @Post('update/:id')
   async updateHourPost(
     @Param('id') id: string,
-    @Body() body: { celebration_title?: string; rawCleanText?: string; content?: any },
+    @Body()
+    body: { celebration_title?: string; rawCleanText?: string; content?: any },
   ) {
     return this.canonicalHoursService.updateHour(id, body);
   }

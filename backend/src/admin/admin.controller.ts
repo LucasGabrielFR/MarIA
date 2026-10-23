@@ -252,7 +252,15 @@ export class AdminController {
   async updatePlan(
     @Headers('x-admin-id') adminId: string,
     @Param('id') id: string,
-    @Body() body: { name?: string; price?: number; messages_limit?: number; magisterium_limit?: number; description?: string; is_active?: boolean },
+    @Body()
+    body: {
+      name?: string;
+      price?: number;
+      messages_limit?: number;
+      magisterium_limit?: number;
+      description?: string;
+      is_active?: boolean;
+    },
   ) {
     if (!adminId) throw new Error('Unauthorized');
     return this.plansService.updatePlan(id, body);
@@ -261,7 +269,17 @@ export class AdminController {
   @Post('plans')
   async createPlan(
     @Headers('x-admin-id') adminId: string,
-    @Body() body: { tier: string; cycle: string; name: string; price: number; messages_limit: number; magisterium_limit: number; description: string; is_active?: boolean },
+    @Body()
+    body: {
+      tier: string;
+      cycle: string;
+      name: string;
+      price: number;
+      messages_limit: number;
+      magisterium_limit: number;
+      description: string;
+      is_active?: boolean;
+    },
   ) {
     if (!adminId) throw new Error('Unauthorized');
     return this.plansService.createPlan(body);

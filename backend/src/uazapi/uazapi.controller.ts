@@ -14,12 +14,15 @@ export class UazapiController {
   private readonly userLocks = new Map<string, Promise<void>>();
 
   // Buffer de mensagens (debouncing) para juntar envios em série (5s de espera)
-  private readonly messageBuffers = new Map<string, {
-    messages: string[];
-    timer: ReturnType<typeof setTimeout>;
-    pushName: string;
-    phoneNumber: string;
-  }>();
+  private readonly messageBuffers = new Map<
+    string,
+    {
+      messages: string[];
+      timer: ReturnType<typeof setTimeout>;
+      pushName: string;
+      phoneNumber: string;
+    }
+  >();
 
   constructor(
     private readonly aiService: AiService,
@@ -71,7 +74,9 @@ export class UazapiController {
 
       let interactiveId = '';
       try {
-        const paramsJson = messageData.message?.interactiveResponseMessage?.nativeFlowResponseMessage?.paramsJson;
+        const paramsJson =
+          messageData.message?.interactiveResponseMessage
+            ?.nativeFlowResponseMessage?.paramsJson;
         if (paramsJson) {
           const parsed = JSON.parse(paramsJson);
           interactiveId = parsed.id;
@@ -89,7 +94,8 @@ export class UazapiController {
         messageData.message?.extendedTextMessage?.text ||
         messageData.message?.buttonsResponseMessage?.selectedButtonId ||
         messageData.message?.templateButtonReplyMessage?.selectedId ||
-        messageData.message?.listResponseMessage?.singleSelectReply?.selectedRowId ||
+        messageData.message?.listResponseMessage?.singleSelectReply
+          ?.selectedRowId ||
         ''
       )
         .toString()
@@ -161,8 +167,10 @@ export class UazapiController {
         buffer.timer = setTimeout(() => this.flushBuffer(chatId), 3000);
       } else {
         // Feedback imediato na primeira mensagem recebida
-        this.uazapiService.markRead(chatId).catch(e => this.logger.warn(e));
-        this.uazapiService.sendPresence(chatId, 'composing').catch(e => this.logger.warn(e));
+        this.uazapiService.markRead(chatId).catch((e) => this.logger.warn(e));
+        this.uazapiService
+          .sendPresence(chatId, 'composing')
+          .catch((e) => this.logger.warn(e));
 
         this.messageBuffers.set(chatId, {
           messages: [messageContent],
@@ -187,11 +195,16 @@ export class UazapiController {
     this.messageBuffers.delete(chatId);
 
     const combinedMessage = buffer.messages.join('\n');
-    
+
     // Processa em background com lock por chatId para garantir que
     // mensagens do mesmo usuário sejam processadas em ordem.
     void this.enqueueForUser(chatId, () =>
-      this.processMessageInBackground(chatId, combinedMessage, buffer.pushName, buffer.phoneNumber),
+      this.processMessageInBackground(
+        chatId,
+        combinedMessage,
+        buffer.pushName,
+        buffer.phoneNumber,
+      ),
     );
   }
 
@@ -200,9 +213,16 @@ export class UazapiController {
    * Cada usuário tem sua própria fila: a próxima tarefa só inicia quando a anterior termina.
    * Usuários diferentes não se bloqueiam entre si.
    */
-  private enqueueForUser(chatId: string, task: () => Promise<void>): Promise<void> {
+  private enqueueForUser(
+    chatId: string,
+    task: () => Promise<void>,
+  ): Promise<void> {
     const previous = this.userLocks.get(chatId) ?? Promise.resolve();
-    const next = previous.then(() => task()).catch(() => {/* erros tratados dentro de task */});
+    const next = previous
+      .then(() => task())
+      .catch(() => {
+        /* erros tratados dentro de task */
+      });
     this.userLocks.set(chatId, next);
 
     // Limpa o lock quando a tarefa terminar para não vazar memória em usuários inativos.
@@ -450,8 +470,12 @@ export class UazapiController {
       const refMatch = messageContent.match(/\[ref:([a-zA-Z0-9_-]+)\]/i);
       if (refMatch) {
         affiliateCode = refMatch[1];
-        this.logger.log(`Affiliate code detected: ${affiliateCode} from ${chatId}`);
-        cleanMessage = messageContent.replace(/\[ref:[a-zA-Z0-9_-]+\]/gi, '').trim();
+        this.logger.log(
+          `Affiliate code detected: ${affiliateCode} from ${chatId}`,
+        );
+        cleanMessage = messageContent
+          .replace(/\[ref:[a-zA-Z0-9_-]+\]/gi, '')
+          .trim();
       }
 
       // Se a mensagem ficar vazia após remover a ref, colocar algo padrão
@@ -462,7 +486,7 @@ export class UazapiController {
         cleanMessage,
         pushName,
         phoneNumber,
-        affiliateCode
+        affiliateCode,
       );
 
       if (!responseText) return;
@@ -472,7 +496,7 @@ export class UazapiController {
         !Array.isArray(responseText) &&
         responseText.type === 'interactive'
       ) {
-        const interactive = responseText as any;
+        const interactive = responseText;
         const buttons = Array.isArray(interactive.buttons)
           ? interactive.buttons
           : [];
@@ -489,7 +513,11 @@ export class UazapiController {
         );
       } else if (Array.isArray(responseText)) {
         for (const msg of responseText) {
-          if (typeof msg === 'object' && msg !== null && msg.type === 'interactive') {
+          if (
+            typeof msg === 'object' &&
+            msg !== null &&
+            msg.type === 'interactive'
+          ) {
             await this.uazapiService.sendInteractiveMessage(
               chatId,
               msg.text,
@@ -502,7 +530,10 @@ export class UazapiController {
               },
             );
           } else {
-            await this.uazapiService.sendMessage(chatId, typeof msg === 'string' ? msg : String(msg));
+            await this.uazapiService.sendMessage(
+              chatId,
+              typeof msg === 'string' ? msg : String(msg),
+            );
           }
         }
       } else {
@@ -518,12 +549,11 @@ export class UazapiController {
     } catch (error: any) {
       const errMsg = `Erro ao processar mensagem recebida de ${chatId}: ${error?.message}`;
       this.logger.error(errMsg);
-      await this.systemLogsService.logError(
-        'UazapiWebhook',
-        errMsg,
-        error,
-        { chatId, pushName, messagePreview: messageContent.substring(0, 100) },
-      );
+      await this.systemLogsService.logError('UazapiWebhook', errMsg, error, {
+        chatId,
+        pushName,
+        messagePreview: messageContent.substring(0, 100),
+      });
     }
   }
 

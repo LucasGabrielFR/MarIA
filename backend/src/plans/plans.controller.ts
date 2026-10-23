@@ -13,7 +13,10 @@ export class PlansController {
 
   // Admin endpoint
   @Put(':id')
-  async updatePlan(@Param('id') id: string, @Body() updates: Partial<PlanConfig>) {
+  async updatePlan(
+    @Param('id') id: string,
+    @Body() updates: Partial<PlanConfig>,
+  ) {
     return this.plansService.updatePlan(id, updates);
   }
 }
