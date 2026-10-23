@@ -5,6 +5,58 @@ import { SupabaseService } from '../supabase/supabase.service';
 export class AuthService {
   constructor(private supabaseService: SupabaseService) {}
 
+  async refresh(refreshToken: string) {
+    if (!refreshToken) {
+      throw new UnauthorizedException('Sessão administrativa inválida.');
+    }
+
+    // Isolate auth state so refreshing cannot replace the service-role token
+    // used by the shared database client.
+    const authClient = this.supabaseService.createIsolatedClient();
+    const { data, error } = await authClient.auth.refreshSession({
+      refresh_token: refreshToken,
+    });
+
+    if (error || !data.user || !data.session) {
+      throw new UnauthorizedException('Sessão administrativa inválida.');
+    }
+
+    const supabase = this.supabaseService.getClient();
+    const { data: admin, error: adminError } = await supabase
+      .from('admins')
+      .select('id, name, role, email, requires_password_change')
+      .eq('id', data.user.id)
+      .single();
+
+    if (adminError || !admin) {
+      throw new UnauthorizedException(
+        'Você não possui acesso de administrador.',
+      );
+    }
+
+    let userRole = String(admin.role);
+    if (userRole === 'admin') {
+      const { data: affiliate } = await supabase
+        .from('affiliates')
+        .select('id')
+        .eq('admin_id', data.user.id)
+        .single();
+
+      if (affiliate) userRole = 'affiliate';
+    }
+
+    return {
+      user: {
+        id: data.user.id,
+        email: data.user.email,
+        name: String(admin.name),
+        role: userRole,
+        requires_password_change: Boolean(admin.requires_password_change),
+      },
+      session: data.session,
+    };
+  }
+
   async login(email: string, pass: string) {
     const supabase = this.supabaseService.getClient();
 

@@ -5,6 +5,61 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.51.4] - 2026-10-23
+
+### Fixed
+
+- Renovação automática da sessão administrativa na Central Mobile quando o access token expira; falhas de renovação limpam a sessão e encaminham ao login.
+- Aplicada ao projeto Supabase MarIA a migração de destaques, instalações push e campanhas, com RLS habilitado.
+
+### Validation
+
+- Migração registrada no Supabase; reconstrução Docker e verificação de inicialização dos serviços após a alteração.
+
+## [1.51.3] - 2026-10-23
+
+### Fixed
+
+- Igualada a altura visual dos badges App Store e Google Play em desktop/mobile, compensando no CSS a margem transparente do PNG oficial sem deformar ou editar as marcas.
+
+## [1.51.2] - 2026-10-23
+
+### Added
+
+- Badges oficiais App Store e Google Play, com indicação “Em breve” e configuração centralizada de links em `landing/src/app/store-links.ts`. Sem URL, o selo não é um controle clicável; a publicação pode ser ativada separadamente por loja.
+- FAQ ampliado para 13 perguntas, abrangendo aplicativo, conta, lembretes, internet, WhatsApp, assinatura e cuidados com a IA.
+
+### Fixed
+
+- Substituídas as três ilustrações conceituais de Liturgia, Terço e Novenas por detalhes das capturas originais, sem inventar interface ou indicadores de progresso. Mantidos o estilo editorial aprovado, as molduras, a profundidade e a seleção manual dos recursos.
+
+### Validation
+
+- ESLint direcionado e TypeScript sem emissão passaram; build Next.js em Docker concluído e serviço recriado. Nginx válido e HTTP 200 nas três superfícies e nos novos assets.
+- Navegador validado em 320, 390, 768, 1024 e 1440 px, sem overflow ou imagens quebradas; seleção das três práticas, FAQ, lojas sem links fictícios, menu, planos, foco do modal e movimento reduzido passaram. Capturas desktop/mobile inspecionadas; checkout interceptado sem cobrança real.
+- Auditoria de dependências de produção apontou 6 vulnerabilidades preexistentes (1 moderada, 4 altas e 1 crítica, incluindo Next.js). Nenhuma dependência foi alterada neste patch; atualização de segurança permanece pendente.
+
+## [1.51.1] - 2026-10-23
+
+### Changed
+
+- Redesenhada a apresentação visual completa da Landing: abertura editorial, cena arquitetônica sacra, tipografia Cormorant Garamond + Plus Jakarta Sans, planos, FAQ e rodapé coerentes com a marca.
+- Substituída a galeria de prints por composições HTML/CSS de conversa, rotina espiritual e entrega agendada, com conteúdo baseado nas capturas fornecidas. Incluída vitrine interativa de Liturgia, Terço e Novenas, com animação discreta e suporte a movimento reduzido.
+- Registrados os vínculos entre referências Motion Sites e decisões visuais, junto do prompt da arte gerada em WebP, em `docs/business/DIRECAO_VISUAL_LANDING.md`.
+- Mantidos o conteúdo institucional, preços dinâmicos, promoções e checkout; atualizada a captura de foco do modal para acompanhar seus controles após mudanças de estado.
+- Excluídos `node_modules` e `.next` locais do contexto Docker da Landing, preservando a instalação Linux de dependências do estágio de build.
+
+### Fixed
+
+- Eliminados o vazamento da apresentação inicial e a legenda de captura solta. As composições ficam contidas nas próprias cenas e se adaptam à largura disponível.
+- Corrigido o espaçamento do destaque de horário no mobile para manter visível a última prática do Plano de Vida.
+
+### Validation
+
+- ESLint dos arquivos alterados e build Next.js em Docker passaram; serviço recriado e quatro containers ativos, com Nginx válido e HTTP 200 para Landing, Admin, Mobile e nova arte.
+- Verificação de navegador aprovada em 320, 390, 768, 1024 e 1440 px: sem rolagem horizontal, arte contida, imagens carregadas, menu mobile, FAQ, ciclos dos planos, vitrine de oração e foco do modal. Fluxo de checkout testado com requisição interceptada, sem cobrança real.
+- Capturas de desktop/mobile inspecionadas visualmente; entradas por rolagem e troca de composição verificadas com movimento normal e reduzido. `git diff --check` passou.
+
 ## [1.51.0] - 2026-10-23
 
 ### Changed

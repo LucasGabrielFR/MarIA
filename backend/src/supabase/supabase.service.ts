@@ -5,6 +5,8 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 @Injectable()
 export class SupabaseService {
   private supabase: SupabaseClient;
+  private supabaseUrl: string;
+  private supabaseKey: string;
 
   constructor(private configService: ConfigService) {
     const supabaseUrl = this.configService.get<string>('SUPABASE_URL');
@@ -18,6 +20,9 @@ export class SupabaseService {
         'SUPABASE_URL and SUPABASE_KEY (or SUPABASE_SERVICE_ROLE_KEY) are required in .env',
       );
     }
+
+    this.supabaseUrl = supabaseUrl;
+    this.supabaseKey = supabaseKey;
 
     if (!global.WebSocket) {
       global.WebSocket = require('ws');
@@ -33,5 +38,14 @@ export class SupabaseService {
 
   getClient(): SupabaseClient {
     return this.supabase;
+  }
+
+  createIsolatedClient() {
+    return createClient(this.supabaseUrl, this.supabaseKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
   }
 }

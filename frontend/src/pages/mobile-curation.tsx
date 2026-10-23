@@ -6,6 +6,29 @@ import { API_URL } from '../lib/api'
 
 type Highlight = { id: string; title: string; subtitle: string; target_path: string; sort_order: number; is_active: boolean }
 type Campaign = { id: string; title: string; body: string; status: string; scheduled_at: string; sent_at: string | null; recipient_count: number; failure_count: number }
+type StoredSession = { access_token?: string; refresh_token?: string }
+type RefreshedSession = { user: Record<string, unknown>; session: StoredSession }
+
+let refreshInFlight: Promise<RefreshedSession> | null = null
+
+function refreshAdminSession(refreshToken: string) {
+  if (!refreshInFlight) {
+    refreshInFlight = fetch(`${API_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    }).then(async response => {
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.message || 'Sua sessão expirou. Entre novamente.')
+      return data as RefreshedSession
+    }).finally(() => { refreshInFlight = null })
+  }
+  return refreshInFlight
+}
+
+function readStoredValue<T>(key: string): T {
+  try { return JSON.parse(localStorage.getItem(key) || '{}') as T } catch { return {} as T }
+}
 
 const destinations = [
   { value: '/mobile/', label: 'Santuário / início' },
@@ -25,27 +48,36 @@ export default function MobileCurationPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
-  const adminId = (() => {
-    try { return JSON.parse(localStorage.getItem('maria_user') || '{}').id || '' } catch { return '' }
-  })()
-  const accessToken = (() => {
-    try { return JSON.parse(localStorage.getItem('maria_session') || '{}').access_token || '' } catch { return '' }
-  })()
-
   const request = useCallback(async (path: string, init: RequestInit = {}) => {
-    const response = await fetch(`${API_URL}${path}`, {
+    const send = (token: string, adminId: string) => fetch(`${API_URL}${path}`, {
       ...init,
-      headers: {
-        'Content-Type': 'application/json',
-        'x-admin-id': adminId,
-        Authorization: `Bearer ${accessToken}`,
-        ...init.headers,
-      },
+      headers: { 'Content-Type': 'application/json', 'x-admin-id': adminId, Authorization: `Bearer ${token}`, ...init.headers },
     })
+    let session = readStoredValue<StoredSession>('maria_session')
+    let user = readStoredValue<{ id?: string }>('maria_user')
+    let response = await send(session.access_token || '', user.id || '')
+
+    if (response.status === 401 && session.refresh_token) {
+      try {
+        const refreshed = await refreshAdminSession(session.refresh_token)
+        session = refreshed.session
+        user = refreshed.user as { id?: string }
+        localStorage.setItem('maria_session', JSON.stringify(session))
+        localStorage.setItem('maria_user', JSON.stringify(user))
+        response = await send(session.access_token || '', user.id || '')
+      } catch (error) {
+        localStorage.removeItem('maria_session')
+        localStorage.removeItem('maria_user')
+        toast.error(error instanceof Error ? error.message : 'Sua sessão expirou. Entre novamente.')
+        window.location.assign('/admin/')
+        throw error
+      }
+    }
+
     const data = await response.json()
     if (!response.ok) throw new Error(data.message || 'Não foi possível concluir a operação.')
     return data
-  }, [adminId, accessToken])
+  }, [])
 
   const refresh = useCallback(async () => {
     try {

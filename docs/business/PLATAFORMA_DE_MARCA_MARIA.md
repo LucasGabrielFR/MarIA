@@ -254,3 +254,13 @@ Este documento organiza a descrição institucional e as diretrizes de comunica�
 - Capturas reais fornecidas pelo responsável mostram o chat mobile, Plano de Vida, Liturgia, Terço e lembrete WhatsApp. Na apresentação pública, não exibir alegação ampla de sigilo/segurança nem controles no WhatsApp incompatíveis com o posicionamento; a captura correspondente recebe uma faixa visual neutra cobrindo somente o trecho problemático.
 - Demonstrar poucos recursos por vez, em telas legíveis no celular, com texto alternativo descritivo, navegação por teclado, foco visível, contraste e respeito a `prefers-reduced-motion`.
 - Recursos da Landing devem continuar distinguindo uma ilustração de uma captura real e não fazer alegações de doutrina infalível, privacidade absoluta ou disponibilidade de recursos sem validação.
+
+## 15. Revisão visual após avaliação do responsável (2026-10-23)
+
+O responsável rejeitou a primeira apresentação de imagens: a galeria parecia composta por prints anexados e o destaque inicial tinha vazamento e legenda fora da composição. A orientação vigente é manter o conteúdo institucional e apresentar as funcionalidades como cenas de produto atraentes.
+
+- Substituir a exibição literal dos prints por composições HTML/CSS, preservando a informação e o comportamento real representados: conversa de acolhimento, práticas e horários do Plano de Vida, conteúdos de oração e entrega agendada no WhatsApp.
+- Não reutilizar a montagem com faixas de mascaramento ou a legenda “captura real”. Os originais permanecem como referência; a apresentação pública passa a ser uma ilustração de recursos, sem implicar que os controles decorativos são operacionais.
+- Aplicar referências de escala editorial e ritmo de Prisma Creative Studio, apresentação de produto de Digital Experiences, clareza de Modern Agency e composição de funcionalidades de Glow Features. A execução da MarIA é própria e sacra; o detalhamento está em `docs/business/DIRECAO_VISUAL_LANDING.md`.
+- Usar Cormorant Garamond para a linguagem editorial da Landing e Plus Jakarta Sans para interface/leitura. A tipografia Cinzel do aplicativo continua sendo referência do próprio app; esta mudança não altera o tema mobile.
+- Abertura, recursos, planos, FAQ e rodapé devem compartilhar a nova linguagem. O desenho é verificado por capturas de navegador em mobile e desktop, além das verificações técnicas de build e HTTP.

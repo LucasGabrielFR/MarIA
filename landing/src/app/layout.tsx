@@ -1,11 +1,22 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import {
+  Plus_Jakarta_Sans,
+  Cormorant_Garamond,
+  Geist_Mono,
+} from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 
-const geistSans = Geist({
+const geistSans = Plus_Jakarta_Sans({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+});
+
+const editorial = Cormorant_Garamond({
+  variable: "--font-editorial",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  style: ["normal", "italic"],
 });
 
 const geistMono = Geist_Mono({
@@ -15,7 +26,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "MarIA — Uma companhia de fé para o seu dia a dia",
-  description: "Conheça a MarIA, assistente católica digital inspirada no acolhimento mariano. Organize sua rotina espiritual no aplicativo e receba no WhatsApp as mensagens que agendar.",
+  description:
+    "Conheça a MarIA, assistente católica digital inspirada no acolhimento mariano. Organize sua rotina espiritual no aplicativo e receba no WhatsApp as mensagens que agendar.",
   icons: {
     icon: "/maria_logo_premium.png",
   },
@@ -29,7 +41,7 @@ export default function RootLayout({
   return (
     <html
       lang="pt-BR"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${editorial.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         {children}
