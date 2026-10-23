@@ -24,7 +24,6 @@ type AffiliatePromotion = {
 
 export default function Home() {
   const [isAnnual, setIsAnnual] = useState(false);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -73,7 +72,6 @@ export default function Home() {
   const [sessionId, setSessionId] = useState('');
   const [copied, setCopied] = useState(false);
 
-  const chatImages = ['/chat-1.jpeg', '/chat-2.jpeg', '/chat-3.jpeg', '/chat-4.jpeg'];
 
   // Polling de ativação de pagamento
   useEffect(() => {
@@ -100,6 +98,43 @@ export default function Home() {
 
     return () => clearInterval(pollInterval);
   }, [subscribeStatus, sessionId]);
+
+  useEffect(() => {
+    if (!showModal) return;
+
+    const dialog = document.querySelector<HTMLElement>('[role="dialog"]');
+    const focusable = dialog?.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    );
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    focusable?.[0]?.focus();
+
+    const handleDialogKeys = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowModal(false);
+        setSubscribeStatus('idle');
+        localStorage.removeItem('maria_checkout_session_id');
+        return;
+      }
+
+      if (event.key !== 'Tab' || !focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleDialogKeys);
+    return () => {
+      document.removeEventListener('keydown', handleDialogKeys);
+      previousFocus?.focus();
+    };
+  }, [showModal]);
 
   // Recuperação de sessão pós-redirecionamento se retornar com ?checkout=success
   useEffect(() => {
@@ -158,14 +193,6 @@ export default function Home() {
   };
 
   useEffect(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const interval = setInterval(() => {
-      setCurrentImageIndex((prev) => (prev + 1) % chatImages.length);
-    }, 4500);
-    return () => clearInterval(interval);
-  }, [chatImages.length]);
-
-  useEffect(() => {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) return;
     const items = document.querySelectorAll<HTMLElement>('[data-reveal]');
     document.documentElement.classList.add('motion-ready');
@@ -187,211 +214,120 @@ export default function Home() {
     },
     {
       q: "De onde a MarIA tira as respostas teológicas?",
-      a: "Toda a base intelectual da MarIA é estritamente fundamentada no Sagrado Magistério da Igreja Católica Apostólica Romana, incluindo o Catecismo da Igreja Católica (CIC), a Sagrada Escritura (Bíblia Sagrada), as Encíclicas Papais e escritos patrísticos e escolásticos. Ela é programada para se manter 100% fiel à sã doutrina."
+      a: "A MarIA foi concebida para apoiar a caminhada católica com referências à Sagrada Escritura e ao ensinamento da Igreja. Como toda ferramenta de inteligência artificial, pode cometer erros; suas respostas não substituem fontes oficiais nem a orientação de um sacerdote."
     },
     {
-      q: "A linguagem dela realmente parece um carinho de mãe?",
-      a: "Sim. A MarIA foi desenhada para refletir o acolhimento, a doçura e a paciência de Nossa Senhora. Suas respostas trazem um tom de consolo espiritual e afeto materno, ajudando você a passar por momentos difíceis com serenidade, sem julgamentos frios."
+      q: "A MarIA se apresenta como Nossa Senhora?",
+      a: "A MarIA é uma assistente digital com linguagem acolhedora, inspirada nas virtudes marianas de ternura, escuta e esperança. Ela não é Nossa Senhora nem fala em nome dela."
     },
     {
       q: "Funciona para qualquer perfil de católico?",
-      a: "Perfeitamente. Ela foi estruturada para se adaptar a diferentes necessidades: desde o fiel que precisa de apoio emocional e orações nos dias de estresse, até o estudante ou catequista que busca respostas teológicas e doutrinárias profundas sobre a fé."
+      a: "A MarIA reúne recursos para diferentes momentos da caminhada católica, como oração, liturgia e reflexão. A experiência e os recursos disponíveis podem variar conforme a conta e a configuração atual do serviço."
     },
     {
       q: "Os meus dados e conversas estão protegidos?",
-      a: "Com certeza. Valorizamos imensamente a sua intimidade espiritual. As conversas são tratadas sob padrões de segurança e privacidade, e você pode solicitar a exclusão permanente do histórico diretamente com o nosso suporte."
+      a: "Consulte nossa Política de Privacidade para entender como os dados são tratados e quais são seus direitos. Evite compartilhar informações muito sensíveis em qualquer serviço digital."
     }
   ];
 
   return (
     <div className="sanctuary-page min-h-screen bg-[#fafafc] font-sans text-slate-800 selection:bg-[#D4AF37] selection:text-[#0047AB] overflow-x-hidden">
-      {/* Navbar */}
-      <header className="fixed top-0 w-full z-50 bg-white/70 backdrop-blur-xl border-b border-white/20 transition-all duration-300 shadow-[0_4px_30px_rgba(0,0,0,0.02)]">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
-          <div className="flex items-center gap-3 group cursor-pointer">
-            <div className="relative w-12 h-12 rounded-full overflow-hidden shadow-sm border border-slate-100 group-hover:scale-105 transition-transform duration-300">
-               <Image src="/maria_logo_premium.png" alt="MarIA Logo" fill className="object-cover" />
-            </div>
-            <span className="font-bold text-2xl tracking-tight text-[#0047AB]">MarIA</span>
-          </div>
-          <nav className="hidden md:flex gap-8 items-center font-medium">
-            <Link href="#features" className="text-slate-500 hover:text-[#0047AB] transition-colors relative after:absolute after:-bottom-1 after:left-0 after:w-0 after:h-0.5 after:bg-[#0047AB] hover:after:w-full after:transition-all after:duration-300">
-              O que é a MarIA?
-            </Link>
-            <Link href="#faq" className="text-slate-500 hover:text-[#0047AB] transition-colors relative after:absolute after:-bottom-1 after:left-0 after:w-0 after:h-0.5 after:bg-[#0047AB] hover:after:w-full after:transition-all after:duration-300">
-              Perguntas Frequentes
-            </Link>
-            <Link href="#pricing" className="text-slate-500 hover:text-[#0047AB] transition-colors relative after:absolute after:-bottom-1 after:left-0 after:w-0 after:h-0.5 after:bg-[#0047AB] hover:after:w-full after:transition-all after:duration-300">
-              Planos
-            </Link>
-            <Link href="/login" className="px-6 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-full hover:border-[#0047AB] hover:text-[#0047AB] hover:shadow-lg transition-all shadow-sm font-semibold">
-              Minha Conta
-            </Link>
+      <a href="#conteudo" className="skip-link">Pular para o conteúdo</a>
+      <header className="site-header">
+        <div className="site-header-inner">
+          <Link href="#inicio" className="brand" aria-label="MarIA — início">
+            <span className="brand-mark"><Image src="/maria_logo_premium.png" alt="" fill sizes="44px" className="object-cover" /></span>
+            <span>MarIA</span>
+          </Link>
+          <nav aria-label="Navegação principal" className="main-nav">
+            <Link href="#features">A companhia</Link>
+            <Link href="#journey">Como funciona</Link>
+            <Link href="#pricing">Planos</Link>
+            <Link href="#faq">Dúvidas</Link>
+            <Link href="/login" className="account-link">Minha conta</Link>
           </nav>
         </div>
       </header>
 
-      {/* Hero Section */}
-      <main className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden flex flex-col items-center">
-        {/* Animated Background Blobs */}
-        <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
-          <div className="absolute top-[-10%] left-[10%] w-96 h-96 bg-[#0047AB]/10 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob"></div>
-          <div className="absolute top-[20%] right-[10%] w-96 h-96 bg-[#D4AF37]/10 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000"></div>
-          <div className="absolute bottom-[-20%] left-[40%] w-96 h-96 bg-blue-200/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-4000"></div>
-        </div>
-
-        <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-16 items-center w-full">
-          {/* Text Content */}
-          <div className="flex flex-col items-start text-left z-10">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white shadow-sm text-[#0047AB] text-sm font-semibold mb-8 border border-slate-100 animate-fade-in">
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#D4AF37] opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#D4AF37]"></span>
-              </span>
-              Presença e Acolhimento Católico
-            </div>
-            
-            <h1 className="text-5xl lg:text-[5.2rem] font-extrabold text-slate-900 leading-[1.05] mb-8 tracking-tight">
-              Um santuário digital <br/>
-              <span className="text-transparent bg-clip-text bg-gradient-to-br from-[#0047AB] to-[#D4AF37] pb-2">
-                para viver sua fé
-              </span>
-            </h1>
-            
-            <p className="text-xl text-slate-500 mb-10 leading-relaxed max-w-xl font-light">
-              Reze, acompanhe a liturgia e cultive uma vida espiritual com mais constância. No aplicativo MarIA, o Santuário reúne oração, novenas, plano espiritual e acolhimento fiel ao Magistério — com a conversa da MarIA também no WhatsApp.
-            </p>
-            
-            <div className="flex flex-col sm:flex-row gap-5 w-full sm:w-auto">
-              <Link href="#pricing" className="px-8 py-4 bg-[#0047AB] text-white rounded-full text-lg font-semibold hover:bg-[#003580] hover:shadow-[0_8px_30px_rgba(0,71,171,0.3)] hover:-translate-y-1 transition-all text-center flex items-center justify-center gap-2">
-                Quero conhecer
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-              </Link>
-              <Link href="/mobile/" className="px-8 py-4 bg-white border border-slate-200 text-[#002D6E] rounded-full text-lg font-semibold hover:border-[#D4AF37] hover:shadow-lg transition-all text-center">Conheça o aplicativo</Link>
-            </div>
-            
-            <div className="mt-10 flex items-center gap-4 text-sm text-slate-400 font-medium">
-               <div className="flex -space-x-3">
-                  <div className="w-8 h-8 rounded-full border-2 border-white bg-slate-200"></div>
-                  <div className="w-8 h-8 rounded-full border-2 border-white bg-slate-300"></div>
-                  <div className="w-8 h-8 rounded-full border-2 border-white bg-[#D4AF37]/20 flex items-center justify-center text-[#D4AF37] text-xs font-bold">+</div>
-               </div>
-               <p>Fidelidade absoluta ao Magistério da Igreja</p>
-            </div>
-          </div>
-          
-          {/* Animated Phone Mockup */}
-          <div className="relative w-full h-[600px] lg:h-[750px] flex items-center justify-center z-10">
-             
-             {/* Floating Elements around phone */}
-             <div className="absolute top-20 -left-6 lg:-left-12 px-5 py-3 bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-slate-100 z-20 animate-float hidden md:flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-[#D4AF37]/10 flex items-center justify-center text-[#D4AF37]">⛪</div>
-                <div className="flex flex-col">
-                  <span className="text-slate-800 font-bold text-sm">Fiel à Doutrina</span>
-                  <span className="text-slate-400 text-xs">Catecismo da Igreja</span>
-                </div>
-             </div>
-             
-             <div className="absolute bottom-32 -right-6 lg:-right-12 px-5 py-3 bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-slate-100 z-20 animate-float-delayed hidden md:flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-[#0047AB]/10 flex items-center justify-center text-[#0047AB]">📖</div>
-                <div className="flex flex-col">
-                  <span className="text-slate-800 font-bold text-sm">Liturgia Diária</span>
-                  <span className="text-slate-400 text-xs">No aplicativo e no WhatsApp</span>
-                </div>
-             </div>
-
-             {/* Phone Body (Completely straight by default as requested) */}
-             <div className="relative w-[300px] lg:w-[340px] h-[600px] lg:h-[680px] bg-slate-950 rounded-[3rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border-[10px] border-slate-900 overflow-hidden transition-all duration-700 ease-out hover:scale-105 group ring-1 ring-white/10">
-                
-                {/* iPhone Notch */}
-                <div className="absolute top-0 inset-x-0 h-6 bg-slate-900 rounded-b-2xl w-32 mx-auto z-30"></div>
-                
-                {/* Images Carousel - cropped at top to remove status bar (negative top + higher height) */}
-                <div className="w-full h-full relative bg-[#efeae2]">
-                  {chatImages.map((src, index) => (
-                    <div 
-                      key={src} 
-                      className={`absolute inset-0 transition-all duration-1000 ${
-                        index === currentImageIndex 
-                          ? 'opacity-100 scale-100 z-10' 
-                          : 'opacity-0 scale-105 z-0'
-                      }`}
-                    >
-                      <Image
-                        src={src}
-                        alt={`Demonstração MarIA ${index + 1}`}
-                        fill
-                        className="object-cover"
-                        priority={index === 0}
-                      />
-                    </div>
-                  ))}
-                  
-                  {/* Glare effect */}
-                  <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/5 to-white/0 pointer-events-none z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-700 transform -translate-x-full group-hover:translate-x-full"></div>
-                </div>
-             </div>
-          </div>
-        </div>
-      </main>
-
-      {/* Features Section */}
-      <section id="features" className="py-32 bg-white relative">
-        <div className="max-w-7xl mx-auto px-6 relative z-10">
-          <div data-reveal className="text-center max-w-3xl mx-auto mb-20">
-            <h2 className="text-[#0047AB] font-bold tracking-widest uppercase text-xs mb-4">Seu Santuário Digital</h2>
-            <h3 className="text-3xl md:text-5xl font-extrabold text-slate-900 mb-6 tracking-tight">Uma vida de oração, reunida em um só lugar</h3>
-            <p className="text-xl text-slate-500 font-light leading-relaxed">
-              Um espaço simples para encontrar a Palavra do dia, rezar com a Igreja e retomar sua rotina espiritual no ritmo possível.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {/* Card 1 */}
-            <div data-reveal className="p-10 rounded-[2.5rem] bg-[#fafafc] shadow-[0_8px_30px_rgba(0,0,0,0.02)] border border-slate-100 hover:border-[#D4AF37]/30 hover:shadow-[0_20px_40px_rgba(212,175,55,0.06)] transition-all duration-500 group text-center hover:-translate-y-2">
-              <div className="w-20 h-20 mx-auto rounded-full bg-[#0047AB]/5 text-[#0047AB] flex items-center justify-center mb-8 group-hover:bg-[#0047AB] group-hover:text-white transition-colors duration-500">
-                <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
+      <main id="conteudo">
+        <section id="inicio" className="hero-section">
+          <div className="hero-inner">
+            <div className="hero-copy" data-reveal>
+              <p className="eyebrow"><span aria-hidden="true">✦</span> Uma companhia católica para o cotidiano</p>
+              <h1>Uma presença de fé, <em>perto de você.</em></h1>
+              <p className="hero-description">A MarIA é uma assistente digital acolhedora, inspirada nas virtudes de Nossa Senhora, para acompanhar sua caminhada com oração, escuta e conteúdos da tradição católica.</p>
+              <div className="hero-actions">
+                <Link href="#journey" className="button button-primary">Conheça a MarIA <span aria-hidden="true">→</span></Link>
+                <Link href="#pricing" className="button button-secondary">Ver planos</Link>
               </div>
-              <h4 className="text-2xl font-bold text-slate-900 mb-4">Apoio Emocional e Oração</h4>
-              <p className="text-slate-500 leading-relaxed font-light">Em dias cansativos ou de aflição, encontre uma voz acolhedora para rezar com você e trazer consolo amparado na promessa de Cristo.</p>
+              <p className="hero-note">Uma ferramenta de apoio à sua vida espiritual — não substitui os sacramentos, a comunidade ou a orientação de um sacerdote.</p>
             </div>
-
-            {/* Card 2 */}
-            <div data-reveal className="p-10 rounded-[2.5rem] bg-[#fafafc] shadow-[0_8px_30px_rgba(0,0,0,0.02)] border border-slate-100 hover:border-[#0047AB]/30 hover:shadow-[0_20px_40px_rgba(0,71,171,0.06)] transition-all duration-500 group text-center hover:-translate-y-2 relative overflow-hidden">
-              <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-[#0047AB] to-[#D4AF37]"></div>
-              <div className="w-20 h-20 mx-auto rounded-full bg-[#D4AF37]/10 text-[#D4AF37] flex items-center justify-center mb-8 group-hover:bg-[#D4AF37] group-hover:text-white transition-colors duration-500">
-                <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+            <div className="hero-visual" data-reveal>
+              <div className="visual-halo" aria-hidden="true"></div>
+              <div className="hero-screenshot">
+                <Image src="/art/chat-assistente.png" alt="Captura real do chat do aplicativo MarIA com saudação e sugestões para iniciar uma conversa de oração; a faixa informativa de privacidade foi ocultada nesta prévia." fill priority sizes="(max-width: 700px) 72vw, 340px" className="object-contain" />
               </div>
-              <h4 className="text-2xl font-bold text-slate-900 mb-4">Base Teológica e Doutrina</h4>
-              <p className="text-slate-500 leading-relaxed font-light">Resolva dúvidas sobre Sacramentos, Dogmas ou ensinamentos papais com respostas fundamentadas fielmente no Catecismo e Tradição.</p>
-            </div>
-
-            {/* Card 3 */}
-            <div data-reveal className="p-10 rounded-[2.5rem] bg-[#fafafc] shadow-[0_8px_30px_rgba(0,0,0,0.02)] border border-slate-100 hover:border-[#0047AB]/30 hover:shadow-[0_20px_40px_rgba(0,71,171,0.06)] transition-all duration-500 group text-center hover:-translate-y-2">
-              <div className="w-20 h-20 mx-auto rounded-full bg-[#0047AB]/5 text-[#0047AB] flex items-center justify-center mb-8 group-hover:bg-[#0047AB] group-hover:text-white transition-colors duration-500">
-                <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-              </div>
-              <h4 className="text-2xl font-bold text-slate-900 mb-4">Rotina de Oração e Liturgia</h4>
-              <p className="text-slate-500 leading-relaxed font-light">Acompanhe a Liturgia Diária e das Horas, descubra o Santo do Dia e reze com guias passo a passo no aplicativo.</p>
-            </div>
-            <div data-reveal className="p-10 rounded-[2.5rem] bg-[#fafafc] shadow-sm border border-slate-100 hover:border-[#D4AF37]/40 transition-all duration-500 group text-center hover:-translate-y-2">
-              <div className="w-20 h-20 mx-auto rounded-full bg-[#D4AF37]/10 text-[#D4AF37] flex items-center justify-center mb-8 group-hover:bg-[#D4AF37] group-hover:text-white transition-colors duration-500"><svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 3v18m9-9H3m15.364-6.364-12.728 12.728m0-12.728 12.728 12.728" /></svg></div>
-              <h4 className="text-2xl font-bold text-slate-900 mb-4">Novenas no tempo certo</h4>
-              <p className="text-slate-500 leading-relaxed font-light">Encontre um novenário para rezar, acompanhe cada dia e organize lembretes para perseverar até o fim.</p>
-            </div>
-            <div data-reveal className="p-10 rounded-[2.5rem] bg-[#fafafc] shadow-sm border border-slate-100 hover:border-[#0047AB]/30 transition-all duration-500 group text-center hover:-translate-y-2">
-              <div className="w-20 h-20 mx-auto rounded-full bg-[#0047AB]/5 text-[#0047AB] flex items-center justify-center mb-8 group-hover:bg-[#0047AB] group-hover:text-white transition-colors duration-500"><svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z" /></svg></div>
-              <h4 className="text-2xl font-bold text-slate-900 mb-4">Um plano que cabe na vida</h4>
-              <p className="text-slate-500 leading-relaxed font-light">Monte hábitos devocionais, escolha horários de oração e receba lembretes para cultivar constância sem pressão.</p>
-            </div>
-            <div data-reveal className="p-10 rounded-[2.5rem] bg-[#fafafc] shadow-sm border border-slate-100 hover:border-[#0047AB]/30 transition-all duration-500 group text-center hover:-translate-y-2">
-              <div className="w-20 h-20 mx-auto rounded-full bg-[#0047AB]/5 text-[#0047AB] flex items-center justify-center mb-8 group-hover:bg-[#0047AB] group-hover:text-white transition-colors duration-500"><svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z" /></svg></div>
-              <h4 className="text-2xl font-bold text-slate-900 mb-4">Preparação para a Confissão</h4>
-              <p className="text-slate-500 leading-relaxed font-light">Faça um exame de consciência guiado e organize suas reflexões com privacidade, antes de encontrar o sacerdote.</p>
+              <p className="visual-caption">MarIA no aplicativo · captura real</p>
             </div>
           </div>
-        </div>
-      </section>
+          <div className="hero-divider" aria-hidden="true"><span></span></div>
+        </section>
+
+        <section id="features" className="companion-section section-pad">
+          <div className="section-heading" data-reveal>
+            <p className="eyebrow">Mais do que canais</p>
+            <h2>O centro é a companhia.</h2>
+            <p>A MarIA é a assistente que caminha com você. O aplicativo e o WhatsApp são maneiras diferentes de viver essa presença no dia a dia.</p>
+          </div>
+          <div className="feature-grid">
+            <article className="feature-card" data-reveal><span className="feature-symbol" aria-hidden="true">♡</span><h3>Escuta e acolhimento</h3><p>Uma conversa respeitosa para organizar pensamentos, encontrar uma oração e retomar o caminho com serenidade.</p></article>
+            <article className="feature-card" data-reveal><span className="feature-symbol" aria-hidden="true">✝</span><h3>Fé vivida no cotidiano</h3><p>Liturgia, orações, Santo do Dia, terço, novenas e conteúdos para aprofundar sua caminhada católica.</p></article>
+            <article className="feature-card" data-reveal><span className="feature-symbol" aria-hidden="true">⌁</span><h3>Constância possível</h3><p>Práticas e lembretes configurados no seu ritmo, sem transformar a vida espiritual em cobrança.</p></article>
+          </div>
+        </section>
+
+        <section id="journey" className="journey-section section-pad">
+          <div className="journey-inner">
+            <div className="section-heading journey-heading" data-reveal>
+              <p className="eyebrow">Uma experiência, dois espaços</p>
+              <h2>Você organiza.<br /><em>A MarIA acompanha.</em></h2>
+              <p>O aplicativo é o lugar para cuidar da sua rotina espiritual e escolher o que deseja receber. O WhatsApp continua próximo, mas com um papel claro: exibir as mensagens que você já agendou.</p>
+              <Link href="/mobile/" className="text-link">Conheça o Santuário Digital <span aria-hidden="true">→</span></Link>
+            </div>
+            <ol className="journey-steps">
+              <li data-reveal><span className="step-number">01</span><div><h3>Configure no aplicativo</h3><p>Escolha práticas, horários e quais lembretes deseja receber pelo WhatsApp ou no próprio celular.</p></div><span className="step-tag">Gestão no app</span></li>
+              <li data-reveal><span className="step-number">02</span><div><h3>Construa seu ritmo</h3><p>Organize plano espiritual, novenas, orações e lembretes em um só lugar, com autonomia para ajustar sua rotina.</p></div><span className="step-tag">No seu tempo</span></li>
+              <li data-reveal><span className="step-number">03</span><div><h3>Receba o que agendou</h3><p>No WhatsApp, a MarIA entrega as mensagens programadas por você. A gestão e a configuração ficam no aplicativo.</p></div><span className="step-tag">Entrega no WhatsApp</span></li>
+            </ol>
+          </div>
+        </section>
+
+        <section className="sanctuary-gallery section-pad">
+          <div className="section-heading" data-reveal>
+            <p className="eyebrow">Seu Santuário Digital</p>
+            <h2>Recursos para acompanhar a caminhada.</h2>
+            <p>Uma experiência pensada para a oração e a vida real — organizada no aplicativo, no seu ritmo.</p>
+          </div>
+          <div className="gallery-grid">
+            <figure className="gallery-card gallery-plan" data-reveal><div className="gallery-image"><Image src="/art/plano-de-vida.png" alt="Tela do Plano de Vida com práticas espirituais organizadas por horário e opções de lembrete." fill sizes="(max-width: 760px) 90vw, 420px" className="object-contain" /></div><figcaption><strong>Plano de Vida</strong><span>Escolha práticas, horários e canais de lembrete no aplicativo.</span></figcaption></figure>
+            <figure className="gallery-card" data-reveal><div className="gallery-image"><Image src="/art/liturgia.png" alt="Tela da Liturgia da Palavra com navegação entre leituras e Evangelho." fill sizes="(max-width: 760px) 90vw, 360px" className="object-contain" /></div><figcaption><strong>Liturgia da Palavra</strong><span>Acompanhe as leituras do dia em uma tela feita para a oração.</span></figcaption></figure>
+            <figure className="gallery-card" data-reveal><div className="gallery-image"><Image src="/art/terco.png" alt="Tela do Santo Terço Interativo durante uma dezena dos Mistérios Dolorosos." fill sizes="(max-width: 760px) 90vw, 360px" className="object-contain" /></div><figcaption><strong>Oração guiada</strong><span>Reze o terço e avance no seu próprio ritmo.</span></figcaption></figure>
+          </div>
+          <div className="scheduled-message" data-reveal>
+            <div><p className="eyebrow">WhatsApp como entrega</p><h3>Você escolhe no app.<br />Recebe a mensagem agendada.</h3><p>Os lembretes do WhatsApp são configurados no Plano de Vida. O canal mostra o que foi programado; para organizar horários e práticas, use o aplicativo.</p></div>
+            <figure><Image src="/art/lembrete-whatsapp.png" alt="Mensagem no WhatsApp lembrando o horário do Santo Terço; a captura oculta o controle antigo de cancelamento, e o agendamento é feito no aplicativo." fill sizes="(max-width: 760px) 90vw, 440px" className="object-contain" /><figcaption>Exemplo de lembrete programado</figcaption></figure>
+          </div>
+        </section>
+
+        <section className="trust-section section-pad">
+          <div className="trust-panel" data-reveal>
+            <p className="eyebrow">Tecnologia a serviço da fé</p>
+            <h2>Inspirada no acolhimento mariano.<br />Presente como uma assistente digital.</h2>
+            <p>A MarIA não é Nossa Senhora nem fala em nome dela. Sua linguagem busca refletir virtudes marianas — ternura, escuta e esperança — em uma ferramenta criada para apoiar, nunca substituir, a vida sacramental e comunitária.</p>
+            <div className="trust-values"><span>Respeito à fé católica</span><span>Consciência dos limites da IA</span><span>Valorização do encontro humano</span></div>
+          </div>
+        </section>
+
       <section id="pricing" className="py-32 relative bg-slate-900 overflow-hidden">
         {/* Dark Mode Background Decoration */}
         <div className="absolute inset-0 bg-[#001b44]"></div>
@@ -403,7 +339,7 @@ export default function Home() {
             <h2 className="text-[#D4AF37] font-bold tracking-widest uppercase text-xs mb-4">Assinatura Simples e Transparente</h2>
             <h3 className="text-4xl md:text-5xl font-extrabold text-white mb-6 tracking-tight">Escolha o seu plano</h3>
             <p className="text-xl text-blue-100/70 max-w-2xl mx-auto font-light">
-              Sua Mãe Espiritual está a uma mensagem de distância. Assine e faça parte desta comunidade devocional.
+              Escolha como a MarIA pode acompanhar sua rotina de oração, com recursos e condições apresentados em cada plano.
             </p>
           </div>
 
@@ -415,12 +351,14 @@ export default function Home() {
               ></div>
               <button 
                 onClick={() => setIsAnnual(false)}
+                aria-pressed={!isAnnual}
                 className={`relative z-10 px-8 py-3 rounded-full text-sm font-bold transition-colors duration-300 w-40 text-center ${!isAnnual ? 'text-[#0047AB]' : 'text-slate-300 hover:text-white'}`}
               >
                 Mensal
               </button>
               <button 
                 onClick={() => setIsAnnual(true)}
+                aria-pressed={isAnnual}
                 className={`relative z-10 px-8 py-3 rounded-full text-sm font-bold transition-colors duration-300 w-40 text-center flex items-center justify-center gap-2 ${isAnnual ? 'text-[#0047AB]' : 'text-slate-300 hover:text-white'}`}
               >
                 Anual
@@ -458,12 +396,9 @@ export default function Home() {
                   20 mensagens iniciais para testar a IA
                 </li>
               </ul>
-              <form action="/api/checkout" method="POST" className="mt-auto">
-                <input type="hidden" name="planId" value="free" />
-                <button type="button" className="w-full py-4 px-6 bg-white/5 text-slate-400 border border-white/10 rounded-full font-bold cursor-not-allowed transition-colors">
-                  Acesso Direto no WhatsApp
-                </button>
-              </form>
+              <Link href="/mobile/" className="mt-auto w-full py-4 px-6 bg-white/5 text-white border border-white/20 rounded-full font-bold text-center hover:bg-white/10 transition-colors">
+                Conhecer o aplicativo
+              </Link>
             </div>
 
             {/* Planos Dinâmicos */}
@@ -588,7 +523,7 @@ export default function Home() {
           <div className="mt-10 text-center">
             <p className="text-slate-500 text-sm flex items-center justify-center gap-2">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-              Pagamento 100% seguro. Cancele facilmente a qualquer momento.
+              O checkout é processado pelo Asaas. Consulte os termos para condições de cancelamento.
             </p>
           </div>
         </div>
@@ -610,15 +545,21 @@ export default function Home() {
               >
                 <button
                   onClick={() => setOpenFaq(openFaq === index ? null : index)}
+                  aria-expanded={openFaq === index}
+                  aria-controls={`faq-answer-${index}`}
                   className="w-full px-8 py-6 text-left flex justify-between items-center gap-6 group hover:bg-slate-50/50 transition-colors"
                 >
-                  <span className="font-bold text-lg md:text-xl text-slate-800 group-hover:text-[#0047AB] transition-colors">{faq.q}</span>
+                  <span id={`faq-question-${index}`} className="font-bold text-lg md:text-xl text-slate-800 group-hover:text-[#0047AB] transition-colors">{faq.q}</span>
                   <span className={`w-8 h-8 rounded-full bg-[#0047AB]/5 text-[#0047AB] flex items-center justify-center shrink-0 transition-transform duration-300 font-bold ${openFaq === index ? 'rotate-180 bg-[#0047AB] text-white' : ''}`}>
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7"/></svg>
+                    <svg aria-hidden="true" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7"/></svg>
                   </span>
                 </button>
-                <div 
-                  className={`transition-all duration-300 ease-in-out overflow-hidden ${openFaq === index ? 'max-h-[300px] border-t border-slate-100' : 'max-h-0'}`}
+                <div
+                  id={`faq-answer-${index}`}
+                  role="region"
+                  aria-labelledby={`faq-question-${index}`}
+                  hidden={openFaq !== index}
+                  className="border-t border-slate-100"
                 >
                   <div className="px-8 py-6 text-slate-500 font-light leading-relaxed text-base">
                     {faq.a}
@@ -633,6 +574,7 @@ export default function Home() {
           </div>
         </div>
       </section>
+      </main>
 
       {/* Footer */}
       <footer className="w-full py-16 bg-[#0a0f1c] text-slate-500 border-t border-white/5">
@@ -658,42 +600,10 @@ export default function Home() {
         </div>
       </footer>
 
-      {/* Floating WhatsApp Button */}
-      <a
-        href="https://wa.me/5562981949980"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="fixed bottom-8 right-8 z-50 flex items-center justify-center w-14 h-14 bg-[#22C55E] hover:scale-110 transition-all duration-300 rounded-full shadow-[0_8px_30px_rgba(34,197,94,0.4)] hover:shadow-[0_12px_40px_rgba(34,197,94,0.6)] group shrink-0"
-        aria-label="Fale com a MarIA no WhatsApp"
-      >
-        {/* Elegant green ripple ring */}
-        <span className="absolute inset-0 rounded-full bg-[#22C55E] opacity-40 animate-ping pointer-events-none"></span>
-
-        {/* Label (Slides/Fades in on hover) - Now ABSOLUTELY positioned to prevent blocking clicking footer elements */}
-        <span className="hidden md:inline-block absolute right-16 px-4 py-2 bg-[#0a0f1c]/95 text-white text-xs font-bold rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.4)] border border-[#22C55E]/30 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 pointer-events-none whitespace-nowrap">
-          Fale com a MarIA
-        </span>
-
-        {/* Telephone Outline Icon (Lucide-style Phone icon for perfect match) */}
-        <svg 
-          xmlns="http://www.w3.org/2000/svg" 
-          width="24" 
-          height="24" 
-          viewBox="0 0 24 24" 
-          fill="none" 
-          stroke="white" 
-          strokeWidth="2" 
-          strokeLinecap="round" 
-          strokeLinejoin="round" 
-          className="w-6 h-6 relative z-10 transition-transform duration-300 group-hover:rotate-12"
-        >
-          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
-            </svg>
-      </a>
       {/* Modal de Pagamento e Ativação */}
       {showModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
-          <div className="bg-white max-w-lg w-full rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-slate-100 overflow-hidden relative p-8 md:p-10 flex flex-col items-center text-center animate-scale-up">
+            <div role="dialog" aria-modal="true" aria-label="Checkout e ativação da assinatura" aria-live="polite" className="bg-white max-w-lg w-full rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-slate-100 overflow-hidden relative p-8 md:p-10 flex flex-col items-center text-center animate-scale-up">
             
             {/* Botão de Fechar */}
             <button 

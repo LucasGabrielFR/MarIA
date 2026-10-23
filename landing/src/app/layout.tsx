@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MarIA - Sua Mãe Espiritual e Conselheira Católica",
-  description: "MarIA é uma inteligência artificial católica com base teológica no Magistério da Igreja e aconselhamento espiritual guiado pelas virtudes de Nossa Senhora.",
+  title: "MarIA — Uma companhia de fé para o seu dia a dia",
+  description: "Conheça a MarIA, assistente católica digital inspirada no acolhimento mariano. Organize sua rotina espiritual no aplicativo e receba no WhatsApp as mensagens que agendar.",
   icons: {
     icon: "/maria_logo_premium.png",
   },
@@ -28,7 +28,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="pt-BR"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">

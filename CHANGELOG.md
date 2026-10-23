@@ -5,12 +5,57 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.51.0] - 2026-10-23
+
+### Changed
+
+- Reformulada a Landing com foco na MarIA como assistente católica digital inspirada nas virtudes marianas; aplicativo e WhatsApp são apresentados como canais complementares, com a gestão dos lembretes no app e o WhatsApp destinado à entrega agendada.
+- Incluídas capturas reais do app e do WhatsApp em seções responsivas, com legendas e textos alternativos; faixas que afirmavam sigilo amplo ou sugeriam gestão de lembretes no WhatsApp foram cobertas para não sustentar alegações incompatíveis com o posicionamento atual.
+- Atualizados metadados em português brasileiro, navegação mobile, foco visível, link para pular ao conteúdo, FAQ com estado acessível e animações que respeitam movimento reduzido.
+- Preservados os planos dinâmicos, descontos de afiliado e fluxo de checkout/ativação; removido o CTA flutuante que convidava a iniciar conversa pelo WhatsApp como canal principal.
+
+### Validation
+
+- Build de produção Next.js e ESLint direcionado a `src/app/page.tsx` e `src/app/layout.tsx` passaram; lint global ainda acusa erros em rotas não alteradas.
+- `docker compose up --build -d` concluiu, containers estão ativos, `nginx -t` passou e `/`, `/admin/` e `/mobile/` responderam HTTP 200 pelo gateway `8081`.
+- `git diff --check` passou. A página servida inclui o novo título, narrativa dos canais e assets reais selecionados.
+
+## [1.50.4] - 2026-10-23
+
+### Changed
+
+- Ampliada a plataforma de marca com a direção visual da MarIA: paleta e funções das cores, tipografia, uso do logotipo, imagens, composição, animações, acessibilidade e critérios para avaliar o redesign da Landing.
+
+## [1.50.3] - 2026-10-23
+
+### Added
+
+- Criada a plataforma de marca da MarIA com descrição institucional do ecossistema WhatsApp, aplicativo, Admin e Landing, voz da marca, limites de confiança e texto-base para a futura reformulação da página.
+- Documentadas distinções entre recursos existentes e dependências de ativação para evitar promessas imprecisas na comunicação pública.
+
+## [1.50.2] - 2026-10-23
+
+### Changed
+
+- Incluída a configuração Firebase iOS do Flutter com plist no target, opções do app e FID habilitado; o fluxo de opt-in aguarda APNs antes de registrar FID.
+- Documentadas as dependências ainda necessárias de Apple Developer, capabilities e APNs; App Store Connect não é pré-requisito para a preparação técnica.
+
+### Validation
+
+- Bundle ID, projeto, sender ID e App ID foram conferidos entre o plist e as opções do app. Build iOS requer macOS/Xcode e permanece pendente.
+- `flutter analyze --no-pub` sem issues, 94 testes Flutter aprovados, APK Android de regressão compilado; Docker reconstruído, containers ativos e rotas principais responderam HTTP 200.
+
 ## [1.50.1] - 2026-10-23
 
 ### Changed
 
 - Concluída a configuração do Firebase Cloud Messaging para o app Android: plugin Google Services, arquivo de configuração por package e opções Flutter Android.
 - Documentado o build Android com configuração Firebase; iOS, Web e credencial de envio do backend permanecem configurações separadas.
+
+### Validation
+
+- Build APK Android debug concluído com `--dart-define-from-file=firebase_options.json`; análise Flutter sem issues e 94 testes passaram.
+- `docker compose up --build -d` concluiu; containers ativos, `nginx -t` passou e `/`, `/admin/`, `/mobile/` responderam HTTP 200.
 
 ## [1.49.6] - 2026-10-23
 

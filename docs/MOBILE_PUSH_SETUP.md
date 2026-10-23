@@ -4,15 +4,15 @@ O aplicativo usa FCM para campanhas remotas; lembretes pessoais continuam sendo 
 
 ## 1. Firebase
 
-O projeto Firebase Android está registrado como `maria-f8965`, com package `com.acutistech.maria_app`. O arquivo `mobile/android/app/google-services.json` e o plugin Gradle Google Services estão configurados. O Manifest também habilita o Firebase Installation ID usado pelo registro de campanhas. Se recriar o app no Firebase, substitua o JSON pelo arquivo do mesmo package.
+O projeto Firebase (`maria-f8965`) tem apps Android (`com.acutistech.maria_app`) e iOS (`com.acutistech.mariaApp`) registrados. Android usa `mobile/android/app/google-services.json` e plugin Google Services em Kotlin DSL; o Manifest habilita FID. iOS usa `mobile/ios/Runner/GoogleService-Info.plist`, incluído nos recursos do target Runner, e opções Flutter no arquivo compartilhado `mobile/firebase_options.json`; o `Info.plist` habilita FID. A inicialização Firebase é feita pelo Flutter (`Firebase.initializeApp(options: ...)`), portanto não substitua o `AppDelegate` Flutter pelo exemplo SwiftUI do Console. Se recriar algum app Firebase, atualize o arquivo correspondente ao bundle/package id exato.
 
-Habilite Firebase Cloud Messaging e cadastre iOS e Web Apps quando esses destinos forem configurados.
+Habilite Firebase Cloud Messaging no projeto. O registro iOS no Firebase já foi feito, mas o envio iOS permanece pendente de configuração Apple/APNs.
 
 - Android: configure o app Firebase e verifique as credenciais de FCM no projeto.
-- iOS: habilite Push Notifications e Background Modes → Remote notifications no Xcode; carregue uma chave APNs válida em Firebase Console → Project Settings → Cloud Messaging.
+- iOS: em conta Apple Developer, associe o App ID explícito `com.acutistech.mariaApp` e ative Push Notifications; no Xcode, habilite as capabilities Push Notifications e Background Modes → Remote notifications. Gere uma APNs Authentication Key (`.p8`) e carregue-a em Firebase Console → Project Settings → Cloud Messaging com Key ID e Team ID. Depois teste em dispositivo Apple físico. Um registro de distribuição na App Store Connect não é requisito para registrar Firebase nem para preparar APNs; uma conta Apple Developer e provisionamento são necessários para push em dispositivo.
 - Web: gere uma chave pública Web Push (VAPID). O navegador exige HTTPS para push, exceto em `localhost`.
 
-As opções públicas de cliente Android (`FIREBASE_API_KEY`, `FIREBASE_ANDROID_APP_ID`, `FIREBASE_PROJECT_ID`, `FIREBASE_MESSAGING_SENDER_ID` e `FIREBASE_STORAGE_BUCKET`) já estão preenchidas em `mobile/firebase_options.json`. Elas são incorporadas ao app compilado. Web ainda requer cadastro de Web App, VAPID e configuração de `mobile/web/push/firebase-messaging-sw.js`, que tem escopo isolado `/mobile/push/`. iOS também requer registro do app e configuração de APNs. Não coloque credenciais de service account neste arquivo. O cliente registra o FID (Firebase Installation ID), e o Admin SDK endereça as campanhas por FID.
+As opções públicas de cliente Android e iOS (`FIREBASE_API_KEY`, IDs de app, `FIREBASE_PROJECT_ID`, `FIREBASE_MESSAGING_SENDER_ID` e `FIREBASE_STORAGE_BUCKET`) estão preenchidas em `mobile/firebase_options.json`. Elas são incorporadas ao app compilado. Web ainda requer cadastro de Web App, VAPID e configuração de `mobile/web/push/firebase-messaging-sw.js`, que tem escopo isolado `/mobile/push/`. Não coloque credenciais de service account neste arquivo. O cliente registra o FID (Firebase Installation ID), e o Admin SDK endereça as campanhas por FID.
 
 O build padrão (`npm run build:mobile:web`) lê esse JSON. Para Android/iOS, use a mesma opção `--dart-define-from-file=firebase_options.json` na compilação Flutter.
 
