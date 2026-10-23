@@ -102,10 +102,10 @@ export default function DashboardPage() {
               <p className="text-sm text-slate-500 mt-1">Cadastros mais recentes primeiro</p>
             </div>
             <button 
-              onClick={() => navigate('/wa-users')}
+              onClick={() => navigate('/mobile-curation')}
               className="text-primary text-sm font-bold hover:underline bg-blue-50 px-4 py-2 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             >
-              Ver todas
+              Curadoria mobile
             </button>
           </div>
           <div className="overflow-hidden rounded-xl border border-slate-50">
@@ -122,8 +122,8 @@ export default function DashboardPage() {
                 {recentUsers.map((user: any) => (
                   <TableRow role="button" tabIndex={0}
                     key={user.id}
-                    onClick={() => navigate('/wa-users', { state: { userId: user.id } })}
-                    onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); navigate('/wa-users', { state: { userId: user.id } }); } }}
+                    onClick={() => navigate('/users', { state: { userId: user.id } })}
+                    onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); navigate('/users', { state: { userId: user.id } }); } }}
                     className="border-slate-50 hover:bg-slate-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary transition-all duration-200 cursor-pointer group"
                   >
                     <TableCell className="font-bold flex items-center gap-3 py-4">

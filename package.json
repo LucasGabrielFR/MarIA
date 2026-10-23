@@ -7,7 +7,7 @@
     "dev:backend": "cd backend && npm run start:dev",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install && cd ../landing && npm install",
-    "build:mobile:web": "cd mobile && flutter build web --base-href /mobile/ --release",
+    "build:mobile:web": "cd mobile && flutter build web --base-href /mobile/ --release --dart-define-from-file=firebase_options.json",
     "build:all": "cd backend && npm run build && cd ../frontend && npm run build && cd ../landing && npm run build && npm run build:mobile:web",
     "deploy": "bash scripts/deploy.sh"
   },

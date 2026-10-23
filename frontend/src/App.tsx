@@ -17,6 +17,7 @@ import AffiliatesPage from './pages/affiliates'
 import AffiliateDashboardPage from './pages/affiliate-dashboard'
 import AffiliateLogin from './pages/affiliate-login'
 import ScheduledMessagesPage from './pages/scheduled-messages'
+import MobileCurationPage from './pages/mobile-curation'
 import { Toaster } from "@/components/ui/sonner"
 
 function App() {
@@ -34,6 +35,7 @@ function App() {
         <Route path="/wa-users" element={<WaUsersPage />} />
         <Route path="/broadcasts" element={<BroadcastsPage />} />
         <Route path="/scheduled-messages" element={<ScheduledMessagesPage />} />
+        <Route path="/mobile-curation" element={<MobileCurationPage />} />
         <Route path="/finance" element={<FinancePage />} />
         
         {/* Fallback routes - to be implemented as needed */}

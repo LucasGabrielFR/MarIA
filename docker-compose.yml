@@ -40,8 +40,6 @@ services:
   landing:
     build:
       context: ./landing
-    ports:
-      - "3003:3000"
     environment:
       - PORT=3000
       - NEXT_PUBLIC_API_URL=http://backend:3000

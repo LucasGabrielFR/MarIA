@@ -63,6 +63,12 @@
 
 O painel administrativo possui as abas Total, Mobile e Chat/WhatsApp. A visão Total mantém os indicadores gerais, conversas recentes, saúde do sistema e análises de IA; Mobile inclui somente perfis `origin = mobile`, com DAU/MAU, sessões, permanência por tela, telas mais acessadas, versões e erros. Chat/WhatsApp inclui somente perfis `origin = wpp`. O app envia somente eventos técnicos autenticados (`session_*`, `screen_*` e `app_error`), sem conteúdo de conversas, orações ou dados sensíveis. Antes de publicar, aplique a migration [`docs/migrations/20261023000000_create_mobile_analytics.sql`](docs/migrations/20261023000000_create_mobile_analytics.sql) no Supabase. Cada novo perfil criado pelo fluxo mobile também notifica `lucasgabriel@acutistech.com.br`; o destino pode ser alterado por `NEW_USER_NOTIFICATION_EMAIL`.
 
+### Curadoria e comunicação Mobile
+
+A rota `/admin/mobile-curation` reúne destaques da Home do Santuário e campanhas devocionais por push remoto (envio imediato ou agendado; não há mural). O aplicativo obtém os destaques em `/api/mobile/highlights` e registra opt-in remoto em `/api/mobile/push/register`, vinculado à sessão Supabase validada pelo backend. Para configurar Firebase, VAPID/APNs, service account e o destino Web, siga [`docs/MOBILE_PUSH_SETUP.md`](docs/MOBILE_PUSH_SETUP.md) e aplique `backend/docs/migrations/20261023010000_mobile_curation_and_push.sql` manualmente no Supabase antes de usar a Curadoria. O push remoto é complementar aos lembretes locais existentes.
+
+O build do Flutter Web lê as opções públicas de Firebase de `mobile/firebase_options.json`. Esse arquivo contém valores vazios por padrão, portanto o push permanece desativado até configurar o Firebase. Não armazene service accounts ou chaves privadas junto ao código.
+
 - **Motor Cognitivo & Backend:** NestJS (TypeScript) com arquitetura de **Triagem Híbrida**.
   - **Roteador de Intenções:** Classificação inteligente de mensagens e roteamento para caches ou LLMs.
   - **Injeção de Contexto Teológico:** Integração nativa com **Magisterium AI** e Cache Semântico local.
@@ -109,7 +115,7 @@ Para realizar o deploy em um servidor VPS de forma isolada, limpa e padronizada,
    ```bash
    docker compose up -d --build
    ```
-O Docker irá gerenciar automaticamente as imagens, empacotando os estáticos do Admin e do Mobile Web dentro do Nginx (`frontend`), levantando os serviços nas portas 3002 (Backend), 3003 (Landing), 8081 (Frontend Gateway) e 6379 (Redis).
+O Docker irá gerenciar automaticamente as imagens, empacotando os estáticos do Admin e do Mobile Web dentro do Nginx (`frontend`). A Landing Page (Next.js) permanece em um contêiner próprio, acessível apenas pela rede interna do Compose e publicada pelo gateway em `http://localhost:8081/`; ela não é copiada para a imagem do `frontend`. As portas públicas são 3002 (Backend), 8081 (Gateway) e 6379 (Redis).
 
 ### Execução em Servidor via PM2 (Legado)
 Para ambientes que não possuem Docker, também fornecemos scripts automatizados baseados no `pm2` para gerenciar os processos.

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import styled from 'styled-components';
-import { LayoutDashboard, MessageSquare, Settings, Users, Database, LogOut, Brain, Calendar, CalendarClock, DollarSign, GitFork, Megaphone, ChevronDown, ChevronRight, Send, Wrench, Handshake, Sparkles } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Settings, Users, Database, LogOut, Brain, Calendar, CalendarClock, DollarSign, GitFork, Megaphone, ChevronDown, ChevronRight, Send, Wrench, Handshake, Sparkles, BellRing } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 interface SidebarContainerProps {
@@ -206,6 +206,11 @@ export function Sidebar({ collapsed = false, onToggleCollapse }: SidebarProps) {
               <NavItemLink to="/wa-users" $active={isActive('/wa-users')} $collapsed={collapsed} title="Gestão de Fiéis">
                 <MessageSquare size={20} />
                 <span className={`font-medium ${collapsed ? 'hidden' : 'inline'}`}>Gestão de Fiéis</span>
+              </NavItemLink>
+
+              <NavItemLink to="/mobile-curation" $active={isActive('/mobile-curation')} $collapsed={collapsed} title="Central Mobile · Curadoria">
+                <BellRing size={20} />
+                <span className={`font-medium ${collapsed ? 'hidden' : 'inline'}`}>Central Mobile</span>
               </NavItemLink>
 
               {/* Grupo: Disparos de Mensagens */}

@@ -4,38 +4,42 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
 
+type Plan = {
+  id: string;
+  tier: string;
+  cycle: string;
+  price: number;
+  name: string;
+  messages_limit: number;
+  description?: string;
+  is_active?: boolean;
+};
+
+type AffiliatePromotion = {
+  plan_tier: string;
+  plan_cycle: string;
+  discount_percentage?: number;
+  promotional_price?: number;
+};
+
 export default function Home() {
   const [isAnnual, setIsAnnual] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   
-  const [plans, setPlans] = useState<any[]>([]);
+  const [plans, setPlans] = useState<Plan[]>([]);
 
   useEffect(() => {
     fetch('/api/plans')
       .then((res) => res.json())
-      .then((data) => setPlans(data))
+      .then((data: Plan[]) => setPlans(data))
       .catch((err) => console.error('Erro ao buscar planos:', err));
   }, []);
-
-  const getPrice = (tier: string, cycle: string) => {
-    const plan = plans.find(p => p.tier === tier && p.cycle === cycle);
-    if (!plan) return undefined;
-    
-    const discount = promoDiscounts[`${tier}-${cycle}`];
-    if (discount !== undefined && discount > 0) {
-      const discountAmount = plan.price * (discount / 100);
-      return plan.price - discountAmount;
-    }
-    
-    return plan.price;
-  };
   
   const getDiscount = (tier: string, cycle: string) => {
     return promoDiscounts[`${tier}-${cycle}`];
   };
 
-  const [affiliateCode, setAffiliateCodeState] = useState<string | null>(null);
   const [promoDiscounts, setPromoDiscounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
@@ -44,14 +48,13 @@ export default function Home() {
     const ref = searchParams.get('ref');
 
     if (ref) {
-      setAffiliateCodeState(ref);
       // Buscar promoções desse afiliado
       fetch(`/api/affiliates/code/${ref}/promotions`)
         .then(res => res.json())
-        .then(data => {
+        .then((data: { success: boolean; promotions?: AffiliatePromotion[] }) => {
           if (data.success && data.promotions) {
             const promoMap: Record<string, number> = {};
-            data.promotions.forEach((p: any) => {
+            data.promotions.forEach((p) => {
               promoMap[`${p.plan_tier}-${p.plan_cycle}`] = p.discount_percentage || p.promotional_price || 0;
             });
             setPromoDiscounts(promoMap);
@@ -76,8 +79,6 @@ export default function Home() {
   useEffect(() => {
     if (subscribeStatus !== 'pending' || !sessionId) return;
 
-    let pollInterval: NodeJS.Timeout;
-
     const checkStatus = async () => {
       try {
         const res = await fetch(`/api/payment/asaas/status/${sessionId}`);
@@ -94,8 +95,8 @@ export default function Home() {
       }
     };
 
-    checkStatus();
-    pollInterval = setInterval(checkStatus, 3000);
+    const pollInterval = setInterval(checkStatus, 3000);
+    void checkStatus();
 
     return () => clearInterval(pollInterval);
   }, [subscribeStatus, sessionId]);
@@ -108,15 +109,14 @@ export default function Home() {
     const isCheckoutSuccess = searchParams.get('checkout') === 'success';
     const savedSessionId = localStorage.getItem('maria_checkout_session_id');
 
-    if (isCheckoutSuccess && savedSessionId) {
+    if (!isCheckoutSuccess || !savedSessionId) return;
+    const timeout = window.setTimeout(() => {
       setSessionId(savedSessionId);
       setSubscribeStatus('pending');
       setShowModal(true);
-
-      // Limpa os parâmetros da URL para evitar reabertura automática ao atualizar
-      const newUrl = window.location.pathname;
-      window.history.replaceState({}, document.title, newUrl);
-    }
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }, 0);
+    return () => window.clearTimeout(timeout);
   }, []);
 
   const handleSubscribe = async (planId: string, cycle: string) => {
@@ -130,7 +130,11 @@ export default function Home() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ planId, cycle, affiliateCode }),
+        body: JSON.stringify({
+          planId,
+          cycle,
+          affiliateCode: new URLSearchParams(window.location.search).get('ref'),
+        }),
       });
 
       const data = await response.json();
@@ -146,19 +150,35 @@ export default function Home() {
 
       // Abre a URL do Asaas em uma nova aba
       window.open(data.url, '_blank');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao assinar:', err);
       setSubscribeStatus('error');
-      setErrorMessage(err.message || 'Não foi possível gerar o link de pagamento. Tente novamente.');
+      setErrorMessage(err instanceof Error ? err.message : 'Não foi possível gerar o link de pagamento. Tente novamente.');
     }
   };
 
   useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const interval = setInterval(() => {
       setCurrentImageIndex((prev) => (prev + 1) % chatImages.length);
     }, 4500);
     return () => clearInterval(interval);
   }, [chatImages.length]);
+
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) return;
+    const items = document.querySelectorAll<HTMLElement>('[data-reveal]');
+    document.documentElement.classList.add('motion-ready');
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add('is-visible');
+        observer.unobserve(entry.target);
+      });
+    }, { threshold: 0.12 });
+    items.forEach((item) => observer.observe(item));
+    return () => observer.disconnect();
+  }, []);
 
   const faqs = [
     {
@@ -179,12 +199,12 @@ export default function Home() {
     },
     {
       q: "Os meus dados e conversas estão protegidos?",
-      a: "Com certeza. Valorizamos imensamente a sua intimidade espiritual. Suas conversas no WhatsApp são tratadas sob rígidos padrões de segurança e privacidade. Além disso, você pode solicitar a exclusão permanente de todo o seu histórico a qualquer momento diretamente com o nosso suporte."
+      a: "Com certeza. Valorizamos imensamente a sua intimidade espiritual. As conversas são tratadas sob padrões de segurança e privacidade, e você pode solicitar a exclusão permanente do histórico diretamente com o nosso suporte."
     }
   ];
 
   return (
-    <div className="min-h-screen bg-[#fafafc] font-sans text-slate-800 selection:bg-[#D4AF37] selection:text-[#0047AB] overflow-x-hidden">
+    <div className="sanctuary-page min-h-screen bg-[#fafafc] font-sans text-slate-800 selection:bg-[#D4AF37] selection:text-[#0047AB] overflow-x-hidden">
       {/* Navbar */}
       <header className="fixed top-0 w-full z-50 bg-white/70 backdrop-blur-xl border-b border-white/20 transition-all duration-300 shadow-[0_4px_30px_rgba(0,0,0,0.02)]">
         <div className="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
@@ -232,14 +252,14 @@ export default function Home() {
             </div>
             
             <h1 className="text-5xl lg:text-[5.2rem] font-extrabold text-slate-900 leading-[1.05] mb-8 tracking-tight">
-              O aconchego de Nossa Senhora <br/>
+              Um santuário digital <br/>
               <span className="text-transparent bg-clip-text bg-gradient-to-br from-[#0047AB] to-[#D4AF37] pb-2">
-                no seu WhatsApp
+                para viver sua fé
               </span>
             </h1>
             
             <p className="text-xl text-slate-500 mb-10 leading-relaxed max-w-xl font-light">
-              Sentir-se acolhido, ouvir palavras sábias inspiradas nas escrituras e no Magistério. A MarIA foi desenhada com o amor e a doçura de Nossa Senhora para ser um refúgio de paz no seu dia a dia, auxiliando fiéis de todos os perfis: do suporte emocional ao aprofundamento teológico.
+              Reze, acompanhe a liturgia e cultive uma vida espiritual com mais constância. No aplicativo MarIA, o Santuário reúne oração, novenas, plano espiritual e acolhimento fiel ao Magistério — com a conversa da MarIA também no WhatsApp.
             </p>
             
             <div className="flex flex-col sm:flex-row gap-5 w-full sm:w-auto">
@@ -247,6 +267,7 @@ export default function Home() {
                 Quero conhecer
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
               </Link>
+              <Link href="/mobile/" className="px-8 py-4 bg-white border border-slate-200 text-[#002D6E] rounded-full text-lg font-semibold hover:border-[#D4AF37] hover:shadow-lg transition-all text-center">Conheça o aplicativo</Link>
             </div>
             
             <div className="mt-10 flex items-center gap-4 text-sm text-slate-400 font-medium">
@@ -275,7 +296,7 @@ export default function Home() {
                 <div className="w-8 h-8 rounded-full bg-[#0047AB]/10 flex items-center justify-center text-[#0047AB]">📖</div>
                 <div className="flex flex-col">
                   <span className="text-slate-800 font-bold text-sm">Liturgia Diária</span>
-                  <span className="text-slate-400 text-xs">Tudo no seu WhatsApp</span>
+                  <span className="text-slate-400 text-xs">No aplicativo e no WhatsApp</span>
                 </div>
              </div>
 
@@ -317,17 +338,17 @@ export default function Home() {
       {/* Features Section */}
       <section id="features" className="py-32 bg-white relative">
         <div className="max-w-7xl mx-auto px-6 relative z-10">
-          <div className="text-center max-w-3xl mx-auto mb-20">
-            <h2 className="text-[#0047AB] font-bold tracking-widest uppercase text-xs mb-4">A Sabedoria dos Séculos</h2>
-            <h3 className="text-3xl md:text-5xl font-extrabold text-slate-900 mb-6 tracking-tight">O Magistério a um toque</h3>
+          <div data-reveal className="text-center max-w-3xl mx-auto mb-20">
+            <h2 className="text-[#0047AB] font-bold tracking-widest uppercase text-xs mb-4">Seu Santuário Digital</h2>
+            <h3 className="text-3xl md:text-5xl font-extrabold text-slate-900 mb-6 tracking-tight">Uma vida de oração, reunida em um só lugar</h3>
             <p className="text-xl text-slate-500 font-light leading-relaxed">
-              Desenvolvemos a MarIA sob uma curadoria rigorosa, assegurando que cada resposta teológica, pastoral ou espiritual respeite o Magistério, a Tradição e as Sagradas Escrituras de forma acolhedora.
+              Um espaço simples para encontrar a Palavra do dia, rezar com a Igreja e retomar sua rotina espiritual no ritmo possível.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {/* Card 1 */}
-            <div className="p-10 rounded-[2.5rem] bg-[#fafafc] shadow-[0_8px_30px_rgba(0,0,0,0.02)] border border-slate-100 hover:border-[#D4AF37]/30 hover:shadow-[0_20px_40px_rgba(212,175,55,0.06)] transition-all duration-500 group text-center hover:-translate-y-2">
+            <div data-reveal className="p-10 rounded-[2.5rem] bg-[#fafafc] shadow-[0_8px_30px_rgba(0,0,0,0.02)] border border-slate-100 hover:border-[#D4AF37]/30 hover:shadow-[0_20px_40px_rgba(212,175,55,0.06)] transition-all duration-500 group text-center hover:-translate-y-2">
               <div className="w-20 h-20 mx-auto rounded-full bg-[#0047AB]/5 text-[#0047AB] flex items-center justify-center mb-8 group-hover:bg-[#0047AB] group-hover:text-white transition-colors duration-500">
                 <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
               </div>
@@ -336,7 +357,7 @@ export default function Home() {
             </div>
 
             {/* Card 2 */}
-            <div className="p-10 rounded-[2.5rem] bg-[#fafafc] shadow-[0_8px_30px_rgba(0,0,0,0.02)] border border-slate-100 hover:border-[#0047AB]/30 hover:shadow-[0_20px_40px_rgba(0,71,171,0.06)] transition-all duration-500 group text-center hover:-translate-y-2 relative overflow-hidden">
+            <div data-reveal className="p-10 rounded-[2.5rem] bg-[#fafafc] shadow-[0_8px_30px_rgba(0,0,0,0.02)] border border-slate-100 hover:border-[#0047AB]/30 hover:shadow-[0_20px_40px_rgba(0,71,171,0.06)] transition-all duration-500 group text-center hover:-translate-y-2 relative overflow-hidden">
               <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-[#0047AB] to-[#D4AF37]"></div>
               <div className="w-20 h-20 mx-auto rounded-full bg-[#D4AF37]/10 text-[#D4AF37] flex items-center justify-center mb-8 group-hover:bg-[#D4AF37] group-hover:text-white transition-colors duration-500">
                 <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
@@ -346,12 +367,27 @@ export default function Home() {
             </div>
 
             {/* Card 3 */}
-            <div className="p-10 rounded-[2.5rem] bg-[#fafafc] shadow-[0_8px_30px_rgba(0,0,0,0.02)] border border-slate-100 hover:border-[#0047AB]/30 hover:shadow-[0_20px_40px_rgba(0,71,171,0.06)] transition-all duration-500 group text-center hover:-translate-y-2">
+            <div data-reveal className="p-10 rounded-[2.5rem] bg-[#fafafc] shadow-[0_8px_30px_rgba(0,0,0,0.02)] border border-slate-100 hover:border-[#0047AB]/30 hover:shadow-[0_20px_40px_rgba(0,71,171,0.06)] transition-all duration-500 group text-center hover:-translate-y-2">
               <div className="w-20 h-20 mx-auto rounded-full bg-[#0047AB]/5 text-[#0047AB] flex items-center justify-center mb-8 group-hover:bg-[#0047AB] group-hover:text-white transition-colors duration-500">
                 <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
               </div>
               <h4 className="text-2xl font-bold text-slate-900 mb-4">Rotina de Oração e Liturgia</h4>
-              <p className="text-slate-500 leading-relaxed font-light">Acompanhe a Liturgia do dia, leia sobre a história do Santo do Dia e reze o Santo Terço com o passo a passo direto nas suas mensagens.</p>
+              <p className="text-slate-500 leading-relaxed font-light">Acompanhe a Liturgia Diária e das Horas, descubra o Santo do Dia e reze com guias passo a passo no aplicativo.</p>
+            </div>
+            <div data-reveal className="p-10 rounded-[2.5rem] bg-[#fafafc] shadow-sm border border-slate-100 hover:border-[#D4AF37]/40 transition-all duration-500 group text-center hover:-translate-y-2">
+              <div className="w-20 h-20 mx-auto rounded-full bg-[#D4AF37]/10 text-[#D4AF37] flex items-center justify-center mb-8 group-hover:bg-[#D4AF37] group-hover:text-white transition-colors duration-500"><svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 3v18m9-9H3m15.364-6.364-12.728 12.728m0-12.728 12.728 12.728" /></svg></div>
+              <h4 className="text-2xl font-bold text-slate-900 mb-4">Novenas no tempo certo</h4>
+              <p className="text-slate-500 leading-relaxed font-light">Encontre um novenário para rezar, acompanhe cada dia e organize lembretes para perseverar até o fim.</p>
+            </div>
+            <div data-reveal className="p-10 rounded-[2.5rem] bg-[#fafafc] shadow-sm border border-slate-100 hover:border-[#0047AB]/30 transition-all duration-500 group text-center hover:-translate-y-2">
+              <div className="w-20 h-20 mx-auto rounded-full bg-[#0047AB]/5 text-[#0047AB] flex items-center justify-center mb-8 group-hover:bg-[#0047AB] group-hover:text-white transition-colors duration-500"><svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z" /></svg></div>
+              <h4 className="text-2xl font-bold text-slate-900 mb-4">Um plano que cabe na vida</h4>
+              <p className="text-slate-500 leading-relaxed font-light">Monte hábitos devocionais, escolha horários de oração e receba lembretes para cultivar constância sem pressão.</p>
+            </div>
+            <div data-reveal className="p-10 rounded-[2.5rem] bg-[#fafafc] shadow-sm border border-slate-100 hover:border-[#0047AB]/30 transition-all duration-500 group text-center hover:-translate-y-2">
+              <div className="w-20 h-20 mx-auto rounded-full bg-[#0047AB]/5 text-[#0047AB] flex items-center justify-center mb-8 group-hover:bg-[#0047AB] group-hover:text-white transition-colors duration-500"><svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z" /></svg></div>
+              <h4 className="text-2xl font-bold text-slate-900 mb-4">Preparação para a Confissão</h4>
+              <p className="text-slate-500 leading-relaxed font-light">Faça um exame de consciência guiado e organize suas reflexões com privacidade, antes de encontrar o sacerdote.</p>
             </div>
           </div>
         </div>

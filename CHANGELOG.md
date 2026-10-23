@@ -5,6 +5,53 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/pt-br/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.50.1] - 2026-10-23
+
+### Changed
+
+- Concluída a configuração do Firebase Cloud Messaging para o app Android: plugin Google Services, arquivo de configuração por package e opções Flutter Android.
+- Documentado o build Android com configuração Firebase; iOS, Web e credencial de envio do backend permanecem configurações separadas.
+
+## [1.49.6] - 2026-10-23
+
+### Changed
+
+- A Landing Page deixou de expor a porta pública `3003`. O serviço Next.js continua isolado na rede interna do Docker Compose e é servido exclusivamente pelo gateway Nginx em `http://localhost:8081/`, junto das rotas `/admin` e `/mobile`.
+- Documentada a separação correta das imagens: o `frontend` empacota somente os estáticos do Admin e do Mobile; a Landing continua sendo uma imagem Next.js independente, sem duplicação de seus arquivos no Nginx.
+
+### Validation
+
+- `docker compose up --build -d` concluiu com sucesso e recriou Backend, Frontend e Landing; os quatro serviços ficaram em execução.
+- O gateway respondeu HTTP 200 para `/`, `/admin/` e `/mobile/` em `http://localhost:8081`; `nginx -t` passou e a porta `3003` não está acessível no host.
+- `npm run lint` no `frontend` concluiu sem erros.
+
+## [1.50.0] - 2026-10-23
+
+### Added
+
+- Central Mobile de Curadoria no Admin: destaques ativos na Home e campanhas remotas imediatas/agendadas, com histórico, auditoria e contagens de envio.
+- Cadastro de push FCM com vínculo autenticado ao perfil Supabase, opt-in/opt-out no aplicativo, limpeza de instalações inválidas e navegação ao destino da campanha.
+- Landing reposicionada como Santuário Digital, refletindo Liturgia das Horas, novenas, plano espiritual e preparação para a Confissão, com animações de entrada e respeito à preferência por movimento reduzido.
+- Guia de configuração FCM, VAPID/APNs, service account e migration Supabase em `docs/MOBILE_PUSH_SETUP.md`.
+
+### Changed
+
+- A visão Mobile do dashboard agora aponta para a Curadoria, e o Admin possui uma área própria para operações do aplicativo, separada dos disparos do WhatsApp.
+- O worker web preserva o registro de push do Firebase ao remover apenas o service worker Flutter legado.
+
+### Validation
+
+- `npm run build` e ESLint dos arquivos novos do backend passaram.
+- Suíte backend passou: 2 suites, 19 testes.
+- Flutter passou na análise estática e em 94 testes automatizados.
+- ESLint da nova tela e build de produção do Admin passaram; o build avisa sobre um chunk de JavaScript acima de 500 kB.
+- ESLint da Landing, verificação TypeScript e build Next.js passaram; permanece aviso de múltiplos lockfiles na raiz/workspace.
+- `flutter analyze --no-pub` passou sem issues e `npm run build:mobile:web` gerou o bundle Flutter Web.
+- Auditoria de produção do backend encontrou 7 vulnerabilidades herdadas (1 crítica e 4 altas); atualização automática foi evitada por exigir mudança major no Nodemailer.
+- `docker compose up --build -d` concluiu e os quatro containers ficaram em execução.
+- Smoke tests HTTP retornaram 200 para `/`, `/admin/`, `/mobile/` e `/admin/mobile-curation`; `nginx -t` passou.
+- Push real segue condicionado à configuração de Firebase e à aplicação manual da migration no Supabase.
+
 ## [1.49.2] - 2026-10-23
 
 ### Added
